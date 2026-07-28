@@ -89,6 +89,7 @@ sda 0 disk
 ========== postgresql.auto.conf ==========
 primary_conninfo = 'host=db-standby password=secret port=5432'
 db.password.encrypted=secret-hash
+java -Dwrapper.key=connector-secret -DuseExtendedMasterSecret=false
 """,
         encoding="utf-8",
     )
@@ -106,6 +107,8 @@ db.password.encrypted=secret-hash
     assert "secret" not in rendered
     assert "password=***MASKED***" in rendered
     assert "db.password.encrypted=***MASKED***" in rendered
+    assert "wrapper.key=***MASKED***" in rendered
+    assert "MasterSecret=***MASKED***" in rendered
 
 
 def test_os_sections_parse_node_local_db_config_from_standby(

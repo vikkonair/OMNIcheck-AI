@@ -94,7 +94,11 @@ def _redact_secret_text(value: str) -> str:
             r"(?i)((?:db\.)?password(?:\.[a-z0-9_]+)*\s*=\s*)"
             r"(?:'[^']*'|[^\s']+)"
         ),
-        re.compile(r"(?i)(token\s*=\s*)(?:'[^']*'|[^\s']+)"),
+        re.compile(
+            r"(?i)([a-z0-9_.-]*(?:password|passwd|pwd|secret|token|"
+            r"api[_-]?key|access[_-]?key|private[_-]?key|wrapper\.key)"
+            r"\s*(?:=|:)\s*)(?:'[^']*'|[^\s',;]+)"
+        ),
     )
     redacted = value
     for pattern in patterns:
