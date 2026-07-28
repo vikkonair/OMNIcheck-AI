@@ -17,9 +17,16 @@ python3.12 -m venv .venv
 ```
 
 The command validates the job configuration, inventories every regular file
-under the input directory, calculates SHA-256 hashes, and writes
-`output/inventory.json`. Unknown files remain in the inventory and are also
-reported on stderr.
+under the input directory, calculates SHA-256 hashes, resolves configured node
+identities, and writes:
+
+- `output/inventory.json`
+- `output/topology.json`
+- `output/scope-ledger.json`
+
+Database evidence from Standby and DR nodes is explicitly excluded. Evidence
+whose node or domain cannot be determined is retained as `pending` and reported
+on stderr rather than silently allowed.
 
 ## Docker
 
@@ -32,4 +39,3 @@ docker compose run --rm omni-healthcheck generate \
 
 Mount or replace the `input` and `output` directories configured in
 `compose.yaml`.
-

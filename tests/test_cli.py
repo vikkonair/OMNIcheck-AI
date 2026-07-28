@@ -20,7 +20,11 @@ def test_generate_writes_inventory_and_warns_for_unknown(
     assert result == 0
     inventory = json.loads((output_dir / "inventory.json").read_text(encoding="utf-8"))
     assert inventory["summary"]["total_files"] == 4
+    assert (output_dir / "topology.json").is_file()
+    scope = json.loads(
+        (output_dir / "scope-ledger.json").read_text(encoding="utf-8")
+    )
+    assert scope["summary"]["pending"] == 3
     captured = capsys.readouterr()
     assert "misc/notes.bin" in captured.err
     assert "Wrote" in captured.out
-

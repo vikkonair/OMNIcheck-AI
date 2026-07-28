@@ -8,6 +8,7 @@ from typing import Sequence
 
 from omni_healthcheck.config import JobConfigError, load_job
 from omni_healthcheck.inventory import build_inventory
+from omni_healthcheck.topology import build_scope_ledger, build_topology
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -25,19 +26,34 @@ def create_parser() -> argparse.ArgumentParser:
 def run_generate(job_path: Path, input_dir: Path, output_dir: Path) -> int:
     job = load_job(job_path)
     inventory = build_inventory(input_dir, job)
+    topology = build_topology(job)
+    scope_ledger = build_scope_ledger(input_dir, inventory, job)
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "inventory.json"
-    output_path.write_text(
-        json.dumps(inventory, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    outputs = {
+        "inventory.json": inventory,
+        "topology.json": topology,
+        "scope-ledger.json": scope_ledger,
+    }
+    for filename, content in outputs.items():
+        (output_dir / filename).write_text(
+            json.dumps(content, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
     for unknown_path in inventory["unknown_paths"]:
         print(f"warning: unknown file category: {unknown_path}", file=sys.stderr)
+    for item in scope_ledger["evidence"]:
+        if item["decision"] == "pending":
+            print(
+                f"warning: evidence pending scope confirmation: {item['path']} "
+                f"({item['reason']})",
+                file=sys.stderr,
+            )
     print(
-        f"Wrote {output_path} "
+        f"Wrote {', '.join(str(output_dir / name) for name in outputs)} "
         f"({inventory['summary']['total_files']} files, "
-        f"{inventory['summary']['unknown_files']} unknown)"
+        f"{scope_ledger['summary']['excluded']} excluded, "
+        f"{scope_ledger['summary']['pending']} pending)"
     )
     return 0
 
@@ -53,4 +69,3 @@ def main(argv: Sequence[str] | None = None) -> None:
         print(f"error: {exc}", file=sys.stderr)
         code = 2
     raise SystemExit(code)
-

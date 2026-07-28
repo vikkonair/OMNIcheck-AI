@@ -1,0 +1,27 @@
+customer: 測試客戶
+system_name: multi-node
+period: 2026-H1
+engineer: XXX
+product: PostgreSQL
+first_healthcheck: true
+
+nodes:
+  - hostname: db-primary
+    role: Primary
+  - hostname: db-standby
+    role: Standby
+  - hostname: db-dr
+    role: DR
+
+scope:
+  include_os_from_all_nodes: true
+  database_primary_only: true
+
+report:
+  template: omni-v4
+  output_docx: true
+  output_pdf: true
+
+ai:
+  enabled: false
+  provider: disabled
