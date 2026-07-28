@@ -37,7 +37,7 @@ class NodeResolution:
 
 
 def _contains_hostname(value: str, hostname: str) -> bool:
-    pattern = rf"(?<![a-z0-9_-]){re.escape(hostname.casefold())}(?![a-z0-9_-])"
+    pattern = rf"(?<![a-z0-9]){re.escape(hostname.casefold())}(?![a-z0-9])"
     return re.search(pattern, value.casefold()) is not None
 
 
@@ -56,6 +56,57 @@ def resolve_node(path: Path, relative_path: str, job: JobConfig) -> NodeResoluti
         for node in job.nodes
         if _contains_hostname(relative_path, node.hostname)
     ]
+    if len(path_matches) == 1:
+        node = next(
+            configured
+            for configured in job.nodes
+            if configured.hostname.casefold() == path_matches[0].casefold()
+        )
+        return NodeResolution(
+            hostname=node.hostname,
+            role=node.role,
+            status="resolved",
+            matched_nodes=path_matches,
+            sources=["relative_path"],
+        )
+    if len(path_matches) > 1:
+        return NodeResolution(
+            hostname=None,
+            role=None,
+            status="ambiguous",
+            matched_nodes=path_matches,
+            sources=["relative_path"],
+        )
+
+    service_path_matches = [
+        node.hostname
+        for node in job.nodes
+        for service in node.services
+        if _contains_hostname(relative_path, service)
+    ]
+    service_path_matches = list(dict.fromkeys(service_path_matches))
+    if len(service_path_matches) == 1:
+        node = next(
+            configured
+            for configured in job.nodes
+            if configured.hostname.casefold() == service_path_matches[0].casefold()
+        )
+        return NodeResolution(
+            hostname=node.hostname,
+            role=node.role,
+            status="resolved",
+            matched_nodes=service_path_matches,
+            sources=["service_path"],
+        )
+    if len(service_path_matches) > 1:
+        return NodeResolution(
+            hostname=None,
+            role=None,
+            status="ambiguous",
+            matched_nodes=service_path_matches,
+            sources=["service_path"],
+        )
+
     content = _sample_text(path)
     content_matches = [
         node.hostname
@@ -100,6 +151,16 @@ def resolve_node(path: Path, relative_path: str, job: JobConfig) -> NodeResoluti
 
 
 def classify_evidence_domain(relative_path: str, extension: str) -> str:
+    basename = relative_path.rsplit("/", 1)[-1].casefold()
+    compact_basename = re.sub(r"[^a-z0-9]+", "", basename)
+    basename_tokens = {
+        token for token in re.split(r"[^a-z0-9]+", basename) if token
+    }
+    if "healthcheckos" in compact_basename or "healthchekos" in compact_basename:
+        return "os"
+    if "db" in basename_tokens and "check" in basename_tokens:
+        return "database"
+
     top_level = relative_path.casefold().split("/", 1)[0]
     if top_level in OS_HINTS:
         return "os"

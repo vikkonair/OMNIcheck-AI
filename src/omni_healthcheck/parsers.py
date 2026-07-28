@@ -121,6 +121,64 @@ class OSKeyValueParser:
         return checks
 
 
+class HealthCheckOSLogParser:
+    parser_id = "os.healthcheck_log.v1"
+
+    @staticmethod
+    def _section(text: str, title: str) -> str | None:
+        pattern = re.compile(
+            rf"(?ms)^=+\s*{re.escape(title)}\s*=+\s*$\n(.*?)(?=^=+|\Z)"
+        )
+        match = pattern.search(text)
+        return match.group(1).strip() if match else None
+
+    def parse(self, context: ParserContext) -> list[CheckResult]:
+        if context.scope_item["evidence_domain"] != "os":
+            return []
+        text = context.text
+        extracted = []
+
+        hostname_section = self._section(text, "主機名稱")
+        if hostname_section:
+            configured_hostname = context.scope_item["node"]
+            lines = [line.strip() for line in hostname_section.splitlines() if line.strip()]
+            value = next(
+                (
+                    line
+                    for line in lines
+                    if line.casefold() == configured_hostname.casefold()
+                ),
+                lines[-1] if lines else None,
+            )
+            if value:
+                extracted.append(("hostname", "3.1", "Hostname", value))
+
+        os_section = self._section(text, "OS 版本")
+        if os_section:
+            value = next((line.strip() for line in os_section.splitlines() if line.strip()), None)
+            if value:
+                extracted.append(("os_version", "3.1", "OS Version", value))
+
+        cpu_section = self._section(text, "CPU Core 數")
+        if cpu_section:
+            match = re.search(r"(?m)^\s*(\d+)\s*$", cpu_section)
+            if match:
+                extracted.append(("cpu_count", "3.2", "CPU Count", match.group(1)))
+
+        return [
+            _table_check(
+                context,
+                parser_id=self.parser_id,
+                check_id=check_id,
+                section_id=section_id,
+                product="OS",
+                metric=metric,
+                value=value,
+            )
+            for check_id, section_id, metric, value in extracted
+        ]
+
+
 class DatabaseVersionParser:
     parser_id = "postgresql.version.v1"
     pattern = re.compile(
@@ -135,7 +193,13 @@ class DatabaseVersionParser:
         if not match:
             return []
         detected_product = match.group(1).casefold()
-        product = "PostgreSQL" if detected_product == "postgresql" else "EPAS"
+        product = (
+            "EPAS"
+            if context.job.product == "EPAS"
+            or "enterprisedb" in context.text.casefold()
+            or detected_product != "postgresql"
+            else "PostgreSQL"
+        )
         return [
             _table_check(
                 context,
@@ -151,6 +215,7 @@ class DatabaseVersionParser:
 
 DEFAULT_PARSERS: tuple[EvidenceParser, ...] = (
     OSKeyValueParser(),
+    HealthCheckOSLogParser(),
     DatabaseVersionParser(),
 )
 
