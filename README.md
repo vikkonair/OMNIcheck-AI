@@ -23,6 +23,7 @@ identities, and writes:
 - `output/inventory.json`
 - `output/topology.json`
 - `output/scope-ledger.json`
+- `output/normalized.json`
 
 Database evidence from Standby and DR nodes is explicitly excluded. Evidence
 whose node or domain cannot be determined is retained as `pending` and reported
@@ -36,6 +37,11 @@ excluded from the inspected system's Primary-only database scope.
 In the standard EDB architecture the Witness may host both PEM and EFM, so its
 service list is normally `services: [PEM, EFM]`. EFM may also run as an agent on
 Primary or Standby database nodes.
+
+`normalized.json` uses the checked-in canonical schema version 1.0. M3 includes
+the parser registry plus initial deterministic parsers for OS identity, OS and
+kernel version, CPU count, total memory, total swap, and PostgreSQL/EPAS
+version. Only evidence marked `allowed` by the scope ledger reaches parsers.
 
 ## Docker
 

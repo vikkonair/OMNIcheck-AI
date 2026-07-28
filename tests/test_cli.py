@@ -21,6 +21,14 @@ def test_generate_writes_inventory_and_warns_for_unknown(
     inventory = json.loads((output_dir / "inventory.json").read_text(encoding="utf-8"))
     assert inventory["summary"]["total_files"] == 4
     assert (output_dir / "topology.json").is_file()
+    normalized = json.loads(
+        (output_dir / "normalized.json").read_text(encoding="utf-8")
+    )
+    assert normalized["schema_version"] == "1.0"
+    assert {check["check_id"] for check in normalized["checks"]} == {
+        "hostname",
+        "cpu_count",
+    }
     scope = json.loads(
         (output_dir / "scope-ledger.json").read_text(encoding="utf-8")
     )

@@ -8,6 +8,7 @@ from typing import Sequence
 
 from omni_healthcheck.config import JobConfigError, load_job
 from omni_healthcheck.inventory import build_inventory
+from omni_healthcheck.parsers import normalize_allowed_evidence
 from omni_healthcheck.topology import build_scope_ledger, build_topology
 
 
@@ -28,11 +29,13 @@ def run_generate(job_path: Path, input_dir: Path, output_dir: Path) -> int:
     inventory = build_inventory(input_dir, job)
     topology = build_topology(job)
     scope_ledger = build_scope_ledger(input_dir, inventory, job)
+    normalized = normalize_allowed_evidence(input_dir, inventory, scope_ledger, job)
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "inventory.json": inventory,
         "topology.json": topology,
         "scope-ledger.json": scope_ledger,
+        "normalized.json": normalized.model_dump(mode="json"),
     }
     for filename, content in outputs.items():
         (output_dir / filename).write_text(

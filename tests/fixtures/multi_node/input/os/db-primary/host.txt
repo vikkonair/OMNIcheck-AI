@@ -1,1 +1,6 @@
 hostname: db-primary
+os_version: Rocky Linux 9.4
+kernel_version: 5.14.0-427
+cpu_count: 8
+MemTotal: 32768000 kB
+SwapTotal: 8388608 kB

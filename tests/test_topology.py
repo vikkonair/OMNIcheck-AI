@@ -50,4 +50,4 @@ def test_scope_allows_all_os_and_only_primary_database() -> None:
     assert by_path["db/unresolved.sql"]["decision"] == "pending"
     assert by_path["os/ambiguous.txt"]["resolution_status"] == "ambiguous"
     assert by_path["os/ambiguous.txt"]["decision"] == "pending"
-    assert ledger["summary"] == {"allowed": 6, "excluded": 3, "pending": 2}
+    assert ledger["summary"] == {"allowed": 7, "excluded": 3, "pending": 2}
