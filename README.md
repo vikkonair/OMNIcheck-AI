@@ -25,6 +25,7 @@ identities, and writes:
 - `output/scope-ledger.json`
 - `output/normalized.json`
 - `output/configuration-comparison.json`
+- `output/assessment.json`
 
 Database evidence from Standby and DR nodes is explicitly excluded. Evidence
 whose node or domain cannot be determined is retained as `pending` and reported
@@ -61,6 +62,19 @@ configuration are collected from Primary, Standby, and DR nodes. Witness and
 PEM-backend configuration remains outside the target cluster scope.
 `configuration-comparison.json` records matching, different, and missing
 parameters plus common and node-unique HBA rules without rendering source paths.
+
+M5 adds the versioned deterministic rule engine. Thresholds and policy lists
+live in `config/rules.default.yaml`; Python executes the rules and writes
+`assessment.json`. Every assessment has visible evidence references, a versioned
+rule ID, a deterministic status, an observation ending with an explicit
+`結論：`, and a concise recommendation. AI is not used to select evidence,
+change status, or create findings.
+
+The initial rules cover filesystem usage, TxID age, idle transactions,
+replication state, candidate bloat and index lists, backup errors, role and
+schema privileges, cross-node configuration consistency, and non-local HBA
+`trust`. Provisional thresholds and their report provenance are documented in
+`docs/RULE_PROVENANCE.md`.
 
 See `docs/MILESTONE_VALIDATION.md` for the required validation gate before a
 milestone can be tagged as successful.

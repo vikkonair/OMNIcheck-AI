@@ -10,6 +10,7 @@ from omni_healthcheck.config_compare import build_configuration_comparison
 from omni_healthcheck.config import JobConfigError, load_job
 from omni_healthcheck.inventory import build_inventory
 from omni_healthcheck.parsers import normalize_allowed_evidence
+from omni_healthcheck.rules import RulesConfigError, evaluate_rules, load_rules
 from omni_healthcheck.topology import build_scope_ledger, build_topology
 
 
@@ -22,10 +23,20 @@ def create_parser() -> argparse.ArgumentParser:
     generate.add_argument("--job", required=True, type=Path)
     generate.add_argument("--input", required=True, type=Path)
     generate.add_argument("--output", required=True, type=Path)
+    generate.add_argument(
+        "--rules",
+        type=Path,
+        default=Path("config/rules.default.yaml"),
+    )
     return parser
 
 
-def run_generate(job_path: Path, input_dir: Path, output_dir: Path) -> int:
+def run_generate(
+    job_path: Path,
+    input_dir: Path,
+    output_dir: Path,
+    rules_path: Path = Path("config/rules.default.yaml"),
+) -> int:
     job = load_job(job_path)
     inventory = build_inventory(input_dir, job)
     topology = build_topology(job)
@@ -35,6 +46,11 @@ def run_generate(job_path: Path, input_dir: Path, output_dir: Path) -> int:
         normalized,
         topology,
     )
+    assessment = evaluate_rules(
+        normalized,
+        configuration_comparison,
+        load_rules(rules_path),
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "inventory.json": inventory,
@@ -42,6 +58,7 @@ def run_generate(job_path: Path, input_dir: Path, output_dir: Path) -> int:
         "scope-ledger.json": scope_ledger,
         "normalized.json": normalized.model_dump(mode="json"),
         "configuration-comparison.json": configuration_comparison,
+        "assessment.json": assessment.model_dump(mode="json"),
     }
     for filename, content in outputs.items():
         (output_dir / filename).write_text(
@@ -71,10 +88,16 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = create_parser().parse_args(argv)
     try:
         if args.command == "generate":
-            code = run_generate(args.job, args.input, args.output)
+            code = run_generate(args.job, args.input, args.output, args.rules)
         else:  # pragma: no cover - argparse enforces known subcommands
             code = 2
-    except (JobConfigError, FileNotFoundError, NotADirectoryError, OSError) as exc:
+    except (
+        JobConfigError,
+        RulesConfigError,
+        FileNotFoundError,
+        NotADirectoryError,
+        OSError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         code = 2
     raise SystemExit(code)

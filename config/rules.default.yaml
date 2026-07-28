@@ -1,0 +1,38 @@
+schema_version: "1.0"
+ruleset_version: "2026.1"
+
+filesystem_usage:
+  warning_percent: 80
+  critical_percent: 90
+
+transaction_id_age:
+  warning: 1000000000
+  critical: 1500000000
+
+configuration_consistency:
+  ignored_role_specific_parameters:
+    - primary_conninfo
+    - primary_slot_name
+  important_parameters:
+    - shared_buffers
+    - work_mem
+    - maintenance_work_mem
+    - effective_cache_size
+    - max_connections
+    - wal_buffers
+    - max_wal_size
+    - checkpoint_timeout
+
+hba:
+  flag_nonlocal_trust: true
+
+roles_privileges:
+  allowed_elevated_roles:
+    - postgres
+    - enterprisedb
+
+candidate_lists:
+  table_bloat: attention
+  index_bloat: attention
+  dead_tuples: attention
+  rarely_used_indexes: pending

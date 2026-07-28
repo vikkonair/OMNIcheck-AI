@@ -88,6 +88,7 @@ NAME ROTA TYPE
 sda 0 disk
 ========== postgresql.auto.conf ==========
 primary_conninfo = 'host=db-standby password=secret port=5432'
+db.password.encrypted=secret-hash
 """,
         encoding="utf-8",
     )
@@ -99,9 +100,12 @@ primary_conninfo = 'host=db-standby password=secret port=5432'
         ["NAME ROTA TYPE"],
         ["sda 0 disk"],
     ]
-    rendered = by_id["postgresql_auto_conf"].evidence.rows[0][0]
+    rendered = "\n".join(
+        row[0] for row in by_id["postgresql_auto_conf"].evidence.rows
+    )
     assert "secret" not in rendered
     assert "password=***MASKED***" in rendered
+    assert "db.password.encrypted=***MASKED***" in rendered
 
 
 def test_os_sections_parse_node_local_db_config_from_standby(

@@ -90,7 +90,10 @@ def _rows_check(
 
 def _redact_secret_text(value: str) -> str:
     patterns = (
-        re.compile(r"(?i)(password\s*=\s*)(?:'[^']*'|[^\s']+)"),
+        re.compile(
+            r"(?i)((?:db\.)?password(?:\.[a-z0-9_]+)*\s*=\s*)"
+            r"(?:'[^']*'|[^\s']+)"
+        ),
         re.compile(r"(?i)(token\s*=\s*)(?:'[^']*'|[^\s']+)"),
     )
     redacted = value

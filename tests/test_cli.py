@@ -27,7 +27,11 @@ def test_generate_writes_inventory_and_warns_for_unknown(
     comparison = json.loads(
         (output_dir / "configuration-comparison.json").read_text(encoding="utf-8")
     )
+    assessment = json.loads(
+        (output_dir / "assessment.json").read_text(encoding="utf-8")
+    )
     assert comparison["nodes"] == ["gwcymsedb"]
+    assert assessment["ruleset_version"] == "2026.1"
     assert normalized["schema_version"] == "1.0"
     assert {check["check_id"] for check in normalized["checks"]} == {
         "hostname",
