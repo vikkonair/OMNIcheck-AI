@@ -28,6 +28,11 @@ Database evidence from Standby and DR nodes is explicitly excluded. Evidence
 whose node or domain cannot be determined is retained as `pending` and reported
 on stderr rather than silently allowed.
 
+The node model separates infrastructure role from hosted service. A monitoring
+node is configured with `role: Witness` and `services: [PEM]`. Its OS and PEM
+monitoring evidence are eligible, while its PEM backend PostgreSQL evidence is
+excluded from the inspected system's Primary-only database scope.
+
 ## Docker
 
 ```bash

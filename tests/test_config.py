@@ -44,3 +44,14 @@ ai:
     with pytest.raises(JobConfigError, match="exactly one"):
         load_job(job_path)
 
+
+def test_pem_service_is_only_allowed_on_witness(tmp_path: Path) -> None:
+    source = (ROOT / "config/job.example.yaml").read_text(encoding="utf-8")
+    job_path = tmp_path / "job.yaml"
+    job_path.write_text(
+        source.replace("role: Witness", "role: Standby"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(JobConfigError, match="PEM service must run on a Witness"):
+        load_job(job_path)

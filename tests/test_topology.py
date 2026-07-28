@@ -22,7 +22,12 @@ def test_topology_has_one_confirmed_primary() -> None:
         "Primary",
         "Standby",
         "DR",
+        "Witness",
     ]
+    witness = next(node for node in topology["nodes"] if node["role"] == "Witness")
+    assert witness["services"] == ["PEM"]
+    assert witness["os_evidence_allowed"] is True
+    assert witness["target_database_evidence_allowed"] is False
 
 
 def test_scope_allows_all_os_and_only_primary_database() -> None:
@@ -35,10 +40,14 @@ def test_scope_allows_all_os_and_only_primary_database() -> None:
     assert by_path["os/db-primary/host.txt"]["decision"] == "allowed"
     assert by_path["os/db-standby/host.txt"]["decision"] == "allowed"
     assert by_path["os/db-dr/host.txt"]["decision"] == "allowed"
+    assert by_path["os/pem-witness/host.txt"]["decision"] == "allowed"
+    assert by_path["monitoring/pem-witness/cpu.png"]["decision"] == "allowed"
     assert by_path["db/db-primary/connections.sql"]["decision"] == "allowed"
     assert by_path["db/db-standby/connections.sql"]["decision"] == "excluded"
     assert by_path["db/db-dr/connections.sql"]["decision"] == "excluded"
+    assert by_path["db/pem-witness/pem_backend.sql"]["decision"] == "excluded"
+    assert "not Primary" in by_path["db/pem-witness/pem_backend.sql"]["reason"]
     assert by_path["db/unresolved.sql"]["decision"] == "pending"
     assert by_path["os/ambiguous.txt"]["resolution_status"] == "ambiguous"
     assert by_path["os/ambiguous.txt"]["decision"] == "pending"
-    assert ledger["summary"] == {"allowed": 4, "excluded": 2, "pending": 2}
+    assert ledger["summary"] == {"allowed": 6, "excluded": 3, "pending": 2}

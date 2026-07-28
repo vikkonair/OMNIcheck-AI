@@ -9,7 +9,9 @@ nodes:
   - hostname: gwcymsedb
     role: Primary
   - hostname: YMSEPRS
-    role: PEM
+    role: Witness
+    services:
+      - PEM
 
 scope:
   include_os_from_all_nodes: true

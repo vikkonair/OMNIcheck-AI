@@ -12,6 +12,10 @@ nodes:
     role: Standby
   - hostname: db-dr
     role: DR
+  - hostname: pem-witness
+    role: Witness
+    services:
+      - PEM
 
 scope:
   include_os_from_all_nodes: true

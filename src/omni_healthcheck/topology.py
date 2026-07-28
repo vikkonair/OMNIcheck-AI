@@ -164,7 +164,10 @@ def build_topology(job: JobConfig) -> dict:
             {
                 "hostname": node.hostname,
                 "role": node.role,
+                "services": node.services,
                 "role_source": "job_config",
+                "os_evidence_allowed": True,
+                "target_database_evidence_allowed": node.role == "Primary",
             }
             for node in job.nodes
         ],

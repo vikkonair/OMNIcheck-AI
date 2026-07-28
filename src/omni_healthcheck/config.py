@@ -13,7 +13,14 @@ class StrictModel(BaseModel):
 
 class NodeConfig(StrictModel):
     hostname: str = Field(min_length=1)
-    role: Literal["Primary", "Standby", "DR", "PEM"]
+    role: Literal["Primary", "Standby", "DR", "Witness"]
+    services: list[Literal["PEM"]] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def pem_runs_on_witness(self) -> "NodeConfig":
+        if "PEM" in self.services and self.role != "Witness":
+            raise ValueError("PEM service must run on a Witness node")
+        return self
 
 
 class ScopeConfig(StrictModel):
@@ -84,4 +91,3 @@ def load_job(path: Path) -> JobConfig:
         return JobConfig.model_validate(raw)
     except ValidationError as exc:
         raise JobConfigError(f"invalid job configuration:\n{exc}") from exc
-
