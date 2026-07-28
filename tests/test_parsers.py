@@ -104,7 +104,7 @@ primary_conninfo = 'host=db-standby password=secret port=5432'
     assert "password=***MASKED***" in rendered
 
 
-def test_os_sections_do_not_parse_embedded_db_config_from_non_primary(
+def test_os_sections_parse_node_local_db_config_from_standby(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "HealthChekOS-LOG-db-standby.txt"
@@ -121,7 +121,31 @@ host all all 10.0.0.0/8 scram-sha-256
 
     checks = OSSectionParser().parse(parser_context(path, "os", "Standby"))
 
-    assert {check.check_id for check in checks} == {"cpu_model"}
+    assert {check.check_id for check in checks} == {
+        "cpu_model",
+        "postgresql_auto_conf",
+        "pg_hba_conf",
+    }
+
+
+def test_os_sections_reject_pem_backend_config_from_witness(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "HealthChekOS-LOG-pem-witness.txt"
+    path.write_text(
+        """========== postgresql ==========
+shared_buffers = 1GB
+========== pg_hba.conf ==========
+host all all 10.0.0.0/8 scram-sha-256
+========== PEM Server ==========
+active
+""",
+        encoding="utf-8",
+    )
+
+    checks = OSSectionParser().parse(parser_context(path, "os", "Witness"))
+
+    assert {check.check_id for check in checks} == {"pem_server_status"}
 
 
 def test_psql_report_parser_applies_fixed_row_policies(tmp_path: Path) -> None:
@@ -166,5 +190,5 @@ pg_hba 設定
     assert len(by_id["rarely_used_indexes"].evidence.rows) == 20
     scan_index = by_id["rarely_used_indexes"].evidence.headers.index("idx_scan")
     assert by_id["rarely_used_indexes"].evidence.rows[0][scan_index] == "0"
-    assert len(by_id["pg_hba_conf"].evidence.rows) == 2
+    assert "pg_hba_conf" not in by_id
     assert "last_autovacuum" not in by_id

@@ -24,6 +24,7 @@ identities, and writes:
 - `output/topology.json`
 - `output/scope-ledger.json`
 - `output/normalized.json`
+- `output/configuration-comparison.json`
 
 Database evidence from Standby and DR nodes is explicitly excluded. Evidence
 whose node or domain cannot be determined is retained as `pending` and reported
@@ -47,10 +48,19 @@ M4 expands deterministic parsing to OS storage, filesystems, processes,
 networking, HugePages, SELinux, firewall, PEM/EFM status, backup configuration,
 database inventory, connections, transaction age, extensions, roles,
 privileges, SSL, replication, locks, bloat, partitioning, and index usage.
-Embedded database configuration found in non-Primary OS evidence is rejected at
-the parser boundary. Last AutoVacuum and AutoAnalyze history is omitted, schema
+Embedded target-database configuration from Witness or PEM backend evidence is
+rejected at the parser boundary. Last AutoVacuum and AutoAnalyze history is omitted, schema
 privileges are capped at 20 rows, and rarely used indexes are ordered with
 zero-scan rows first and capped at 20.
+
+Database scope distinguishes logical database evidence from node-local
+configuration. Logical objects and activity (databases, schemas, tables, roles,
+extensions, transaction age, and bloat) use Primary evidence only.
+`postgresql.conf`, `postgresql.auto.conf`, `pg_hba.conf`, and backup
+configuration are collected from Primary, Standby, and DR nodes. Witness and
+PEM-backend configuration remains outside the target cluster scope.
+`configuration-comparison.json` records matching, different, and missing
+parameters plus common and node-unique HBA rules without rendering source paths.
 
 See `docs/MILESTONE_VALIDATION.md` for the required validation gate before a
 milestone can be tagged as successful.

@@ -229,14 +229,30 @@ class OSSectionParser:
         "HugePage 設定檢查": ("hugepage_settings", "3.7", "OS"),
         "檢查SELINUX": ("selinux_status", "3.7", "OS"),
         "防火牆設定": ("firewall_status", "3.7", "OS"),
-        "postgresql": ("postgresql_conf", "4.13", "database"),
-        "postgresql.auto.conf": ("postgresql_auto_conf", "4.14", "database"),
-        "pg_hba.conf": ("pg_hba_conf", "4.12", "database"),
+        "postgresql": (
+            "postgresql_conf",
+            "4.13",
+            "database_configuration",
+        ),
+        "postgresql.auto.conf": (
+            "postgresql_auto_conf",
+            "4.14",
+            "database_configuration",
+        ),
+        "pg_hba.conf": (
+            "pg_hba_conf",
+            "4.12",
+            "database_configuration",
+        ),
         "EFM": ("efm_status", "3.8", "EFM"),
         "PEM Agent": ("pem_agent_status", "3.8", "PEM"),
         "PEM Server": ("pem_server_status", "3.8", "PEM"),
         "PEM / EFM 狀態彙整": ("pem_efm_summary", "3.8", "OS"),
-        "pgbackrest": ("backup_configuration", "3.9", "database"),
+        "pgbackrest": (
+            "backup_configuration",
+            "3.9",
+            "database_configuration",
+        ),
         "Cronjob 設定檢查": ("cron_configuration", "3.9", "OS"),
     }
 
@@ -262,15 +278,18 @@ class OSSectionParser:
             if mapping is None or not body:
                 continue
             check_id, section_id, product_kind = mapping
-            if (
-                product_kind == "database"
-                and context.scope_item["node_role"] != "Primary"
-            ):
+            if product_kind == "database_configuration" and context.scope_item[
+                "node_role"
+            ] not in {"Primary", "Standby", "DR"}:
                 continue
             if check_id in seen:
                 continue
             seen.add(check_id)
-            product = context.job.product if product_kind == "database" else product_kind
+            product = (
+                context.job.product
+                if product_kind == "database_configuration"
+                else product_kind
+            )
             rows = [
                 [_redact_secret_text(line.rstrip())]
                 for line in body.splitlines()
@@ -338,7 +357,6 @@ class PsqlReportParser:
             "4.5",
         ),
         "資料庫PROFILE": ("database_profiles", "4.4"),
-        "pg_hba 設定": ("pg_hba_conf", "4.12"),
         "pg_stat_activity 查看": ("connections", "4.6"),
         "TxID Age 與 MxID Age": ("transaction_id_age", "4.7"),
         "空間用量前十大的表格": ("largest_tables", "4.8"),

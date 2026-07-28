@@ -8,8 +8,10 @@ A milestone is successful only after all applicable gates pass:
 4. All generated files and temporary job configuration remain outside the
    customer source directory.
 5. The source file count, sizes, and SHA-256 values remain unchanged.
-6. Scope validation proves that target database checks use Primary evidence
-   only, while OS evidence remains eligible from every configured node.
+6. Scope validation proves that logical target-database checks use Primary
+   evidence only. OS evidence remains eligible from every configured node, and
+   node-local target-database configuration remains eligible from Primary,
+   Standby, and DR for cross-node comparison.
 7. Unknown or ambiguous evidence remains visible as `pending`; it is never
    silently accepted or dropped.
 8. Customer evidence, normalized output, and temporary configuration are never

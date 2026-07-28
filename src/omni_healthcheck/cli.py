@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from omni_healthcheck.config_compare import build_configuration_comparison
 from omni_healthcheck.config import JobConfigError, load_job
 from omni_healthcheck.inventory import build_inventory
 from omni_healthcheck.parsers import normalize_allowed_evidence
@@ -30,12 +31,17 @@ def run_generate(job_path: Path, input_dir: Path, output_dir: Path) -> int:
     topology = build_topology(job)
     scope_ledger = build_scope_ledger(input_dir, inventory, job)
     normalized = normalize_allowed_evidence(input_dir, inventory, scope_ledger, job)
+    configuration_comparison = build_configuration_comparison(
+        normalized,
+        topology,
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "inventory.json": inventory,
         "topology.json": topology,
         "scope-ledger.json": scope_ledger,
         "normalized.json": normalized.model_dump(mode="json"),
+        "configuration-comparison.json": configuration_comparison,
     }
     for filename, content in outputs.items():
         (output_dir / filename).write_text(
