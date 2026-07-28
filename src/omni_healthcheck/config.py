@@ -14,7 +14,7 @@ class StrictModel(BaseModel):
 class NodeConfig(StrictModel):
     hostname: str = Field(min_length=1)
     role: Literal["Primary", "Standby", "DR", "Witness"]
-    services: list[Literal["PEM"]] = Field(default_factory=list)
+    services: list[Literal["PEM", "EFM"]] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def pem_runs_on_witness(self) -> "NodeConfig":

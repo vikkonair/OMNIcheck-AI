@@ -55,3 +55,20 @@ def test_pem_service_is_only_allowed_on_witness(tmp_path: Path) -> None:
 
     with pytest.raises(JobConfigError, match="PEM service must run on a Witness"):
         load_job(job_path)
+
+
+def test_efm_service_can_run_on_database_nodes(tmp_path: Path) -> None:
+    source = (ROOT / "config/job.example.yaml").read_text(encoding="utf-8")
+    job_path = tmp_path / "job.yaml"
+    job_path.write_text(
+        source.replace(
+            "role: Primary",
+            "role: Primary\n    services:\n      - EFM",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    job = load_job(job_path)
+    primary = next(node for node in job.nodes if node.role == "Primary")
+    assert primary.services == ["EFM"]

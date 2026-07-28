@@ -29,9 +29,13 @@ whose node or domain cannot be determined is retained as `pending` and reported
 on stderr rather than silently allowed.
 
 The node model separates infrastructure role from hosted service. A monitoring
-node is configured with `role: Witness` and `services: [PEM]`. Its OS and PEM
+node is configured with `role: Witness` and `services: [PEM, EFM]`. Its OS and PEM
 monitoring evidence are eligible, while its PEM backend PostgreSQL evidence is
 excluded from the inspected system's Primary-only database scope.
+
+In the standard EDB architecture the Witness may host both PEM and EFM, so its
+service list is normally `services: [PEM, EFM]`. EFM may also run as an agent on
+Primary or Standby database nodes.
 
 ## Docker
 

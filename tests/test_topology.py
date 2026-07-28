@@ -25,7 +25,7 @@ def test_topology_has_one_confirmed_primary() -> None:
         "Witness",
     ]
     witness = next(node for node in topology["nodes"] if node["role"] == "Witness")
-    assert witness["services"] == ["PEM"]
+    assert witness["services"] == ["PEM", "EFM"]
     assert witness["os_evidence_allowed"] is True
     assert witness["target_database_evidence_allowed"] is False
 

@@ -16,6 +16,7 @@ nodes:
     role: Witness
     services:
       - PEM
+      - EFM
 
 scope:
   include_os_from_all_nodes: true
