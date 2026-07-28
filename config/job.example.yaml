@@ -1,0 +1,25 @@
+customer: 環球晶圓
+system_name: gwcyms
+period: 2026-H1
+engineer: XXX
+product: EPAS
+first_healthcheck: true
+
+nodes:
+  - hostname: gwcymsedb
+    role: Primary
+  - hostname: YMSEPRS
+    role: PEM
+
+scope:
+  include_os_from_all_nodes: true
+  database_primary_only: true
+
+report:
+  template: omni-v4
+  output_docx: true
+  output_pdf: true
+
+ai:
+  enabled: false
+  provider: disabled

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "omni-healthcheck"
+version = "0.1.0"
+description = "Deterministic on-premises database health-check pipeline"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.7,<3",
+  "PyYAML>=6.0.1,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2,<9",
+  "pytest-cov>=5,<7",
+]
+
+[project.scripts]
+omni-healthcheck = "omni_healthcheck.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/omni_healthcheck"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["omni_healthcheck"]
+

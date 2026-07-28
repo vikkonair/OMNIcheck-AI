@@ -1,0 +1,9 @@
+services:
+  omni-healthcheck:
+    build:
+      context: .
+    volumes:
+      - ./config:/app/config:ro
+      - ./input:/data/input:ro
+      - ./output:/data/output
+

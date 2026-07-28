@@ -1,0 +1,3 @@
+hostname: gwcymsedb
+cpu_count: 8
+
