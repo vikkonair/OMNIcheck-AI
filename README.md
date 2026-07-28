@@ -43,6 +43,18 @@ the parser registry plus initial deterministic parsers for OS identity, OS and
 kernel version, CPU count, total memory, total swap, and PostgreSQL/EPAS
 version. Only evidence marked `allowed` by the scope ledger reaches parsers.
 
+M4 expands deterministic parsing to OS storage, filesystems, processes,
+networking, HugePages, SELinux, firewall, PEM/EFM status, backup configuration,
+database inventory, connections, transaction age, extensions, roles,
+privileges, SSL, replication, locks, bloat, partitioning, and index usage.
+Embedded database configuration found in non-Primary OS evidence is rejected at
+the parser boundary. Last AutoVacuum and AutoAnalyze history is omitted, schema
+privileges are capped at 20 rows, and rarely used indexes are ordered with
+zero-scan rows first and capped at 20.
+
+See `docs/MILESTONE_VALIDATION.md` for the required validation gate before a
+milestone can be tagged as successful.
+
 ## Docker
 
 ```bash
