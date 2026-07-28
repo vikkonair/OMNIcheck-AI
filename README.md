@@ -1,92 +1,153 @@
-# Omni Health-check
+# OMNIcheck AI
 
-Milestone M1 provides a deterministic command-line inventory pipeline for
-PostgreSQL and EPAS health-check evidence.
+OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-## Local setup
+目前專案已完成至 **M5：確定性規則引擎**。系統可以讀取客戶提供的 OS、資料庫、EFM、PEM、備份及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，並依據版本化規則產生可追溯的健檢判斷。
 
-Python 3.12 or newer is required.
+> 當前版本屬於後端資料處理與判斷引擎，尚未完成正式 DOCX／PDF 報告產出與 Web 操作介面。
+
+## 目前可以做到什麼
+
+- 掃描輸入資料夾並建立完整檔案清冊及 SHA-256 雜湊值。
+- 辨識 Primary、Standby、DR 與 Witness 節點。
+- 辨識各節點承載的 EFM、PEM 等服務。
+- 解析 OS、PostgreSQL／EPAS、EFM、PEM、備份與資料庫邏輯資料。
+- 將不同來源和格式的資料轉換成統一的標準化 JSON。
+- 控制不同類型資料的檢查範圍，避免錯誤使用 Standby、DR 或 PEM 後端資料庫資料。
+- 比較 Primary、Standby 與 DR 的 PostgreSQL 參數和 `pg_hba.conf` 規則。
+- 依據確定性規則產生「正常、注意、嚴重、待確認」四種狀態。
+- 為每項判斷保留證據、觀察、結論、建議、規則編號與規則版本。
+- 在輸出前遮蔽密碼等敏感資訊。
+
+目前規則涵蓋：
+
+- 檔案系統使用率
+- Transaction ID 年齡
+- Idle transaction
+- Replication 狀態
+- Dead tuple、Table bloat 與 Index bloat
+- 低使用率索引
+- pgBackRest 備份異常
+- Schema 與 Role 權限
+- 跨節點 PostgreSQL 參數一致性
+- 非本機 `pg_hba.conf trust` 規則
+
+## 標準架構與資料範圍
+
+OMNIcheck AI 將節點的基礎設施角色與節點上執行的服務分開處理。
+
+標準 EDB 架構可包含：
+
+- **Primary**：主要業務資料庫，也是資料庫邏輯層判斷的主要依據。
+- **Standby**：同步或複製節點。
+- **DR**：災難復原節點。
+- **Witness**：可承載 PEM、EFM，以及 PEM 使用的後端 PostgreSQL。
+
+資料範圍採用以下原則：
+
+- Database、Schema、Table、Role、Extension、Transaction、Bloat 等資料庫邏輯資料，只使用當前 Primary 的證據。
+- `postgresql.conf`、`postgresql.auto.conf`、`pg_hba.conf` 與備份設定屬於節點層級設定，因此會納入 Primary、Standby 與 DR，並進行跨節點比較。
+- Witness 的 OS、PEM 與 EFM 監控證據可納入檢查。
+- Witness 上的 PEM 後端 PostgreSQL 不會被誤認成客戶主要業務資料庫。
+- 無法確認節點或資料領域的證據不會被自動採用，而會標示為 `pending`。
+
+## 處理流程
+
+```text
+客戶原始資料
+    ↓
+檔案清冊與雜湊
+    ↓
+節點拓撲與服務辨識
+    ↓
+資料範圍控制
+    ↓
+格式解析與標準化
+    ↓
+跨節點設定比較
+    ↓
+確定性規則判斷
+    ↓
+結構化健檢結果
+```
+
+規則門檻及政策清單存放於 `config/rules.default.yaml`，由 Python 規則引擎執行。AI 不負責選擇 Primary、改變證據範圍、修改判斷狀態或憑空產生發現。
+
+## 輸出內容
+
+執行完成後會在輸出資料夾產生：
+
+- `inventory.json`：輸入檔案清冊、分類與雜湊值。
+- `topology.json`：節點角色及其承載的服務。
+- `scope-ledger.json`：每項證據是否納入檢查，以及納入或排除的原因。
+- `normalized.json`：解析並轉換後的標準化健檢資料。
+- `configuration-comparison.json`：各資料庫節點之間的參數與 HBA 規則差異。
+- `assessment.json`：規則引擎產生的狀態、觀察、結論、建議及證據引用。
+
+## 本機安裝
+
+需要 Python 3.12 或更新版本。
 
 ```bash
 python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
+```
+
+執行範例：
+
+```bash
 .venv/bin/omni-healthcheck generate \
   --job config/job.example.yaml \
+  --rules config/rules.default.yaml \
   --input ./input \
   --output ./output
 ```
 
-The command validates the job configuration, inventories every regular file
-under the input directory, calculates SHA-256 hashes, resolves configured node
-identities, and writes:
+其中：
 
-- `output/inventory.json`
-- `output/topology.json`
-- `output/scope-ledger.json`
-- `output/normalized.json`
-- `output/configuration-comparison.json`
-- `output/assessment.json`
+- `--job`：客戶、節點角色與服務的工作設定。
+- `--rules`：規則門檻及檢查政策。
+- `--input`：客戶原始健檢資料夾。
+- `--output`：結構化結果的輸出資料夾。
 
-Database evidence from Standby and DR nodes is explicitly excluded. Evidence
-whose node or domain cannot be determined is retained as `pending` and reported
-on stderr rather than silently allowed.
-
-The node model separates infrastructure role from hosted service. A monitoring
-node is configured with `role: Witness` and `services: [PEM, EFM]`. Its OS and PEM
-monitoring evidence are eligible, while its PEM backend PostgreSQL evidence is
-excluded from the inspected system's Primary-only database scope.
-
-In the standard EDB architecture the Witness may host both PEM and EFM, so its
-service list is normally `services: [PEM, EFM]`. EFM may also run as an agent on
-Primary or Standby database nodes.
-
-`normalized.json` uses the checked-in canonical schema version 1.0. M3 includes
-the parser registry plus initial deterministic parsers for OS identity, OS and
-kernel version, CPU count, total memory, total swap, and PostgreSQL/EPAS
-version. Only evidence marked `allowed` by the scope ledger reaches parsers.
-
-M4 expands deterministic parsing to OS storage, filesystems, processes,
-networking, HugePages, SELinux, firewall, PEM/EFM status, backup configuration,
-database inventory, connections, transaction age, extensions, roles,
-privileges, SSL, replication, locks, bloat, partitioning, and index usage.
-Embedded target-database configuration from Witness or PEM backend evidence is
-rejected at the parser boundary. Last AutoVacuum and AutoAnalyze history is omitted, schema
-privileges are capped at 20 rows, and rarely used indexes are ordered with
-zero-scan rows first and capped at 20.
-
-Database scope distinguishes logical database evidence from node-local
-configuration. Logical objects and activity (databases, schemas, tables, roles,
-extensions, transaction age, and bloat) use Primary evidence only.
-`postgresql.conf`, `postgresql.auto.conf`, `pg_hba.conf`, and backup
-configuration are collected from Primary, Standby, and DR nodes. Witness and
-PEM-backend configuration remains outside the target cluster scope.
-`configuration-comparison.json` records matching, different, and missing
-parameters plus common and node-unique HBA rules without rendering source paths.
-
-M5 adds the versioned deterministic rule engine. Thresholds and policy lists
-live in `config/rules.default.yaml`; Python executes the rules and writes
-`assessment.json`. Every assessment has visible evidence references, a versioned
-rule ID, a deterministic status, an observation ending with an explicit
-`結論：`, and a concise recommendation. AI is not used to select evidence,
-change status, or create findings.
-
-The initial rules cover filesystem usage, TxID age, idle transactions,
-replication state, candidate bloat and index lists, backup errors, role and
-schema privileges, cross-node configuration consistency, and non-local HBA
-`trust`. Provisional thresholds and their report provenance are documented in
-`docs/RULE_PROVENANCE.md`.
-
-See `docs/MILESTONE_VALIDATION.md` for the required validation gate before a
-milestone can be tagged as successful.
-
-## Docker
+## 使用 Docker
 
 ```bash
 docker compose run --rm omni-healthcheck generate \
   --job /app/config/job.example.yaml \
+  --rules /app/config/rules.default.yaml \
   --input /data/input \
   --output /data/output
 ```
 
-Mount or replace the `input` and `output` directories configured in
-`compose.yaml`.
+請依照 `compose.yaml` 掛載或替換輸入與輸出資料夾。
+
+## 開發與驗證原則
+
+- 客戶原始資料必須維持唯讀，不得修改。
+- 每個 milestone 完成後都必須使用指定的實際客戶資料進行驗證。
+- 每項健檢判斷必須能追溯到可見證據。
+- Primary 身分不明確或判斷缺少證據時，應停止或標示待確認，不可猜測。
+- 客戶資料、輸出結果及機敏資訊不得提交至 Git 儲存庫。
+- Parser 與規則必須具備自動化測試。
+
+詳細規範請參閱：
+
+- `docs/PIPELINE_SPEC.md`
+- `docs/ACCEPTANCE_CRITERIA.md`
+- `docs/MILESTONE_VALIDATION.md`
+- `docs/RULE_PROVENANCE.md`
+- `docs/REPORT_REFERENCE_POLICY.md`
+
+## 專案進度
+
+- M1：檔案清冊與基礎 CLI
+- M2：節點拓撲與資料範圍控制
+- M3：標準資料模型與 Parser 架構
+- M4：完整資料解析與跨節點設定比較
+- M5：確定性健檢規則引擎（目前完成）
+- M6：檢查覆蓋率、安全性與交付品質驗證
+- M7：正式 DOCX／PDF 健檢報告
+- 後續：Web UI、背景工作、歷史比較、CVE 資料與可選 AI 輔助
+
+報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。
