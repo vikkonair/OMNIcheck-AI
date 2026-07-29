@@ -5,6 +5,7 @@ import pytest
 
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.quality import QualityGateError
+from omni_healthcheck.v4_quality import V4QualityError
 
 
 ROOT = Path(__file__).parents[1]
@@ -63,20 +64,25 @@ def test_generate_writes_inventory_and_warns_for_unknown(
     assert "Wrote" in captured.out
 
 
-def test_generate_passes_delivery_gates_for_multi_node_fixture(
+def test_generate_preserves_m6_success_but_blocks_v4_when_scope_is_pending(
     tmp_path: Path,
 ) -> None:
     output_dir = tmp_path / "output"
-    result = run_generate(
-        ROOT / "tests/fixtures/multi_node/job.yaml",
-        ROOT / "tests/fixtures/multi_node/input",
-        output_dir,
-    )
+    with pytest.raises(V4QualityError, match="scope.pending_evidence"):
+        run_generate(
+            ROOT / "tests/fixtures/multi_node/job.yaml",
+            ROOT / "tests/fixtures/multi_node/input",
+            output_dir,
+        )
 
-    assert result == 0
     qa_result = json.loads(
         (output_dir / "qa-result.json").read_text(encoding="utf-8")
     )
     assert qa_result["status"] == "passed"
     assert qa_result["delivery_allowed"] is True
     assert qa_result["summary"]["failed"] == 0
+    v4_qa = json.loads(
+        (output_dir / "v4-qa-result.json").read_text(encoding="utf-8")
+    )
+    assert v4_qa["delivery_allowed"] is False
+    assert not (output_dir / "report.docx").exists()

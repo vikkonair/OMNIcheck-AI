@@ -1,0 +1,104 @@
+{
+  "customer": "客戶名稱",
+  "period": "YYYY 上半年",
+  "report_date": "YYYY-MM-DD",
+  "engineer_name": "XXX",
+  "product": {
+    "name": "PostgreSQL",
+    "version": "X.Y"
+  },
+  "maintenance_period": "健檢涵蓋期間：待填寫；資料收集時間：待填寫",
+  "purpose": [
+    "此檔僅保留核准的版面配置",
+    "產生客戶報告時必須以當期原始 Output 取代所有佔位內容"
+  ],
+  "nodes": [
+    {
+      "hostname": "DB-HOST-01",
+      "role": "Standalone",
+      "os": "OS 名稱與版本",
+      "database": "PostgreSQL X.Y",
+      "cpu": "N cores",
+      "ram": "N GiB",
+      "service_ip": "X.X.X.X",
+      "components": []
+    }
+  ],
+  "architecture_image": "assets/approved-v4-architecture-example.png",
+  "chapters": [
+    {
+      "number": "3",
+      "title": "作業系統健檢",
+      "sections": [
+        {
+          "number": "3.1",
+          "title": "主機與組態設定",
+          "items": [
+            {
+              "title": "表格 Output 版面範例",
+              "node": "DB-HOST-01",
+              "evidence": {
+                "type": "table",
+                "headers": ["\u9805\u76ee", "Output"],
+                "rows": [
+                  ["Hostname", "DB-HOST-01"],
+                  ["Service IP", "X.X.X.X"],
+                  ["OS", "OS \u540d\u7a31\u8207\u7248\u672c"]
+                ]
+              },
+              "status": "正常",
+              "observation": "說明可從可見 Output 得到的觀察\n結論：本項狀態正常",
+              "recommendation": "維持例行檢查"
+            },
+            {
+              "title": "純文字 Output 版面範例",
+              "node": "DB-HOST-01",
+              "evidence": {
+                "type": "text",
+                "content": "parameter_a = value_a\nparameter_b = value_b\nparameter_c = value_c"
+              },
+              "status": "注意",
+              "observation": "說明當前設定值可能帶來的影響\n結論：本項需持續注意",
+              "recommendation": "確認實際需求後調整"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "title": "PostgreSQL 資料庫健檢",
+      "sections": [
+        {
+          "number": "4.1",
+          "title": "組態與安全設定",
+          "items": [
+            {
+              "title": "多欄 Output 版面範例",
+              "node": "DB-HOST-01",
+              "evidence": {
+                "type": "table",
+                "headers": ["\u540d\u7a31", "\u77ed\u503c", "\u8a73\u7d30\u5167\u5bb9", "\u72c0\u614b"],
+                "rows": [
+                  ["object_a", "0", "\u8f03\u9577\u7684 Output \u5167\u5bb9\u653e\u5728\u8f03\u5bec\u6b04\u4f4d", "OK"],
+                  ["object_b", "1", "\u7528\u65bc\u78ba\u8a8d\u8a9e\u610f\u6b04\u5bec\u8207\u81ea\u52d5\u63db\u884c", "CHECK"]
+                ]
+              },
+              "status": "待確認",
+              "observation": "說明目前 Output 尚需人工決策的原因\n結論：本項仍待確認",
+              "recommendation": "補充必要資料後再確認"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "version_updates": [
+    {
+      "current": "X.Y",
+      "recommended": "X.Y",
+      "summary": "依當期官方版本資訊填寫"
+    }
+  ],
+  "summary": []
+}

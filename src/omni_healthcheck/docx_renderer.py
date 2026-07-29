@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
@@ -378,18 +377,15 @@ def convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".lo-profile-", dir=pdf_path.parent) as profile:
         environment = os.environ.copy()
-        if sys.platform == "darwin":
-            font_config = Path(profile) / "fonts.conf"
-            font_config.write_text(
-                """<?xml version="1.0"?>
-<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
-<fontconfig><dir>/System/Library/Fonts</dir><dir>/System/Library/Fonts/Supplemental</dir>
-<dir>/Library/Fonts</dir><cachedir>/tmp/omnicheck-font-cache</cachedir><config/></fontconfig>
-""",
-                encoding="utf-8",
-            )
+        environment["HOME"] = profile
+        environment["XDG_CONFIG_HOME"] = str(Path(profile) / "xdg_config")
+        environment["XDG_CACHE_HOME"] = str(Path(profile) / "xdg_cache")
+        Path(environment["XDG_CONFIG_HOME"]).mkdir()
+        Path(environment["XDG_CACHE_HOME"]).mkdir()
+        environment["TMPDIR"] = "/private/tmp" if Path("/private/tmp").is_dir() else profile
+        font_config = Path(__file__).parents[2] / "config" / "fonts.macos.conf"
+        if font_config.is_file():
             environment["FONTCONFIG_FILE"] = str(font_config)
-            environment["XDG_CACHE_HOME"] = "/tmp"
         result = subprocess.run(
             [
                 soffice,
