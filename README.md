@@ -2,9 +2,9 @@
 
 OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-目前專案已完成至 **M8.1：Golden Regression、Witness 元件與多備份工具架構**。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
+目前正式版本已完成至 **M8.1：Golden Regression、Witness 元件與多備份工具架構**，並正在開發 **M9：Web UI 與案件管理**。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-> 當前版本已完成後端 Pipeline、確定性判斷、Golden Regression 與正式 V4 DOCX／PDF 報告；Web 操作介面與背景工作管理將於 M9 建置。
+> `main` 與 `m8.1` tag 是目前正式可回復版本；M9 功能先在 `feature/m9-web-job-management` 分支開發與驗證。
 
 ## 目前可以做到什麼
 
@@ -22,6 +22,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 在交付前檢查 Primary 資料、證據引用、敏感資訊、來源路徑與客戶資料隔離。
 - 產生九興 V4 方向的 DOCX 與 PDF 正式報告。
 - 使用去識別 Golden Dataset 防止 Parser、Scope、規則與報告版面回歸。
+- 透過 M9 Web API 建立案件、上傳不可覆寫的原始證據、執行既有 Pipeline、查詢狀態及下載輸出。
 
 目前規則涵蓋：
 
@@ -134,6 +135,19 @@ docker compose run --rm omni-healthcheck generate \
 
 請依照 `compose.yaml` 掛載或替換輸入與輸出資料夾。
 
+## M9 Web 介面（開發中）
+
+啟動本機服務：
+
+```bash
+OMNICHECK_DATA_ROOT=./data/jobs \
+  .venv/bin/omni-healthcheck-web
+```
+
+開啟 `http://127.0.0.1:8000` 後可建立案件；案件上傳、執行及輸出下載目前可透過 `/api` 端點操作，互動式 API 文件位於 `http://127.0.0.1:8000/docs`。
+
+M9 第一階段使用本機檔案系統保存案件，並由 FastAPI 同一程序執行背景工作，適合單機開發與流程驗證。正式多人使用所需的 PostgreSQL metadata、Redis／Worker、權限控管與完整案件操作頁面會在後續 M9 階段加入。
+
 ## 開發與驗證原則
 
 - 客戶原始資料必須維持唯讀，不得修改。
@@ -162,6 +176,7 @@ docker compose run --rm omni-healthcheck generate \
 - M7：正式 DOCX／PDF 健檢報告（已完成）
 - M8：去識別 Golden Dataset 與端對端回歸測試（已完成）
 - M8.1：Witness 元件 Registry 與多備份工具架構（已完成）
-- 後續：Web UI、背景工作、歷史比較、CVE 資料與可選 AI 輔助
+- M9：Web UI 與案件管理（第一階段開發中）
+- 後續：持久化背景工作、歷史比較、CVE 資料與可選 AI 輔助
 
 報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。
