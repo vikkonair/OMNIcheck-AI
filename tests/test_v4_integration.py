@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from omni_healthcheck.reporting import ReportModel
-from omni_healthcheck.v4_adapter import build_v4_report
+from omni_healthcheck.v4_adapter import _prepare_unit, build_v4_report
 from omni_healthcheck.v4_quality import V4QualityError, validate_v4_report
 from omni_healthcheck.v4_renderer import VENDOR_RENDERER
 
@@ -92,6 +92,44 @@ def test_adapter_preserves_primary_database_and_configuration_observation(
     assert "跨節點比較" in item["observation"]
     assert item["controlled_continuation"] is True
     assert report["nodes"][0]["cpu"] == "8 cores"
+    assert report["product"]["name"] == "EDB Postgres Advanced Server"
+    assert report["cover_company_name"] == "Omniwaresoft Tech"
+
+
+def test_adapter_applies_requested_report_limits_and_database_columns() -> None:
+    inventory = _prepare_unit(
+        {
+            "title": "資料庫清單",
+            "headers": [
+                "Name", "Owner", "Encoding", "Access privileges", "Size", "Description"
+            ],
+            "rows": [["app", "owner", "UTF8", "=Tc/owner", "10 GB", "omit me"]],
+        }
+    )
+    assert inventory["headers"] == ["資料庫名稱", "擁有者", "權限", "大小"]
+    assert inventory["rows"] == [["app", "owner", "=Tc/owner", "10 GB"]]
+
+    txid = _prepare_unit(
+        {
+            "title": "Transaction ID 年齡",
+            "headers": ["table", "txid_age"],
+            "rows": [[f"t{value}", str(value)] for value in range(12)],
+        }
+    )
+    assert len(txid["rows"]) == 10
+    assert txid["rows"][0] == ["t11", "11"]
+
+    indexes = _prepare_unit(
+        {
+            "title": "罕用索引",
+            "headers": ["index", "idx_scan"],
+            "rows": [["used", "5"], ["zero", "0"]] + [
+                [f"i{value}", str(value)] for value in range(1, 12)
+            ],
+        }
+    )
+    assert len(indexes["rows"]) == 10
+    assert indexes["rows"][0] == ["zero", "0"]
 
 
 def test_v4_quality_blocks_pending_scope() -> None:
@@ -107,4 +145,4 @@ def test_v4_quality_blocks_pending_scope() -> None:
 
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
-    assert digest == "f4f3728c4c11d4b1fcaa563d800a5d91fa5878b1663275b085bda568e70c9895"
+    assert digest == "886b7f38a66858fd486fbc60725550356d3d73615cda7c65b093705609210eae"

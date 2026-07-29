@@ -23,6 +23,10 @@ MONITORING_TITLES = {
     "transaction": "Transaction 趨勢",
     "commit": "Commit / Rollback 趨勢",
 }
+PRODUCT_NAMES = {
+    "EPAS": "EDB Postgres Advanced Server",
+    "PostgreSQL": "PostgreSQL",
+}
 
 
 def _split_numbered_title(value: str, fallback: str) -> tuple[str, str]:
@@ -55,8 +59,91 @@ def _evidence(unit: dict) -> dict[str, Any]:
         return {
             "type": "text",
             "content": "\n".join(str(row[0]) for row in rows if row),
+            "font_size": (
+                7.2
+                if any(
+                    token in unit["title"]
+                    for token in (
+                        "postgresql.auto.conf",
+                        "postgresql.conf",
+                        "pg_hba.conf",
+                    )
+                )
+                else 8.0
+            ),
         }
     return {"type": "table", "headers": headers, "rows": rows}
+
+
+def _select_columns(unit: dict, wanted: list[tuple[str, str]]) -> dict:
+    headers = [str(header) for header in unit.get("headers") or []]
+    normalized = [header.casefold().replace("_", " ").strip() for header in headers]
+    indexes = []
+    labels = []
+    for source, label in wanted:
+        key = source.casefold().replace("_", " ")
+        if key in normalized:
+            indexes.append(normalized.index(key))
+            labels.append(label)
+    if not indexes:
+        return unit
+    return {
+        **unit,
+        "headers": labels,
+        "rows": [
+            [row[index] if index < len(row) else "" for index in indexes]
+            for row in unit.get("rows") or []
+        ],
+    }
+
+
+def _prepare_unit(unit: dict) -> dict:
+    prepared = {**unit, "rows": [list(row) for row in unit.get("rows") or []]}
+    if prepared["title"] == "資料庫清單":
+        return _select_columns(
+            prepared,
+            [
+                ("Name", "資料庫名稱"),
+                ("Owner", "擁有者"),
+                ("Access privileges", "權限"),
+                ("Size", "大小"),
+            ],
+        )
+    if prepared["title"] == "Transaction ID 年齡":
+        headers = [str(header).casefold() for header in prepared["headers"]]
+        if "txid_age" in headers:
+            index = headers.index("txid_age")
+            prepared["rows"] = sorted(
+                prepared["rows"],
+                key=lambda row: int(str(row[index]).replace(",", ""))
+                if index < len(row) and str(row[index]).replace(",", "").isdigit()
+                else -1,
+                reverse=True,
+            )[:10]
+        else:
+            prepared["rows"] = prepared["rows"][:10]
+    if prepared["title"] == "罕用索引":
+        headers = [
+            str(header).casefold().replace("_", "").replace(" ", "")
+            for header in prepared["headers"]
+        ]
+        scan_index = next(
+            (
+                index for index, header in enumerate(headers)
+                if header in {"scan", "idxscan", "indexscan"}
+            ),
+            None,
+        )
+        if scan_index is not None:
+            zero = []
+            other = []
+            for row in prepared["rows"]:
+                value = row[scan_index] if scan_index < len(row) else ""
+                (zero if str(value).strip().replace(",", "") == "0" else other).append(row)
+            prepared["rows"] = (zero + other)[:10]
+        else:
+            prepared["rows"] = prepared["rows"][:10]
+    return prepared
 
 
 def _environment_nodes(model: ReportModel) -> list[dict[str, Any]]:
@@ -86,7 +173,11 @@ def _environment_nodes(model: ReportModel) -> list[dict[str, Any]]:
                 "hostname": node["hostname"],
                 "role": node["role"],
                 "os": host_values.get("作業系統", ""),
-                "database": model.product if node["role"] == "Primary" else "",
+                "database": (
+                    PRODUCT_NAMES.get(model.product, model.product)
+                    if node["role"] == "Primary"
+                    else ""
+                ),
                 "cpu": (
                     f"{host_values['CPU Core 數']} cores"
                     if host_values.get("CPU Core 數")
@@ -108,7 +199,9 @@ def _product_version(model: ReportModel) -> str:
                     continue
                 for row in unit.get("rows") or []:
                     if len(row) >= 2 and "version" in str(row[0]).casefold():
-                        return str(row[1])
+                        value = str(row[1])
+                        match = re.search(r"\b(\d+(?:\.\d+)+)\b", value)
+                        return match.group(1) if match else value
     return ""
 
 
@@ -163,6 +256,7 @@ def build_v4_report(
             )
             items = []
             for unit in group["units"]:
+                unit = _prepare_unit(unit)
                 rows = [list(row) for row in unit.get("rows") or []]
                 if unit["title"] == "PEM / EFM 服務摘要":
                     configured = {
@@ -179,10 +273,18 @@ def build_v4_report(
                         )
                     ][:10]
                     unit = {**unit, "rows": rows}
+                assessment_value = unit.get("assessment")
+                if unit["title"] == "罕用索引" and assessment_value:
+                    assessment_value = {
+                        **assessment_value,
+                        "observation": str(
+                            assessment_value.get("observation", "")
+                        ).replace("20 筆", "10 筆"),
+                    }
                 item = {
                     "title": unit["title"],
                     "evidence": _evidence(unit),
-                    **_assessment(unit.get("assessment")),
+                    **_assessment(assessment_value),
                 }
                 if chapter_number == "4":
                     item["node"] = primary
@@ -217,7 +319,11 @@ def build_v4_report(
         "report_date": model.period,
         "engineer_name": model.engineer,
         "database_source_hostname": primary,
-        "product": {"name": model.product, "version": _product_version(model)},
+        "product": {
+            "name": PRODUCT_NAMES.get(model.product, model.product),
+            "version": _product_version(model),
+        },
+        "cover_company_name": "Omniwaresoft Tech",
         "maintenance_period": f"本次健檢期間：{model.period}",
         "purpose": [
             "確認各節點、作業系統與資料庫運行狀態",

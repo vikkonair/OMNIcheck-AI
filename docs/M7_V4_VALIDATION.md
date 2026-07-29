@@ -40,3 +40,19 @@
 34／40 頁漂移。macOS Fontconfig 已明確將 Microsoft JhengHei
 映射到 Arial Unicode MS。修正後 CLI PDF 與標準 DOCX Render 均為
 38 頁。
+
+## 2026-07-29 使用者版面調整
+
+- Transaction ID 年齡依 `txid_age` 由高至低顯示前 10 筆
+- 罕用索引維持 zero-scan 優先後顯示前 10 筆
+- 資料庫清單只顯示資料庫名稱、擁有者、權限、大小
+- 一般純文字 Output 使用 8 pt
+- `postgresql.conf`、`postgresql.auto.conf`、`pg_hba.conf` 使用 7.2 pt
+- EPAS 顯示為 `EDB Postgres Advanced Server`
+- PostgreSQL 顯示為 `PostgreSQL`
+- 封面藍色框顯示 `Omniwaresoft Tech`
+- 自動測試：31 項通過
+- V4 Baseline Smoke：7 頁 A4，預設模式未發生頁數漂移
+- 台灣行動支付 DOCX／PDF：37 頁 A4
+- DOCX 與 PDF 頁數一致
+- 37 張頁面 PNG 已逐頁檢查

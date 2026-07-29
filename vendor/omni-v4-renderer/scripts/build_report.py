@@ -331,7 +331,7 @@ def add_cover(doc: Document, data: dict[str, Any]) -> None:
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
     values = [
-        "歐立威科技",
+        data.get("cover_company_name") or "歐立威科技",
         f"歐立威資料庫工程師 {data['engineer_name']}",
         "(02) 2558-2656",
         "https://www.omniwaresoft.com.tw/",
@@ -621,7 +621,11 @@ def add_evidence(doc: Document, evidence: dict[str, Any]):
             paragraph = cell.paragraphs[0] if index == 0 else cell.add_paragraph()
             paragraph.paragraph_format.space_after = Pt(0)
             run = paragraph.add_run(line)
-            format_run(run, name="Consolas", size=8.7)
+            format_run(
+                run,
+                name="Consolas",
+                size=float(evidence.get("font_size", 8.7)),
+            )
         return widths, table
 
 

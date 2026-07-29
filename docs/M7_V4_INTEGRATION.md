@@ -33,8 +33,14 @@ M1～M6 JSON
 - 正式 V4 Renderer：`vendor/omni-v4-renderer/scripts/build_report.py`
 - Vendor 檔案雜湊：`vendor/omni-v4-renderer/MANIFEST.sha256`
 
-不得直接修改 Vendor Renderer。版面變更必須先更新核准 Bundle、Golden
-Assets 與 SHA-256，再同步至主 Repository。
+Vendor Renderer 的預設 V4 token 不得任意修改。經使用者明確核准的
+參數化擴充，必須維持預設輸出相容、重新執行 Baseline regression，
+並同步更新 SHA-256。
+
+目前核准的擴充參數：
+
+- `cover_company_name`：只覆蓋封面藍色框的公司名稱
+- `evidence.font_size`：只調整純文字 Technical Output 字級
 
 ## 字型
 
