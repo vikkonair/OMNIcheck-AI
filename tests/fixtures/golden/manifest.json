@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "fixture_version": "m8.1",
+  "classification": "synthetic_and_sanitized",
+  "contains_customer_evidence": false,
+  "contracts": {
+    "canonical_schema": "1.0",
+    "pipeline": "0.6.0",
+    "ruleset": "2026.1",
+    "report_template": "omni-v4-m7.2",
+    "v4_fixture": "jiuxing_v4",
+    "monitoring_fixture": "globalwafers_pem",
+    "scope_fixture": "multi_node_scope"
+  }
+}

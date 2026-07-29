@@ -1,0 +1,5 @@
+host: scope-dr
+PostgreSQL 99.2 on excluded-dr
+List of databases
+| Name | Owner | Access privileges | Size |
+| must_not_render_dr | forbidden_owner | =Tc/forbidden_owner | 999 GB |

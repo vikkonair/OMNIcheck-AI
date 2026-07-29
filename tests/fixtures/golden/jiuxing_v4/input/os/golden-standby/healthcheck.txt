@@ -1,0 +1,13 @@
+hostname: golden-standby
+os_version: Golden Linux 9.4
+kernel_version: 5.14.0-golden
+cpu_count: 16
+MemTotal: 67108864 kB
+SwapTotal: 8388608 kB
+================ postgresql.auto.conf ================
+shared_buffers = '16GB'
+max_connections = '500'
+================ pg_hba.conf ================
+host all all 10.10.0.0/24 scram-sha-256
+================ EFM ================
+efm service is active

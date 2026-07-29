@@ -1,0 +1,15 @@
+{
+  "fixture_version": "1.0",
+  "inventory_total": 4,
+  "scope": {
+    "allowed": 4,
+    "excluded": 0,
+    "pending": 0
+  },
+  "primary": "pem-primary",
+  "monitoring": {
+    "node": "pem-primary",
+    "resolution_source": "policy.monitoring_images_default_to_primary",
+    "report_title": "CPU 使用率趨勢"
+  }
+}

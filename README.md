@@ -150,8 +150,9 @@ docker compose run --rm omni-healthcheck generate \
 - M3：標準資料模型與 Parser 架構
 - M4：完整資料解析與跨節點設定比較
 - M5：確定性健檢規則引擎
-- M6：檢查覆蓋率、安全性與交付品質驗證（目前完成）
-- M7：正式 DOCX／PDF 健檢報告
+- M6：檢查覆蓋率、安全性與交付品質驗證
+- M7：正式 DOCX／PDF 健檢報告（已完成）
+- M8：去識別 Golden Dataset 與端對端回歸測試（已完成）
 - 後續：Web UI、背景工作、歷史比較、CVE 資料與可選 AI 輔助
 
 報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。

@@ -1,0 +1,38 @@
+customer: Golden 多節點客戶
+system_name: golden-multi-node
+period: 2026-H1
+engineer: 測試工程師
+product: PostgreSQL
+first_healthcheck: true
+
+nodes:
+  - hostname: scope-primary
+    role: Primary
+    services:
+      - EFM
+  - hostname: scope-standby
+    role: Standby
+    services:
+      - EFM
+  - hostname: scope-dr
+    role: DR
+    services:
+      - EFM
+  - hostname: scope-witness
+    role: Witness
+    services:
+      - PEM
+      - EFM
+
+scope:
+  include_os_from_all_nodes: true
+  database_primary_only: true
+
+report:
+  template: omni-v4
+  output_docx: false
+  output_pdf: false
+
+ai:
+  enabled: false
+  provider: disabled

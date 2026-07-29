@@ -1,0 +1,8 @@
+hostname: pem-witness
+os_version: Golden Linux 9.4
+kernel_version: 5.14.0-golden
+cpu_count: 4
+MemTotal: 16777216 kB
+SwapTotal: 4194304 kB
+================ PEM Server ================
+PEM server is active

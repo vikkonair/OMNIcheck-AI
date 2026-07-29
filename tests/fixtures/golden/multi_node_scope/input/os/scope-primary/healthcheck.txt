@@ -1,0 +1,8 @@
+hostname: scope-primary
+os_version: Golden Linux 9.4
+cpu_count: 16
+================ postgresql.auto.conf ================
+shared_buffers = '16GB'
+work_mem = '64MB'
+================ pg_hba.conf ================
+host all all 10.20.0.0/24 scram-sha-256

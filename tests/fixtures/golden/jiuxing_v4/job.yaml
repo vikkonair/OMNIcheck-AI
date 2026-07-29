@@ -1,0 +1,29 @@
+customer: Golden V4 客戶
+system_name: golden-v4
+period: 2026-H1
+engineer: 測試工程師
+product: EPAS
+first_healthcheck: true
+
+nodes:
+  - hostname: golden-primary
+    role: Primary
+    services:
+      - EFM
+  - hostname: golden-standby
+    role: Standby
+    services:
+      - EFM
+
+scope:
+  include_os_from_all_nodes: true
+  database_primary_only: true
+
+report:
+  template: omni-v4
+  output_docx: false
+  output_pdf: false
+
+ai:
+  enabled: false
+  provider: disabled

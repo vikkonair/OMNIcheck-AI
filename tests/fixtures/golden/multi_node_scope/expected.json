@@ -1,0 +1,24 @@
+{
+  "fixture_version": "1.0",
+  "inventory_total": 7,
+  "scope": {
+    "allowed": 5,
+    "excluded": 2,
+    "pending": 0
+  },
+  "primary": "scope-primary",
+  "logical_database_nodes": [
+    "scope-primary"
+  ],
+  "configuration_nodes": [
+    "scope-dr",
+    "scope-primary",
+    "scope-standby"
+  ],
+  "forbidden_report_values": [
+    "must_not_render_dr",
+    "must_not_render_standby",
+    "PostgreSQL 99.1",
+    "PostgreSQL 99.2"
+  ]
+}

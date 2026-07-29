@@ -1,0 +1,7 @@
+hostname: scope-witness
+os_version: Golden Linux 9.4
+cpu_count: 4
+================ PEM Server ================
+PEM server is active
+================ EFM ================
+efm witness is active

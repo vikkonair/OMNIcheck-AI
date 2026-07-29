@@ -1,0 +1,5 @@
+host: scope-primary
+PostgreSQL 16.4 on golden-linux
+List of databases
+| Name | Owner | Access privileges | Size |
+| golden_app | app_owner | =Tc/app_owner | 64 GB |

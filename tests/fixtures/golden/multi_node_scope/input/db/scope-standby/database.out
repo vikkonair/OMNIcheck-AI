@@ -1,0 +1,5 @@
+host: scope-standby
+PostgreSQL 99.1 on excluded-standby
+List of databases
+| Name | Owner | Access privileges | Size |
+| must_not_render_standby | forbidden_owner | =Tc/forbidden_owner | 999 GB |

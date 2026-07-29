@@ -1,0 +1,11 @@
+host: golden-primary
+EDB Postgres Advanced Server 16.14
+List of databases
+| Name | Owner | Access privileges | Size |
+| golden_app | app_owner | =Tc/app_owner | 32 GB |
+List of installed extensions
+| Name | Version | Schema |
+| edb_dblink_oci | 1.0 | pg_catalog |
+資料庫同步狀況
+| pid | usesysid | usename | client_hostname | state | sync_state |
+| 1001 | 10 | repuser | golden-standby | streaming | sync |

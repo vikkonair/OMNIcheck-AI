@@ -1,0 +1,25 @@
+{
+  "fixture_version": "1.0",
+  "inventory_total": 3,
+  "scope": {
+    "allowed": 3,
+    "excluded": 0,
+    "pending": 0
+  },
+  "primary": "golden-primary",
+  "product": "EDB Postgres Advanced Server",
+  "required_checks": [
+    "database_inventory",
+    "database_version",
+    "extensions",
+    "pg_hba_conf",
+    "postgresql_auto_conf",
+    "replication_state"
+  ],
+  "chapter_titles": [
+    "作業系統健檢",
+    "PostgreSQL 資料庫健檢",
+    "PEM 與 EFM"
+  ],
+  "show_components": false
+}
