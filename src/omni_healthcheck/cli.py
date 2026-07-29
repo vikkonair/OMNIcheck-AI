@@ -15,6 +15,7 @@ from omni_healthcheck.quality import (
     build_coverage_ledger,
     build_qa_result,
 )
+from omni_healthcheck.reporting import build_report_model
 from omni_healthcheck.rules import RulesConfigError, evaluate_rules, load_rules
 from omni_healthcheck.topology import build_scope_ledger, build_topology
 
@@ -60,6 +61,9 @@ def run_generate(
     qa_result = build_qa_result(
         job, inventory, scope_ledger, normalized, assessment, coverage
     )
+    report_model = build_report_model(
+        job, topology, normalized, assessment, coverage, configuration_comparison
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "inventory.json": inventory,
@@ -70,6 +74,7 @@ def run_generate(
         "assessment.json": assessment.model_dump(mode="json"),
         "coverage-ledger.json": coverage,
         "qa-result.json": qa_result,
+        "report-model.json": report_model.model_dump(mode="json"),
     }
     for filename, content in outputs.items():
         (output_dir / filename).write_text(
@@ -97,6 +102,15 @@ def run_generate(
             "delivery quality gates failed: "
             + ", ".join(qa_result["failed_gates"])
         )
+    if job.report.output_docx or job.report.output_pdf:
+        from omni_healthcheck.docx_renderer import convert_docx_to_pdf, render_docx
+
+        docx_path = output_dir / "report.docx"
+        render_docx(report_model, docx_path)
+        if job.report.output_pdf:
+            convert_docx_to_pdf(docx_path, output_dir / "report.pdf")
+        if not job.report.output_docx:
+            docx_path.unlink()
     return 0
 
 
@@ -114,6 +128,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         FileNotFoundError,
         NotADirectoryError,
         OSError,
+        RuntimeError,
     ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         code = 2

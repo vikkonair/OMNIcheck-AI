@@ -51,3 +51,23 @@ def test_scope_allows_all_os_and_only_primary_database() -> None:
     assert by_path["os/ambiguous.txt"]["resolution_status"] == "ambiguous"
     assert by_path["os/ambiguous.txt"]["decision"] == "pending"
     assert ledger["summary"] == {"allowed": 7, "excluded": 3, "pending": 2}
+
+
+def test_unresolved_monitoring_image_defaults_to_primary(tmp_path: Path) -> None:
+    job = load_job(FIXTURE / "job.yaml")
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "CPU.jpeg").write_bytes(b"monitoring-image")
+
+    inventory = build_inventory(input_dir, job)
+    ledger = build_scope_ledger(input_dir, inventory, job)
+    item = ledger["evidence"][0]
+
+    assert item["evidence_domain"] == "monitoring"
+    assert item["node"] == "db-primary"
+    assert item["node_role"] == "Primary"
+    assert item["resolution_status"] == "resolved"
+    assert item["resolution_sources"] == [
+        "policy.monitoring_images_default_to_primary"
+    ]
+    assert item["decision"] == "allowed"

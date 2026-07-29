@@ -25,6 +25,7 @@ OS_HINTS = {"os", "system", "sar", "vmstat", "iostat", "filesystem", "df"}
 DB_HINTS = {"db", "database", "postgres", "postgresql", "epas", "edb", "sql"}
 MONITORING_HINTS = {"monitoring", "pem", "screenshot", "trend", "graph"}
 DOCUMENT_HINTS = {"document", "documents", "report", "reports", "prior"}
+MONITORING_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"}
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,8 @@ def resolve_node(path: Path, relative_path: str, job: JobConfig) -> NodeResoluti
 
 def classify_evidence_domain(relative_path: str, extension: str) -> str:
     basename = relative_path.rsplit("/", 1)[-1].casefold()
+    if basename == ".ds_store":
+        return "system_metadata"
     compact_basename = re.sub(r"[^a-z0-9]+", "", basename)
     basename_tokens = {
         token for token in re.split(r"[^a-z0-9]+", basename) if token
@@ -184,12 +187,15 @@ def classify_evidence_domain(relative_path: str, extension: str) -> str:
         return "os"
     if tokens & DOCUMENT_HINTS or extension in {".docx", ".pdf"}:
         return "document"
-    if extension in {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"}:
+    if extension in MONITORING_IMAGE_EXTENSIONS:
         return "monitoring"
     return "unknown"
 
 
 def scope_decision(domain: str, resolution: NodeResolution) -> tuple[str, str]:
+    if domain == "system_metadata":
+        return "excluded", "operating-system metadata is not health-check evidence"
+
     if domain == "database":
         if resolution.status != "resolved":
             return "pending", "database evidence node is not uniquely resolved"
@@ -237,10 +243,23 @@ def build_topology(job: JobConfig) -> dict:
 
 def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict:
     evidence = []
+    primary = next(node for node in job.nodes if node.role == "Primary")
     for item in inventory["files"]:
         relative_path = item["path"]
         resolution = resolve_node(input_dir / relative_path, relative_path, job)
         domain = classify_evidence_domain(relative_path, item["extension"])
+        if (
+            domain == "monitoring"
+            and item["extension"] in MONITORING_IMAGE_EXTENSIONS
+            and resolution.status == "unresolved"
+        ):
+            resolution = NodeResolution(
+                hostname=primary.hostname,
+                role=primary.role,
+                status="resolved",
+                matched_nodes=[primary.hostname],
+                sources=["policy.monitoring_images_default_to_primary"],
+            )
         decision, reason = scope_decision(domain, resolution)
         evidence.append(
             {
@@ -262,6 +281,7 @@ def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict
         "policy": {
             "include_os_from_all_nodes": job.scope.include_os_from_all_nodes,
             "database_primary_only": job.scope.database_primary_only,
+            "monitoring_images_default_to_primary": True,
         },
         "summary": {
             state: sum(item["decision"] == state for item in evidence)
