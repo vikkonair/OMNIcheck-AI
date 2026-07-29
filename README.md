@@ -2,7 +2,7 @@
 
 OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-目前專案已完成至 **M6：覆蓋率、安全性與交付品質閘門**。系統可以讀取客戶提供的 OS、資料庫、EFM、PEM、備份及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，並依據版本化規則產生可追溯的健檢判斷。
+目前專案已完成至 **M8.1：Golden Regression、Witness 元件與多備份工具架構**。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
 > 當前版本屬於後端資料處理與判斷引擎，尚未完成正式 DOCX／PDF 報告產出與 Web 操作介面。
 
