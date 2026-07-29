@@ -536,7 +536,10 @@ def add_environment(doc: Document, data: dict[str, Any]) -> None:
     add_heading(doc, "2.", "系統架構與環境", 1)
     add_heading(doc, "2.1", "架構總覽", 2)
     nodes = data.get("nodes") or []
-    headers = ["角色", "主機名稱", "OS", "Database", "CPU", "RAM", "Service IP", "元件"]
+    show_components = data.get("show_components", True)
+    headers = ["角色", "主機名稱", "OS", "Database", "CPU", "RAM", "Service IP"]
+    if show_components:
+        headers.append("元件")
     table = doc.add_table(rows=1, cols=len(headers))
     for idx, value in enumerate(headers):
         table.rows[0].cells[idx].text = value
@@ -550,8 +553,9 @@ def add_environment(doc: Document, data: dict[str, Any]) -> None:
             node.get("cpu", ""),
             node.get("ram", ""),
             node.get("service_ip", ""),
-            ", ".join(node.get("components") or []),
         ]
+        if show_components:
+            values.append(", ".join(node.get("components") or []))
         for idx, value in enumerate(values):
             cells[idx].text = str(value)
     style_table(table)

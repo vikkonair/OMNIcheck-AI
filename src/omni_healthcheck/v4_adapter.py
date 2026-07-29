@@ -109,6 +109,17 @@ def _prepare_unit(unit: dict) -> dict:
                 ("Size", "大小"),
             ],
         )
+    if prepared["title"] == "同步狀態":
+        return _select_columns(
+            prepared,
+            [
+                ("pid", "pid"),
+                ("usename", "usename"),
+                ("client_hostname", "client_hostname"),
+                ("state", "state"),
+                ("sync_state", "sync_state"),
+            ],
+        )
     if prepared["title"] == "Transaction ID 年齡":
         headers = [str(header).casefold() for header in prepared["headers"]]
         if "txid_age" in headers:
@@ -257,6 +268,24 @@ def build_v4_report(
             items = []
             for unit in group["units"]:
                 unit = _prepare_unit(unit)
+                if unit["title"] == "版本資訊" and model.product == "EPAS":
+                    unit = {
+                        **unit,
+                        "rows": [
+                            [
+                                row[0],
+                                re.sub(
+                                    r"(?i)^PostgreSQL\s*",
+                                    "EDB Postgres Advanced Server ",
+                                    str(row[1]),
+                                ),
+                                *row[2:],
+                            ]
+                            if len(row) >= 2 and "version" in str(row[0]).casefold()
+                            else row
+                            for row in unit.get("rows") or []
+                        ],
+                    }
                 rows = [list(row) for row in unit.get("rows") or []]
                 if unit["title"] == "PEM / EFM 服務摘要":
                     configured = {
@@ -331,6 +360,7 @@ def build_v4_report(
             "提出可執行的改善建議",
         ],
         "nodes": _environment_nodes(model),
+        "show_components": False,
         "architecture_image": None,
         "chapters": chapters,
         "version_updates": [],

@@ -55,6 +55,13 @@ def _model() -> ReportModel:
                         "title": "4.1 組態與安全設定",
                         "units": [
                             {
+                                "title": "版本資訊",
+                                "headers": ["Metric", "Value"],
+                                "rows": [["Database Version", "PostgreSQL 16.14"]],
+                                "omitted_rows": 0,
+                                "assessment": None,
+                            },
+                            {
                                 "title": "Primary postgresql.auto.conf",
                                 "headers": ["Output"],
                                 "rows": [["shared_buffers = '8GB'"]],
@@ -86,7 +93,8 @@ def test_adapter_preserves_primary_database_and_configuration_observation(
         tmp_path,
     )
     assert report["database_source_hostname"] == "db-primary"
-    item = report["chapters"][1]["sections"][0]["items"][0]
+    section_items = report["chapters"][1]["sections"][0]["items"]
+    item = next(item for item in section_items if "postgresql.auto.conf" in item["title"])
     assert item["node"] == "db-primary"
     assert item["status"] == "注意"
     assert "跨節點比較" in item["observation"]
@@ -94,6 +102,11 @@ def test_adapter_preserves_primary_database_and_configuration_observation(
     assert report["nodes"][0]["cpu"] == "8 cores"
     assert report["product"]["name"] == "EDB Postgres Advanced Server"
     assert report["cover_company_name"] == "Omniwaresoft Tech"
+    assert report["show_components"] is False
+    version = next(item for item in section_items if item["title"] == "版本資訊")
+    assert version["evidence"]["rows"] == [
+        ["Database Version", "EDB Postgres Advanced Server 16.14"]
+    ]
 
 
 def test_adapter_applies_requested_report_limits_and_database_columns() -> None:
@@ -131,6 +144,22 @@ def test_adapter_applies_requested_report_limits_and_database_columns() -> None:
     assert len(indexes["rows"]) == 10
     assert indexes["rows"][0] == ["zero", "0"]
 
+    replication = _prepare_unit(
+        {
+            "title": "同步狀態",
+            "headers": [
+                "pid", "usesysid", "usename", "client_hostname", "state", "sync_state"
+            ],
+            "rows": [["1", "2", "repuser", "standby", "streaming", "async"]],
+        }
+    )
+    assert replication["headers"] == [
+        "pid", "usename", "client_hostname", "state", "sync_state"
+    ]
+    assert replication["rows"] == [
+        ["1", "repuser", "standby", "streaming", "async"]
+    ]
+
 
 def test_v4_quality_blocks_pending_scope() -> None:
     report = build_v4_report(_model(), {"evidence": []}, ROOT)
@@ -145,4 +174,4 @@ def test_v4_quality_blocks_pending_scope() -> None:
 
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
-    assert digest == "886b7f38a66858fd486fbc60725550356d3d73615cda7c65b093705609210eae"
+    assert digest == "34c5298c78cbd78b8dc68b1d9af7f0035cf4b99ef0f9ae167f12919203a701b7"

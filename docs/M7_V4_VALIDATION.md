@@ -56,3 +56,17 @@
 - 台灣行動支付 DOCX／PDF：37 頁 A4
 - DOCX 與 PDF 頁數一致
 - 37 張頁面 PNG 已逐頁檢查
+
+## 2026-07-29 架構、版本與同步狀態調整
+
+- 系統架構的「架構總覽」不顯示元件欄位
+- EPAS 的 Database Version 顯示為
+  `EDB Postgres Advanced Server 16.14`
+- 同步狀態只顯示 `pid`、`usename`、`client_hostname`、`state`、
+  `sync_state`
+- V4 Baseline 預設仍保留元件欄位，7 頁 A4 baseline 未漂移
+- 台灣行動支付 DOCX／PDF：37 頁 A4
+- DOCX 與 PDF 頁數一致
+- 第 4、12、27 頁指定內容符合需求
+- 37 張頁面 PNG 已逐頁檢查，未發現新增的重疊、裁切或空白頁
+- 自動測試：31 項通過

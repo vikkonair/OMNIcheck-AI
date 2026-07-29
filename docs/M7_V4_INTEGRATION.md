@@ -41,6 +41,7 @@ Vendor Renderer 的預設 V4 token 不得任意修改。經使用者明確核准
 
 - `cover_company_name`：只覆蓋封面藍色框的公司名稱
 - `evidence.font_size`：只調整純文字 Technical Output 字級
+- `show_components`：控制架構總覽是否顯示元件欄
 
 ## 字型
 
