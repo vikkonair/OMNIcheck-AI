@@ -12,6 +12,12 @@ nodes:
     role: Witness
     services:
       - PEM
+      - XDB
+      - Barman
+
+backup:
+  provider: barman
+  node: pem-witness
 
 scope:
   include_os_from_all_nodes: true

@@ -4,7 +4,16 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+
+from omni_healthcheck.services import canonical_service_name, service_definition
 
 
 class StrictModel(BaseModel):
@@ -14,13 +23,39 @@ class StrictModel(BaseModel):
 class NodeConfig(StrictModel):
     hostname: str = Field(min_length=1)
     role: Literal["Primary", "Standby", "DR", "Witness"]
-    services: list[Literal["PEM", "EFM"]] = Field(default_factory=list)
+    services: list[str] = Field(default_factory=list)
+
+    @field_validator("services")
+    @classmethod
+    def normalize_services(cls, values: list[str]) -> list[str]:
+        normalized = [canonical_service_name(value) for value in values]
+        if any(not value for value in normalized):
+            raise ValueError("service names must not be empty")
+        if len({value.casefold() for value in normalized}) != len(normalized):
+            raise ValueError("node services must be unique")
+        return normalized
 
     @model_validator(mode="after")
-    def pem_runs_on_witness(self) -> "NodeConfig":
-        if "PEM" in self.services and self.role != "Witness":
-            raise ValueError("PEM service must run on a Witness node")
+    def registered_service_roles_are_valid(self) -> "NodeConfig":
+        for service in self.services:
+            definition = service_definition(service)
+            if (
+                definition
+                and definition.allowed_roles
+                and self.role not in definition.allowed_roles
+            ):
+                if definition.name == "PEM":
+                    raise ValueError("PEM service must run on a Witness node")
+                roles = ", ".join(sorted(definition.allowed_roles))
+                raise ValueError(
+                    f"{definition.name} service must run on role: {roles}"
+                )
         return self
+
+
+class BackupConfig(StrictModel):
+    provider: Literal["pgbackrest", "barman"]
+    node: str = Field(min_length=1)
 
 
 class ScopeConfig(StrictModel):
@@ -53,6 +88,7 @@ class JobConfig(StrictModel):
     product: Literal["PostgreSQL", "EPAS"]
     first_healthcheck: bool
     nodes: list[NodeConfig] = Field(min_length=1)
+    backup: BackupConfig | None = None
     scope: ScopeConfig
     report: ReportConfig
     ai: AIConfig
@@ -65,6 +101,25 @@ class JobConfig(StrictModel):
         primary_count = sum(node.role == "Primary" for node in self.nodes)
         if primary_count != 1:
             raise ValueError("exactly one node must have role Primary")
+        if self.backup:
+            backup_node = next(
+                (
+                    node
+                    for node in self.nodes
+                    if node.hostname.casefold() == self.backup.node.casefold()
+                ),
+                None,
+            )
+            if backup_node is None:
+                raise ValueError("backup.node must reference a configured node")
+            expected_service = canonical_service_name(self.backup.provider)
+            if expected_service.casefold() not in {
+                service.casefold() for service in backup_node.services
+            }:
+                raise ValueError(
+                    f"backup provider {expected_service} must be listed in "
+                    f"{backup_node.hostname} services"
+                )
         if not self.scope.include_os_from_all_nodes:
             raise ValueError("scope.include_os_from_all_nodes must be true")
         if not self.scope.database_primary_only:

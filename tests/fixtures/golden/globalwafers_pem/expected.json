@@ -11,5 +11,13 @@
     "node": "pem-primary",
     "resolution_source": "policy.monitoring_images_default_to_primary",
     "report_title": "CPU 使用率趨勢"
-  }
+  },
+  "witness_services": [
+    "PEM",
+    "XDB",
+    "Barman"
+  ],
+  "service_chapter": "PEM、EFM 與 XDB",
+  "service_summary_title": "PEM / EFM / XDB 服務摘要",
+  "backup_title": "Barman 備份狀態（pem-witness）"
 }

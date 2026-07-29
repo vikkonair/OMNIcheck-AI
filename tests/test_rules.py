@@ -149,3 +149,35 @@ def test_rule_engine_is_deterministic_and_evidence_backed() -> None:
     assert all(
         "primary_conninfo" not in item.observation for item in first.assessments
     )
+
+
+def test_barman_failure_is_assessed_without_primary_database_scope() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "backup_configuration",
+                ["Output"],
+                [["Provider: Barman"], ["backup maximum age: FAILED"]],
+                node="backup-witness",
+                role="Witness",
+                product="Backup",
+            )
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {
+            "parameter_comparisons": [],
+            "pg_hba": {"rules_by_node": {}},
+        },
+        load_rules(ROOT / "config/rules.default.yaml"),
+    )
+
+    assert len(result.assessments) == 1
+    assessment = result.assessments[0]
+    assert assessment.status == "attention"
+    assert "Barman" in assessment.observation
+    assert assessment.node == "backup-witness"

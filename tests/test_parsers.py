@@ -1,8 +1,9 @@
 from pathlib import Path
 
-from omni_healthcheck.config import load_job
+from omni_healthcheck.config import BackupConfig, load_job
 from omni_healthcheck.inventory import build_inventory
 from omni_healthcheck.parsers import (
+    BarmanParser,
     OSSectionParser,
     ParserContext,
     PsqlReportParser,
@@ -153,6 +154,75 @@ active
     checks = OSSectionParser().parse(parser_context(path, "os", "Witness"))
 
     assert {check.check_id for check in checks} == {"pem_server_status"}
+
+
+def test_os_sections_parse_xdb_and_barman_on_witness(tmp_path: Path) -> None:
+    path = tmp_path / "HealthChekOS-LOG-pem-witness.txt"
+    path.write_text(
+        """================ XDB ================
+XDB supporting component is active
+================ Barman ================
+barman check app
+PostgreSQL: OK
+Last backup: 2026-06-30 02:00:00
+""",
+        encoding="utf-8",
+    )
+    base_context = parser_context(path, domain="os", role="Witness")
+    context = ParserContext(
+        path=base_context.path,
+        inventory_item=base_context.inventory_item,
+        scope_item=base_context.scope_item,
+        job=base_context.job.model_copy(
+            update={
+                "backup": BackupConfig(
+                    provider="barman",
+                    node=base_context.scope_item["node"],
+                )
+            }
+        ),
+    )
+
+    xdb_checks = OSSectionParser().parse(context)
+    barman_checks = BarmanParser().parse(context)
+    by_id = {
+        check.check_id: check
+        for check in [*xdb_checks, *barman_checks]
+    }
+
+    assert set(by_id) == {"xdb_status", "backup_configuration"}
+    assert by_id["xdb_status"].product == "XDB"
+    assert by_id["backup_configuration"].product == "Backup"
+    assert by_id["backup_configuration"].evidence.rows[0] == [
+        "Provider: Barman"
+    ]
+    assert by_id["backup_configuration"].trace.parser_id == "backup.barman.v1"
+
+
+def test_pgbackrest_defaults_to_primary_when_backup_node_is_not_configured(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "healthcheck.txt"
+    path.write_text(
+        """================ pgbackrest ================
+[global]
+repo1-retention-full=2
+""",
+        encoding="utf-8",
+    )
+
+    primary = OSSectionParser().parse(
+        parser_context(path, domain="os", role="Primary")
+    )
+    witness = OSSectionParser().parse(
+        parser_context(path, domain="os", role="Witness")
+    )
+
+    primary_backup = next(
+        check for check in primary if check.check_id == "backup_configuration"
+    )
+    assert primary_backup.evidence.rows[0] == ["Provider: pgBackRest"]
+    assert all(check.check_id != "backup_configuration" for check in witness)
 
 
 def test_psql_report_parser_applies_fixed_row_policies(tmp_path: Path) -> None:

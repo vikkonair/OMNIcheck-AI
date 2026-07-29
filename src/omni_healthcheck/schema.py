@@ -27,7 +27,7 @@ class CheckResult(CanonicalModel):
     section_id: str = Field(min_length=1)
     node: str = Field(min_length=1)
     node_role: Literal["Primary", "Standby", "DR", "Witness"]
-    product: Literal["OS", "PostgreSQL", "EPAS", "PEM", "EFM"]
+    product: Literal["OS", "PostgreSQL", "EPAS", "PEM", "EFM", "XDB", "Backup"]
     collected_at: str | None = None
     evidence: TableEvidence
     assessment: None = None

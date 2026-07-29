@@ -247,16 +247,30 @@ def _candidate_assessment(
 
 def _backup_assessment(check: CheckResult, version: str) -> Assessment:
     lowered = _output_text(check).casefold()
+    provider = next(
+        (
+            row[0].partition(":")[2].strip()
+            for row in check.evidence.rows
+            if row and row[0].casefold().startswith("provider:")
+        ),
+        "Backup",
+    )
     has_error = any(
         marker in lowered
-        for marker in ("no such file", "error", "failed", "fatal")
+        for marker in (
+            "no such file",
+            "error",
+            "failed",
+            "fatal",
+            "check failed",
+        )
     )
     return _assessment(
         check,
         status="attention" if has_error else "normal",
         rule_id="os.backup_configuration.v1",
         ruleset_version=version,
-        explanation=f"{check.node} 已收集備份設定與狀態輸出。",
+        explanation=f"{check.node} 已收集 {provider} 備份設定與狀態輸出。",
         conclusion="輸出中出現需確認的錯誤訊息。" if has_error else "未見明確備份設定錯誤。",
         recommendation="請確認備份路徑、排程與最近成功紀錄。"
         if has_error

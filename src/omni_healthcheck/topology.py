@@ -21,7 +21,18 @@ TEXT_EXTENSIONS = {
     ".yaml",
     ".yml",
 }
-OS_HINTS = {"os", "system", "sar", "vmstat", "iostat", "filesystem", "df"}
+OS_HINTS = {
+    "os",
+    "system",
+    "sar",
+    "vmstat",
+    "iostat",
+    "filesystem",
+    "df",
+    "backup",
+    "barman",
+    "pgbackrest",
+}
 DB_HINTS = {"db", "database", "postgres", "postgresql", "epas", "edb", "sql"}
 MONITORING_HINTS = {"monitoring", "pem", "screenshot", "trend", "graph"}
 DOCUMENT_HINTS = {"document", "documents", "report", "reports", "prior"}

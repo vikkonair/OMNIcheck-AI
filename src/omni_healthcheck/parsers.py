@@ -254,11 +254,12 @@ class OSSectionParser:
         "EFM": ("efm_status", "3.8", "EFM"),
         "PEM Agent": ("pem_agent_status", "3.8", "PEM"),
         "PEM Server": ("pem_server_status", "3.8", "PEM"),
+        "XDB": ("xdb_status", "3.8", "XDB"),
         "PEM / EFM 狀態彙整": ("pem_efm_summary", "3.8", "OS"),
         "pgbackrest": (
             "backup_configuration",
             "3.9",
-            "database_configuration",
+            "Backup",
         ),
         "Cronjob 設定檢查": ("cron_configuration", "3.9", "OS"),
     }
@@ -289,6 +290,18 @@ class OSSectionParser:
                 "node_role"
             ] not in {"Primary", "Standby", "DR"}:
                 continue
+            if check_id == "backup_configuration":
+                configured = context.job.backup
+                provider = "Barman" if title.casefold() == "barman" else "pgBackRest"
+                if configured:
+                    if (
+                        context.scope_item["node"].casefold()
+                        != configured.node.casefold()
+                        or provider.casefold() != configured.provider.casefold()
+                    ):
+                        continue
+                elif context.scope_item["node_role"] != "Primary":
+                    continue
             if check_id in seen:
                 continue
             seen.add(check_id)
@@ -297,11 +310,15 @@ class OSSectionParser:
                 if product_kind == "database_configuration"
                 else product_kind
             )
+            prefix = []
+            if check_id == "backup_configuration":
+                prefix = [[f"Provider: {provider}"]]
             rows = [
                 [_redact_secret_text(line.rstrip())]
                 for line in body.splitlines()
                 if line.strip()
             ]
+            rows = prefix + rows
             if rows:
                 checks.append(
                     _rows_check(
@@ -347,6 +364,62 @@ class DatabaseVersionParser:
                 product=product,
                 metric="Database Version",
                 value=f"{match.group(1)} {match.group(2)}",
+            )
+        ]
+
+
+class BarmanParser:
+    """Parse Barman check/status/list-backup output without database scope."""
+
+    parser_id = "backup.barman.v1"
+    markers = (
+        "barman check",
+        "barman status",
+        "barman list-backup",
+        "backup maximum age:",
+        "retention policy:",
+    )
+
+    def parse(self, context: ParserContext) -> list[CheckResult]:
+        if context.scope_item["evidence_domain"] != "os":
+            return []
+        configured = context.job.backup
+        if configured:
+            if (
+                configured.provider != "barman"
+                or context.scope_item["node"].casefold()
+                != configured.node.casefold()
+            ):
+                return []
+        elif context.scope_item["node_role"] != "Primary":
+            return []
+        text = context.text
+        barman_section = next(
+            (
+                body
+                for title, body in OSSectionParser._sections(text)
+                if title.casefold() == "barman"
+            ),
+            None,
+        )
+        candidate = barman_section if barman_section is not None else text
+        lowered = candidate.casefold()
+        if not any(marker in lowered for marker in self.markers):
+            return []
+        rows = [["Provider: Barman"]] + [
+            [_redact_secret_text(line.rstrip())]
+            for line in candidate.splitlines()
+            if line.strip()
+        ]
+        return [
+            _rows_check(
+                context,
+                parser_id=self.parser_id,
+                check_id="backup_configuration",
+                section_id="3.9",
+                product="Backup",
+                headers=["Output"],
+                rows=rows,
             )
         ]
 
@@ -500,6 +573,7 @@ DEFAULT_PARSERS: tuple[EvidenceParser, ...] = (
     OSKeyValueParser(),
     HealthCheckOSLogParser(),
     OSSectionParser(),
+    BarmanParser(),
     DatabaseVersionParser(),
     PsqlReportParser(),
 )

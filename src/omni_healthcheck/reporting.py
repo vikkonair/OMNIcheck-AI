@@ -28,6 +28,7 @@ CHECK_TITLES = {
     "efm_status": "EFM 狀態",
     "pem_agent_status": "PEM Agent 狀態",
     "pem_server_status": "PEM Server 狀態",
+    "xdb_status": "XDB 狀態",
     "backup_configuration": "備份狀態",
     "database_version": "資料庫版本",
     "database_inventory": "資料庫清單",
@@ -264,11 +265,47 @@ def build_report_model(
             ("efm_status", "EFM"),
             ("pem_agent_status", "PEM Agent"),
             ("pem_server_status", "PEM Server"),
+            ("xdb_status", "XDB"),
         ):
             check = find(node["hostname"], check_id)
             if check:
                 sample = "；".join(" ".join(row) for row in check.evidence.rows[:2])
                 pem_rows.append([node["hostname"], label, sample])
+
+    primary_backup_units = []
+    supporting_backup_units = []
+    for check in normalized.checks:
+        if check.check_id != "backup_configuration":
+            continue
+        provider = next(
+            (
+                row[0].partition(":")[2].strip()
+                for row in check.evidence.rows
+                if row and row[0].casefold().startswith("provider:")
+            ),
+            "Backup",
+        )
+        is_primary_backup = check.node.casefold() == primary.casefold()
+        backup_unit = unit(
+            check.node,
+            "backup_configuration",
+            (
+                f"{provider} 備份狀態"
+                if is_primary_backup
+                else f"{provider} 備份狀態（{check.node}）"
+            ),
+        )
+        if backup_unit:
+            (
+                primary_backup_units
+                if is_primary_backup
+                else supporting_backup_units
+            ).append(backup_unit)
+
+    has_xdb = any(
+        "XDB" in node.get("services", [])
+        for node in node_rows
+    )
 
     sections = [
         {
@@ -299,8 +336,7 @@ def build_report_model(
                     (primary, "index_bloat", "Index Bloat"),
                     (primary, "rarely_used_indexes", "罕用索引"),
                     (primary, "replication_state", "同步狀態"),
-                    (primary, "backup_configuration", "備份狀態"),
-                ])},
+                ]) + primary_backup_units},
                 {"title": "4.3 權限與 Schema", "units": compact_units([
                     (primary, "roles_privileges", "資料庫帳號權限"),
                     (primary, "schema_privileges", "Schema 權限"),
@@ -310,14 +346,28 @@ def build_report_model(
         },
         {
             "section_id": "5",
-            "title": "PEM 與 EFM",
-            "groups": [{"title": "5.1 服務狀態彙整", "units": [{
-                "title": "PEM / EFM 服務摘要",
-                "headers": ["節點", "服務", "摘要"],
-                "rows": pem_rows,
-                "omitted_rows": 0,
-                "assessment": None,
-            }]}],
+            "title": "PEM、EFM 與 XDB" if has_xdb else "PEM 與 EFM",
+            "groups": [
+                {"title": "5.1 服務狀態彙整", "units": [{
+                    "title": (
+                        "PEM / EFM / XDB 服務摘要"
+                        if has_xdb
+                        else "PEM / EFM 服務摘要"
+                    ),
+                    "headers": ["節點", "服務", "摘要"],
+                    "rows": pem_rows,
+                    "omitted_rows": 0,
+                    "assessment": None,
+                }]},
+                *(
+                    [{
+                        "title": "5.2 備份服務狀態",
+                        "units": supporting_backup_units,
+                    }]
+                    if supporting_backup_units
+                    else []
+                ),
+            ],
         },
     ]
     findings = [

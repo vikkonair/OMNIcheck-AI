@@ -125,6 +125,37 @@ def test_globalwafers_golden_uses_primary_mapped_pem_output(
         f"{expected['monitoring']['node']}／"
     )
 
+    witness = next(
+        node
+        for node in documents["topology"]["nodes"]
+        if node["role"] == "Witness"
+    )
+    assert witness["services"] == expected["witness_services"]
+    assert documents["v4-report"]["chapters"][-1]["title"] == expected[
+        "service_chapter"
+    ]
+    backup = next(
+        item
+        for item in _items(documents["v4-report"])
+        if item["title"] == expected["backup_title"]
+    )
+    assert backup["evidence"]["type"] == "text"
+    assert "Provider: Barman" in backup["evidence"]["content"]
+    assert "Last backup:" in backup["evidence"]["content"]
+    assert backup["status"] == "正常"
+    service_summary = next(
+        item
+        for item in _items(documents["v4-report"])
+        if item["title"] == expected["service_summary_title"]
+    )
+    assert {
+        (row[0], row[1])
+        for row in service_summary["evidence"]["rows"]
+    } == {
+        ("pem-witness", "PEM Server"),
+        ("pem-witness", "XDB"),
+    }
+
 
 def test_multi_node_golden_excludes_standby_and_dr_logical_database_output(
     tmp_path: Path,

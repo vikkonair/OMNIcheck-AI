@@ -6,3 +6,12 @@ MemTotal: 16777216 kB
 SwapTotal: 4194304 kB
 ================ PEM Server ================
 PEM server is active
+================ XDB ================
+XDB supporting component is active
+================ Barman ================
+barman check golden-primary
+PostgreSQL: OK
+backup maximum age: OK
+barman status golden-primary
+Last backup: 2026-06-30 02:00:00
+Retention policy: REDUNDANCY 2

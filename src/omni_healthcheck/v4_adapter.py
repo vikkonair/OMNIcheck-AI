@@ -287,18 +287,28 @@ def build_v4_report(
                         ],
                     }
                 rows = [list(row) for row in unit.get("rows") or []]
-                if unit["title"] == "PEM / EFM 服務摘要":
+                if unit["title"] in {
+                    "PEM / EFM 服務摘要",
+                    "PEM / EFM / XDB 服務摘要",
+                }:
                     configured = {
                         (node["hostname"], service)
                         for node in model.nodes
                         for service in node.get("services") or []
                     }
+                    service_name = {
+                        "PEM Server": "PEM",
+                        "PEM Agent": "PEM",
+                    }
                     rows = [
                         row for row in rows
                         if len(row) >= 2
                         and (
-                            (row[0], row[1]) in configured
-                            or row[1] == "PEM Agent"
+                            (
+                                row[0],
+                                service_name.get(row[1], row[1]),
+                            )
+                            in configured
                         )
                     ][:10]
                     unit = {**unit, "rows": rows}
