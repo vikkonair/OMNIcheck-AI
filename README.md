@@ -4,14 +4,14 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 
 目前專案已完成至 **M8.1：Golden Regression、Witness 元件與多備份工具架構**。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-> 當前版本屬於後端資料處理與判斷引擎，尚未完成正式 DOCX／PDF 報告產出與 Web 操作介面。
+> 當前版本已完成後端 Pipeline、確定性判斷、Golden Regression 與正式 V4 DOCX／PDF 報告；Web 操作介面與背景工作管理將於 M9 建置。
 
 ## 目前可以做到什麼
 
 - 掃描輸入資料夾並建立完整檔案清冊及 SHA-256 雜湊值。
 - 辨識 Primary、Standby、DR 與 Witness 節點。
-- 辨識各節點承載的 EFM、PEM 等服務。
-- 解析 OS、PostgreSQL／EPAS、EFM、PEM、備份與資料庫邏輯資料。
+- 辨識各節點承載的 EFM、PEM、XDB 與備份服務。
+- 解析 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 與資料庫邏輯資料。
 - 將不同來源和格式的資料轉換成統一的標準化 JSON。
 - 控制不同類型資料的檢查範圍，避免錯誤使用 Standby、DR 或 PEM 後端資料庫資料。
 - 比較 Primary、Standby 與 DR 的 PostgreSQL 參數和 `pg_hba.conf` 規則。
@@ -20,6 +20,8 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 在輸出前遮蔽密碼等敏感資訊。
 - 產生檢查覆蓋率清單，讓缺漏項目保持可見。
 - 在交付前檢查 Primary 資料、證據引用、敏感資訊、來源路徑與客戶資料隔離。
+- 產生九興 V4 方向的 DOCX 與 PDF 正式報告。
+- 使用去識別 Golden Dataset 防止 Parser、Scope、規則與報告版面回歸。
 
 目前規則涵蓋：
 
@@ -43,13 +45,14 @@ OMNIcheck AI 將節點的基礎設施角色與節點上執行的服務分開處�
 - **Primary**：主要業務資料庫，也是資料庫邏輯層判斷的主要依據。
 - **Standby**：同步或複製節點。
 - **DR**：災難復原節點。
-- **Witness**：可承載 PEM、EFM，以及 PEM 使用的後端 PostgreSQL。
+- **Witness**：可承載 PEM、EFM、XDB、Barman，以及 PEM 使用的後端 PostgreSQL。
 
 資料範圍採用以下原則：
 
 - Database、Schema、Table、Role、Extension、Transaction、Bloat 等資料庫邏輯資料，只使用當前 Primary 的證據。
-- `postgresql.conf`、`postgresql.auto.conf`、`pg_hba.conf` 與備份設定屬於節點層級設定，因此會納入 Primary、Standby 與 DR，並進行跨節點比較。
-- Witness 的 OS、PEM 與 EFM 監控證據可納入檢查。
+- `postgresql.conf`、`postgresql.auto.conf` 與 `pg_hba.conf` 屬於節點層級設定，因此會納入 Primary、Standby 與 DR，並進行跨節點比較。
+- 備份 Output 使用明確指定的 provider／node；未指定時 pgBackRest 預設採 Primary。
+- Witness 的 OS、PEM、EFM、XDB、Barman 與監控證據可納入檢查。
 - Witness 上的 PEM 後端 PostgreSQL 不會被誤認成客戶主要業務資料庫。
 - 無法確認節點或資料領域的證據不會被自動採用，而會標示為 `pending`。
 
@@ -70,7 +73,7 @@ OMNIcheck AI 將節點的基礎設施角色與節點上執行的服務分開處�
     ↓
 確定性規則判斷
     ↓
-結構化健檢結果
+結構化健檢結果與 V4 報告
 ```
 
 規則門檻及政策清單存放於 `config/rules.default.yaml`，由 Python 規則引擎執行。AI 不負責選擇 Primary、改變證據範圍、修改判斷狀態或憑空產生發現。
@@ -87,6 +90,11 @@ OMNIcheck AI 將節點的基礎設施角色與節點上執行的服務分開處�
 - `assessment.json`：規則引擎產生的狀態、觀察、結論、建議及證據引用。
 - `coverage-ledger.json`：各節點應檢查項目、現有證據、缺漏項目與覆蓋率。
 - `qa-result.json`：交付品質閘門的通過／失敗結果與診斷資訊。
+- `report-model.json`：供報告組裝使用的標準模型。
+- `v4-report.json`：V4 Renderer 的報告資料契約。
+- `v4-qa-result.json`：正式報告輸出前的 V4 品質閘門。
+- `report.docx`：可編輯的正式健檢報告。
+- `report.pdf`：可交付的正式健檢報告。
 
 ## 本機安裝
 
