@@ -14,3 +14,6 @@ config/job.local.yaml
 *.pem
 *.key
 .DS_Store
+*.sqlite
+deploy/omnicheck.env
+deploy/pgpass

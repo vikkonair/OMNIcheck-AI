@@ -1,0 +1,24 @@
+[Unit]
+Description=OMNIcheck AI Pipeline Worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=omnicheck
+Group=omnicheck
+WorkingDirectory=/data/omnicheck/app/current
+EnvironmentFile=/etc/omnicheck-ai/omnicheck.env
+ExecStart=/data/omnicheck/venv/bin/omni-healthcheck-worker
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=90
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/data/omnicheck
+
+[Install]
+WantedBy=multi-user.target

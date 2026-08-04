@@ -8,7 +8,7 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from threading import Lock
-from typing import BinaryIO
+from typing import Any, BinaryIO
 from uuid import uuid4
 
 import yaml
@@ -31,10 +31,19 @@ def _now() -> str:
 class JobStore:
     """Persist jobs beneath one application-owned data root."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, metadata_store: Any | None = None):
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        self.metadata_store = metadata_store
         self._lock = Lock()
+
+    @property
+    def database_backed(self) -> bool:
+        return self.metadata_store is not None
+
+    def ping(self) -> None:
+        if self.metadata_store is not None:
+            self.metadata_store.ping()
 
     def _job_dir(self, job_id: str) -> Path:
         if not job_id or any(character not in "0123456789abcdef" for character in job_id):
@@ -60,6 +69,11 @@ class JobStore:
             Path(temporary).unlink(missing_ok=True)
             raise
 
+    def _write_snapshot(self, job_id: str, metadata: dict) -> None:
+        job_dir = self.root / job_id
+        if job_dir.is_dir():
+            self._write_json(job_dir / "job.json", metadata)
+
     def create(self, config: JobConfig) -> dict:
         job_id = uuid4().hex
         job_dir = self.root / job_id
@@ -73,7 +87,7 @@ class JobStore:
             ),
             encoding="utf-8",
         )
-        metadata = {
+        metadata: dict[str, object] = {
             "job_id": job_id,
             "customer": config.customer,
             "system_name": config.system_name,
@@ -85,14 +99,24 @@ class JobStore:
             "error": None,
             "input_files": 0,
         }
-        self._write_json(job_dir / "job.json", metadata)
+        if self.metadata_store is not None:
+            metadata = self.metadata_store.create(metadata)
+        self._write_snapshot(job_id, metadata)
         return metadata
 
     def get(self, job_id: str) -> dict:
-        path = self._job_dir(job_id) / "job.json"
+        job_dir = self._job_dir(job_id)
+        if self.metadata_store is not None:
+            try:
+                return self.metadata_store.get(job_id)
+            except KeyError as exc:
+                raise JobNotFoundError(job_id) from exc
+        path = job_dir / "job.json"
         return json.loads(path.read_text(encoding="utf-8"))
 
     def list(self) -> list[dict]:
+        if self.metadata_store is not None:
+            return self.metadata_store.list()
         jobs = []
         for path in self.root.glob("*/job.json"):
             try:
@@ -103,11 +127,63 @@ class JobStore:
 
     def update(self, job_id: str, **changes: object) -> dict:
         with self._lock:
+            if self.metadata_store is not None:
+                try:
+                    metadata = self.metadata_store.update(job_id, **changes)
+                except KeyError as exc:
+                    raise JobNotFoundError(job_id) from exc
+                self._write_snapshot(job_id, metadata)
+                return metadata
             metadata = self.get(job_id)
             metadata.update(changes)
             metadata["updated_at"] = _now()
             self._write_json(self._job_dir(job_id) / "job.json", metadata)
             return metadata
+
+    def claim_next(self, worker_id: str) -> dict | None:
+        if self.metadata_store is None:
+            raise RuntimeError("durable job claiming requires a database metadata store")
+        metadata = self.metadata_store.claim_next(worker_id)
+        if metadata is not None:
+            self._write_snapshot(metadata["job_id"], metadata)
+        return metadata
+
+    def succeed(self, job_id: str, worker_id: str) -> dict:
+        if self.metadata_store is None:
+            return self.update(job_id, status="succeeded", error=None)
+        metadata = self.metadata_store.succeed(job_id, worker_id)
+        self._write_snapshot(job_id, metadata)
+        return metadata
+
+    def fail(
+        self,
+        job_id: str,
+        worker_id: str,
+        error: str,
+        *,
+        retry_seconds: int,
+    ) -> dict:
+        if self.metadata_store is None:
+            return self.update(job_id, status="failed", error=error)
+        metadata = self.metadata_store.fail(
+            job_id,
+            worker_id,
+            error,
+            retry_seconds=retry_seconds,
+        )
+        self._write_snapshot(job_id, metadata)
+        return metadata
+
+    def events(self, job_id: str) -> list[dict]:
+        self._job_dir(job_id)
+        if self.metadata_store is None:
+            return []
+        return self.metadata_store.events(job_id)
+
+    def heartbeat(self, job_id: str, worker_id: str) -> bool:
+        if self.metadata_store is None:
+            return True
+        return self.metadata_store.heartbeat(job_id, worker_id)
 
     @staticmethod
     def safe_relative_path(filename: str) -> Path:

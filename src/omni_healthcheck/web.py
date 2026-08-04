@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.config import JobConfig
+from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.job_store import (
     JobNotFoundError,
     JobStore,
@@ -47,8 +48,17 @@ def create_app(
     *,
     data_root: Path | None = None,
     rules_path: Path | None = None,
+    database_url: str | None = None,
+    metadata_store: object | None = None,
 ) -> FastAPI:
-    store = JobStore(data_root or _default_data_root())
+    selected_database_url = database_url or os.environ.get("OMNICHECK_DATABASE_URL")
+    selected_metadata_store = metadata_store
+    if selected_metadata_store is None and selected_database_url:
+        selected_metadata_store = DatabaseMetadataStore(selected_database_url)
+    store = JobStore(
+        data_root or _default_data_root(),
+        metadata_store=selected_metadata_store,
+    )
     selected_rules = (rules_path or _default_rules_path()).resolve()
     app = FastAPI(title="OMNIcheck AI", version="0.9.0")
     app.state.job_store = store
@@ -65,7 +75,19 @@ def create_app(
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"status": "ok", "service": "OMNIcheck AI"}
+        try:
+            store.ping()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="metadata database unavailable",
+            ) from exc
+        return {
+            "status": "ok",
+            "service": "OMNIcheck AI",
+            "metadata": "database" if store.database_backed else "filesystem",
+            "worker": "external" if store.database_backed else "in_process",
+        }
 
     @app.get("/api/config-options")
     def config_options() -> dict:
@@ -93,7 +115,8 @@ def create_app(
     @app.get("/api/jobs/{job_id}")
     def get_job(job_id: str) -> dict:
         metadata = job_or_404(job_id)
-        return {**metadata, "outputs": store.outputs(job_id)}
+        outputs = store.outputs(job_id) if metadata["status"] == "succeeded" else []
+        return {**metadata, "outputs": outputs}
 
     @app.post("/api/jobs/{job_id}/files", status_code=201)
     def upload_files(
@@ -130,18 +153,29 @@ def create_app(
             raise HTTPException(status_code=409, detail="job is already running or complete")
         if metadata["input_files"] == 0:
             raise HTTPException(status_code=409, detail="job has no input evidence")
-        store.update(job_id, status="queued", error=None)
-        background.add_task(_run_job, store, job_id, selected_rules)
+        reset = {"attempts": 0} if store.database_backed and metadata["status"] == "failed" else {}
+        store.update(job_id, status="queued", error=None, **reset)
+        if not store.database_backed:
+            background.add_task(_run_job, store, job_id, selected_rules)
         return {"job_id": job_id, "status": "queued"}
+
+    @app.get("/api/jobs/{job_id}/events")
+    def list_job_events(job_id: str) -> list[dict]:
+        job_or_404(job_id)
+        return store.events(job_id)
 
     @app.get("/api/jobs/{job_id}/outputs")
     def list_outputs(job_id: str) -> list[dict]:
-        job_or_404(job_id)
+        metadata = job_or_404(job_id)
+        if metadata["status"] != "succeeded":
+            raise HTTPException(status_code=409, detail="job output is not ready")
         return store.outputs(job_id)
 
     @app.get("/api/jobs/{job_id}/outputs/{filename}")
     def download_output(job_id: str, filename: str) -> FileResponse:
-        job_or_404(job_id)
+        metadata = job_or_404(job_id)
+        if metadata["status"] != "succeeded":
+            raise HTTPException(status_code=409, detail="job output is not ready")
         try:
             path = store.output_path(job_id, filename)
         except (FileNotFoundError, UnsafeUploadPathError) as exc:

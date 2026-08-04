@@ -23,6 +23,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 產生九興 V4 方向的 DOCX 與 PDF 正式報告。
 - 使用去識別 Golden Dataset 防止 Parser、Scope、規則與報告版面回歸。
 - 透過 M9 Web API 建立案件、上傳不可覆寫的原始證據、執行既有 Pipeline、查詢狀態及下載輸出。
+- 可選用 EDB／PostgreSQL 保存案件 metadata，透過獨立 Worker 與資料庫佇列可靠執行、重試及保留事件紀錄。
 
 目前規則涵蓋：
 
@@ -146,7 +147,7 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 
 開啟 `http://127.0.0.1:8000` 後，可透過圖形化表單設定客戶與節點、選取整包健檢資料、一鍵執行 Pipeline，並從結果頁下載輸出；不需手寫 JSON 或使用 Terminal。互動式 API 文件仍保留於 `http://127.0.0.1:8000/docs`。
 
-M9 目前使用本機檔案系統保存案件，並由 FastAPI 同一程序執行背景工作，適合單機開發與流程驗證。正式多人使用所需的 PostgreSQL metadata、Redis／Worker、權限控管與辨識結果確認頁面會在後續 M9 階段加入。
+未設定資料庫連線時，M9 使用本機檔案系統與 FastAPI 同程序背景工作；設定 `OMNICHECK_DATABASE_URL` 後，則由 EDB／PostgreSQL 保存案件狀態，並由獨立 Worker 領取及重試工作。權限控管與辨識結果確認頁面仍在後續 M9 階段。
 
 ## 開發與驗證原則
 
@@ -176,7 +177,8 @@ M9 目前使用本機檔案系統保存案件，並由 FastAPI 同一程序執�
 - M7：正式 DOCX／PDF 健檢報告（已完成）
 - M8：去識別 Golden Dataset 與端對端回歸測試（已完成）
 - M8.1：Witness 元件 Registry 與多備份工具架構（已完成）
-- M9：Web UI 與案件管理（第一階段開發中）
-- 後續：持久化背景工作、歷史比較、CVE 資料與可選 AI 輔助
+- M9.1～M9.2：Web API、案件管理與圖形化操作流程（已完成）
+- M9.3：EDB metadata、可靠工作佇列與獨立 Worker（本機實作完成，待公司環境驗證）
+- 後續：正式權限與部署、歷史比較、CVE 資料與可選 AI 輔助
 
 報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。
