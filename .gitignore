@@ -13,3 +13,4 @@ output/
 config/job.local.yaml
 *.pem
 *.key
+.DS_Store

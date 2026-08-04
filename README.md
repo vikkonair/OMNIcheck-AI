@@ -144,9 +144,9 @@ OMNICHECK_DATA_ROOT=./data/jobs \
   .venv/bin/omni-healthcheck-web
 ```
 
-開啟 `http://127.0.0.1:8000` 後可建立案件；案件上傳、執行及輸出下載目前可透過 `/api` 端點操作，互動式 API 文件位於 `http://127.0.0.1:8000/docs`。
+開啟 `http://127.0.0.1:8000` 後，可透過圖形化表單設定客戶與節點、選取整包健檢資料、一鍵執行 Pipeline，並從結果頁下載輸出；不需手寫 JSON 或使用 Terminal。互動式 API 文件仍保留於 `http://127.0.0.1:8000/docs`。
 
-M9 第一階段使用本機檔案系統保存案件，並由 FastAPI 同一程序執行背景工作，適合單機開發與流程驗證。正式多人使用所需的 PostgreSQL metadata、Redis／Worker、權限控管與完整案件操作頁面會在後續 M9 階段加入。
+M9 目前使用本機檔案系統保存案件，並由 FastAPI 同一程序執行背景工作，適合單機開發與流程驗證。正式多人使用所需的 PostgreSQL metadata、Redis／Worker、權限控管與辨識結果確認頁面會在後續 M9 階段加入。
 
 ## 開發與驗證原則
 

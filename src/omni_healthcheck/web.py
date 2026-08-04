@@ -15,6 +15,8 @@ from omni_healthcheck.job_store import (
     JobStore,
     UnsafeUploadPathError,
 )
+from omni_healthcheck.services import SERVICE_REGISTRY
+from omni_healthcheck.web_ui import INDEX_HTML
 
 
 def _default_data_root() -> Path:
@@ -59,11 +61,26 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
-        return _INDEX_HTML
+        return INDEX_HTML
 
     @app.get("/api/health")
     def health() -> dict:
         return {"status": "ok", "service": "OMNIcheck AI"}
+
+    @app.get("/api/config-options")
+    def config_options() -> dict:
+        return {
+            "roles": ["Primary", "Standby", "DR", "Witness"],
+            "products": ["PostgreSQL", "EPAS"],
+            "services": [
+                {
+                    "name": definition.name,
+                    "category": definition.category,
+                    "allowed_roles": sorted(definition.allowed_roles or []),
+                }
+                for definition in SERVICE_REGISTRY.values()
+            ],
+        }
 
     @app.post("/api/jobs", status_code=201)
     def create_job(config: JobConfig) -> dict:
@@ -146,75 +163,3 @@ def main() -> None:
         port=int(os.environ.get("OMNICHECK_WEB_PORT", "8000")),
         reload=False,
     )
-
-
-_INDEX_HTML = """<!doctype html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OMNIcheck AI</title>
-  <style>
-    :root { color-scheme: light; font-family: Arial, "Noto Sans TC", sans-serif; }
-    body { margin: 0; background: #f4f7f9; color: #18323f; }
-    header { padding: 24px 6vw; color: white; background: #087c91; }
-    main { max-width: 1100px; margin: 28px auto; padding: 0 24px; }
-    section { background: white; padding: 22px; margin-bottom: 18px; border-radius: 10px;
-      box-shadow: 0 4px 18px #19384516; }
-    textarea { width: 100%; min-height: 260px; box-sizing: border-box; font: 13px monospace; }
-    button { border: 0; border-radius: 6px; padding: 10px 16px; color: white;
-      background: #087c91; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 9px; text-align: left; border-bottom: 1px solid #dbe5e9; }
-    .muted { color: #69808b; }
-  </style>
-</head>
-<body>
-<header><h1>OMNIcheck AI</h1><div>On-premises Database Health Check</div></header>
-<main>
-  <section>
-    <h2>建立健檢案件</h2>
-    <p class="muted">先建立案件，再透過 API 上傳資料並啟動 Pipeline。</p>
-    <textarea id="config">{
-  "customer": "測試客戶",
-  "system_name": "db-system",
-  "period": "2026-H1",
-  "engineer": "XXX",
-  "product": "PostgreSQL",
-  "first_healthcheck": true,
-  "nodes": [{"hostname": "db-primary", "role": "Primary", "services": []}],
-  "scope": {"include_os_from_all_nodes": true, "database_primary_only": true},
-  "report": {"template": "omni-v4", "output_docx": true, "output_pdf": true},
-  "ai": {"enabled": false, "provider": "disabled"}
-}</textarea>
-    <p><button onclick="createJob()">建立案件</button></p>
-    <pre id="result"></pre>
-  </section>
-  <section>
-    <h2>案件列表</h2>
-    <table><thead><tr><th>客戶</th><th>期間</th><th>產品</th><th>狀態</th><th>Job ID</th></tr></thead>
-      <tbody id="jobs"></tbody></table>
-  </section>
-</main>
-<script>
-async function refreshJobs() {
-  const jobs = await (await fetch('/api/jobs')).json();
-  document.getElementById('jobs').innerHTML = jobs.map(j =>
-    `<tr><td>${j.customer}</td><td>${j.period}</td><td>${j.product}</td>` +
-    `<td>${j.status}</td><td><code>${j.job_id}</code></td></tr>`).join('');
-}
-async function createJob() {
-  const result = document.getElementById('result');
-  try {
-    const response = await fetch('/api/jobs', {method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:document.getElementById('config').value});
-    const body = await response.json();
-    result.textContent = JSON.stringify(body, null, 2);
-    await refreshJobs();
-  } catch (error) { result.textContent = String(error); }
-}
-refreshJobs();
-</script>
-</body>
-</html>"""

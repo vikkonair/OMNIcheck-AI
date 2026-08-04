@@ -109,3 +109,23 @@ def test_web_validates_job_configuration(tmp_path: Path) -> None:
 
     assert response.status_code == 422
     assert client.get("/api/jobs").json() == []
+
+
+def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> None:
+    client = TestClient(create_app(data_root=tmp_path / "jobs"))
+
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "建立案件並開始健檢" in page.text
+    assert "webkitdirectory" in page.text
+    assert "id=\"nodes\"" in page.text
+    assert "textarea" not in page.text
+
+    options = client.get("/api/config-options")
+    assert options.status_code == 200
+    body = options.json()
+    assert body["roles"] == ["Primary", "Standby", "DR", "Witness"]
+    services = {service["name"]: service for service in body["services"]}
+    assert {"PEM", "EFM", "XDB", "pgBackRest", "Barman"} <= services.keys()
+    assert services["PEM"]["allowed_roles"] == ["Witness"]
+    assert services["XDB"]["allowed_roles"] == ["Witness"]

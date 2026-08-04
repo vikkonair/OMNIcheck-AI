@@ -1,6 +1,6 @@
 # M9 Web UI 與案件管理
 
-## 第一階段範圍
+## 已完成範圍
 
 M9 第一階段在既有 M1–M8.1 Pipeline 外新增 FastAPI 服務，不改寫 Parser、Scope、Rule Engine、QA 或 V4 Renderer。
 
@@ -12,7 +12,12 @@ M9 第一階段在既有 M1–M8.1 Pipeline 外新增 FastAPI 服務，不改寫
 - 透過背景工作呼叫既有 `run_generate`
 - 查詢案件狀態、錯誤及輸出清單
 - 下載案件輸出檔案
-- 本機案件列表與建立案件頁面
+- 圖形化客戶、產品、期間與報告格式表單
+- 動態新增 Primary、Standby、DR、Witness 節點
+- 依節點角色選擇 EFM、PEM、XDB、pgBackRest、Barman
+- 選取整包資料夾並保留節點與分類相對路徑
+- 一鍵建案、分批上傳、執行 Pipeline 與輪詢案件狀態
+- 案件列表、執行結果及輸出下載
 
 ## 儲存結構
 
@@ -39,6 +44,6 @@ data/jobs/<job-id>/
 
 ## 已知限制與後續工作
 
-第一階段的 metadata 使用檔案系統，背景工作在 Web 程序內執行；程序中斷時不具備可靠重試或工作接手能力。後續 M9 會加入 PostgreSQL metadata、Redis／Worker、完整 UI 操作、身分驗證、取消／重試與部署設定。
+目前 metadata 使用檔案系統，背景工作在 Web 程序內執行；程序中斷時不具備可靠重試或工作接手能力。瀏覽器基於安全限制不能直接讀取任意本機路徑，因此使用者需透過資料夾選擇器授權上傳。後續 M9 會加入 PostgreSQL metadata、Redis／Worker、辨識結果確認畫面、身分驗證、取消／重試與部署設定。
 
 Barman parser 已具備 provider 架構與 Golden 測試；實際客戶輸出範本不是 M9 的阻擋條件，但取得後仍須新增對應 fixture，驗證不同版本與 wrapper 格式。
