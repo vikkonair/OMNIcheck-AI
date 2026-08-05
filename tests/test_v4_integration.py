@@ -7,9 +7,20 @@ from omni_healthcheck.reporting import ReportModel
 from omni_healthcheck.v4_adapter import _prepare_unit, build_v4_report
 from omni_healthcheck.v4_quality import V4QualityError, validate_v4_report
 from omni_healthcheck.v4_renderer import VENDOR_RENDERER
+from omni_healthcheck.docx_renderer import _font_config_for_platform
 
 
 ROOT = Path(__file__).parents[1]
+
+
+def test_linux_pdf_conversion_uses_system_fontconfig() -> None:
+    assert _font_config_for_platform("linux") is None
+
+
+def test_macos_pdf_conversion_uses_project_fallback() -> None:
+    path = _font_config_for_platform("darwin")
+    assert path is not None
+    assert path.name == "fonts.macos.conf"
 
 
 def _model() -> ReportModel:
