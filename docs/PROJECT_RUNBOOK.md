@@ -3,7 +3,7 @@
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
 目前正式版本：M9.3
-目前開發進度：M9.4 EDB Application Data Foundation 功能分支已完成本機與實際資料唯讀驗證；待公司 EDB deployment 與使用者驗收
+目前開發進度：M9.4 EDB Application Data Foundation 已完成公司 EDB deployment；待 merge `main`、重跑與建立 `m9.4` tag
 
 ## 1. 文件目的
 
@@ -89,7 +89,7 @@ M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化�
 | M9.1 | 功能分支完成 | `84ec2e6` | 可回到 M8.1 | Web API／JobStore 骨架 |
 | M9.2 | 功能分支完成 | `6cb7ccf` | 可回到 M9.1 或 M8.1 | 圖形化操作流程 |
 | M9.3 | 正式完成、目前 main | `m9.3` | 是 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
-| M9.4 | 功能分支驗證完成 | 尚未建立 tag | 可回到 `m9.3`；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
+| M9.4 | 功能分支與公司部署驗證完成 | `9dc7d76`；尚未建立 tag | 可回到 `m9.3`；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
 
 目前 `main` 與 `m9.3` 是正式可回復基準；`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。
 
@@ -371,9 +371,9 @@ Service：systemd
 - ApplicationDataStore 提供 tenant-scoped 建立、查詢、Job 關聯與登錄操作。
 - Alembic `0002_m9_4` 採 additive upgrade，並提供回到 `0001_m9_3` 的 downgrade。
 
-驗證：M9.4／M9.3 targeted tests 13 passed，完整 65 tests passed，PostgreSQL offline upgrade／downgrade SQL 生成成功。台灣行動支付 14 個來源檔案以隔離 SQLite 投影，建立 1 Customer、1 System、5 Nodes、4 Topology relations、14 Evidence records；來源前後 path／size／SHA-256 manifest 完全一致。
+驗證：M9.4／M9.3 targeted tests 13 passed，完整 65 tests passed，PostgreSQL offline upgrade／downgrade SQL 生成成功。台灣行動支付 14 個來源檔案以隔離 SQLite 投影，建立 1 Customer、1 System、5 Nodes、4 Topology relations、14 Evidence records；來源前後 path／size／SHA-256 manifest 完全一致。公司 `.77/.81` 已由 `0001_m9_3` 升級至 `0002_m9_4`，備份 archive／hash、新表 constraints、legacy Job、transaction rollback smoke、Web／Worker health 與 Golden live Queue E2E 均通過；current release 為 `9dc7d76`。
 
-限制：尚未部署公司 `.81`、尚未讓 Web 自動建立 Customer／System／Node，也尚未持久化 Scope／Normalized／Assessment／QA；後者屬 M9.5。Artifact 衍生版本與 retention/archive workflow 屬 M9.6。
+限制：尚未讓 Web 自動建立 Customer／System／Node，也尚未持久化 Scope／Normalized／Assessment／QA；後者屬 M9.5。Artifact 衍生版本與 retention/archive workflow 屬 M9.6。完整 restore／實際 downgrade drill 尚未執行。
 
 Rollback：目前正式 application 基準仍為 `m9.3`。`0002_m9_4 → 0001_m9_3` downgrade 會刪除 M9.4 tables／data 與 Job tenant columns，必須先停止服務、備份、完成 staging restore drill 並另行核准；優先採 forward fix 或讓舊程式忽略 additive schema。
 

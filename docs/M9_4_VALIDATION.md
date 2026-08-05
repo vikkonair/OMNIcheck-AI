@@ -2,7 +2,7 @@
 
 日期：2026-08-05  
 分支：`feature/m9-4-application-data-foundation`  
-狀態：本機實作驗證通過；公司 `.81` EDB deployment 尚未執行
+狀態：本機、實際客戶資料唯讀與公司 `.77/.81` deployment 驗證通過；待 merge／tag
 
 ## 1. 自動化測試
 
@@ -56,13 +56,29 @@ Dataset：台灣行動支付 2026 上半年
 - Canonical JSON：仍是不可變 Pipeline／Renderer 契約；M9.4 沒有改 schema。
 - AI：未加入，也不影響離線確定性流程。
 
-## 4. 尚未驗證／不得誤標完成
+## 4. 公司 `.77/.81` 部署驗證
 
-- 尚未在公司 EPAS 17.10 `.81` 執行 `0002_m9_4` migration。
-- 尚未執行 `.81` backup／restore／downgrade drill。
+環境：`omnicheck-ai-app`（CentOS Stream 9）→ EPAS 17.10 `192.168.118.81:5444`。
+
+- 升級前 release：`a1d286f`；Alembic：`0001_m9_3`；Job：2 draft／4 succeeded。
+- 升級前 logical backup：`/data/omnicheck/archive/omnicheck_app_pre_m9_4_20260805.dump`。
+- Backup SHA-256：`e07edb51bcab5d71e14c4de19ad5c539186bfc6ea650e658da2c8cf07e7822df`；`pg_restore --list` 通過。
+- 新 release：`/data/omnicheck/app/releases/9dc7d76`；公司 VM 完整測試 65 passed。
+- Alembic：`0001_m9_3 → 0002_m9_4 (head)` 成功。
+- 六張新 table、Job tenant columns 與預期 PK／FK／Unique／Check constraints 全部存在。
+- 既有 6 筆 Job 完整；legacy rows 的 `customer_id/system_id` 均為 `NULL`。
+- EPAS transaction smoke：建立 Customer／System／Primary／Standby／Topology 成功；rollback 後零殘留。
+- Web／Worker：active；health 為 `metadata=database`、`worker=external`。
+- Golden deployment Job：`cf384056cf7045878f12341324cb1852`，3 inputs、11 outputs、attempts 1、succeeded。
+
+第一次維護命令在 Job precheck 的 shell／SQL quoting 階段失敗，`set -e` 在停止服務與 migration 前終止；確認環境完全未變後才重新執行。實際 migration 與切換成功。另一次 inline smoke script 在 Python parse 階段失敗，transaction 尚未開始；簡化後的 rollback smoke 通過。
+
+## 5. 尚未驗證／不得誤標完成
+
+- 尚未執行隔離環境的完整 backup restore 與實際 downgrade drill；只完成 backup archive 可讀與 offline downgrade SQL。
 - Web 尚未自動建立 Customer／System／Node。
 - Pipeline result persistence 與完整 Artifact lifecycle 分屬 M9.5／M9.6。
 
-## 5. 結論
+## 6. 結論
 
-M9.4 本機功能與實際客戶資料唯讀驗證通過，可進入文件／Golden 最終 gate；通過後再由使用者決定是否部署公司測試 EDB。尚未合併 `main` 或建立 `m9.4` tag，因此目前正式 rollback 基準仍是 `m9.3`。
+M9.4 本機、實際客戶資料唯讀、公司 EPAS migration、CRUD rollback smoke 與 live Queue／Worker Golden E2E 均通過。尚未合併 `main` 或建立 `m9.4` tag，因此目前正式 Git rollback 基準仍是 `m9.3`；公司 EDB schema 已為 `0002_m9_4` additive state。

@@ -1,7 +1,7 @@
 # M9.4 EDB Application Data Foundation
 
 日期：2026-08-05  
-狀態：功能分支實作完成，尚未部署公司 `.81` EDB、尚未合併 `main` 或建立 tag
+狀態：功能分支與公司 `.77/.81` 部署驗證完成，尚未合併 `main` 或建立 tag
 
 ## 1. 目的
 
@@ -47,7 +47,7 @@ M9.4 只建立身分與檔案 metadata 基礎；下列功能尚未完成：
 - M10：從未知資料包提出節點／角色建議並由人確認。
 - M11：登入、RBAC、Customer isolation enforcement 與 Audit。
 
-目前 Web 表單仍可照 M9.3 操作，但尚未自動建立／選擇 Customer 與 System records。
+目前 Web 表單仍可照 M9.3 操作，但尚未自動建立／選擇 Customer 與 System records。公司 EDB 已有 foundation schema；現有 legacy Job 仍維持 nullable tenant scope。
 
 ## 6. Migration 與 rollback
 

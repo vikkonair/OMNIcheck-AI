@@ -1,7 +1,7 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.4-draft.1
+文件版本：0.9.4-draft.2
 最後更新：2026-08-05  
 適用程式基準：`main` / `m9.3`，以及待驗收的 `feature/m9-4-application-data-foundation`
 正式可回復基準：`m9.3`
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.4-draft.2 | 2026-08-05 | 完成公司 `.77/.81` M9.4 migration、release 切換與 live Queue 驗收 | Backup/hash、VM 65 tests、`0002_m9_4`、constraints、rollback smoke、health 與 Golden Job 通過 |
 | 0.9.4-draft.1 | 2026-08-05 | 新增 M9.4 Customer／System／Node／Topology／Evidence／Artifact、tenant scope 與 `0002_m9_4` migration 手順 | 本機 65 tests、offline upgrade/downgrade、實際資料隔離投影與來源 hash 通過；公司 EDB 待驗證 |
 | 0.9.3 | 2026-08-05 | M9.3 合併 main 並建立正式回復點 | 合併後 60 tests、V4 manifest 與文件 render 通過 |
 | 0.9.3-draft.4 | 2026-08-05 | 完成 SCRAM／pgpass、實際客戶資料 E2E 與 V4 摘要分頁修正 | 本機／VM 60 tests、QA、V4 QA、29 頁 PDF 與來源 hash 通過；待 merge/tag |
@@ -61,7 +62,7 @@
 | M9.1～M9.2 | 功能分支完成 | Web API、不可覆寫上傳、圖形化案件流程 |
 | M9.3 | 本機完成 | EDB metadata、queue、獨立 Worker、retry／heartbeat／lease |
 | M9.3 實機 | 正式完成 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過 |
-| M9.4 | 功能分支本機完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key；公司 EDB 待驗證 |
+| M9.4 | 功能分支與公司部署完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key；待 merge／tag |
 | M9.5～M15 | 已核准、待實作 | Pipeline Persistence、Artifact lifecycle、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m9.3` 是目前正式可回復版本；`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。正式重建應 checkout `m9.3`，不得部署 floating branch HEAD。
@@ -476,7 +477,7 @@ Alembic downgrade 會刪表，屬破壞性操作；只有完成 metadata backup 
 
 ### 10.3 M9.4 migration 待驗證手順
 
-目前只在本機 SQLite 與 PostgreSQL offline SQL 驗證，尚未於公司 `.81` 執行。安排公司測試時：
+公司 `.77/.81` 已依下列流程完成；新環境或後續升級仍必須重做：
 
 1. 停止 Web／Worker，記錄目前 app commit 與 `alembic current`。
 2. 使用 `pg_dump -Fc` 備份 `omnicheck_app`，並確認備份檔大小與 checksum。
@@ -486,6 +487,8 @@ Alembic downgrade 會刪表，屬破壞性操作；只有完成 metadata backup 
 6. 重啟 Web／Worker，確認既有 M9.3 Job 可讀、新 Job Queue／Worker E2E 通過。
 
 需要回到 M9.3 schema 時，`alembic downgrade 0001_m9_3` 會刪除六張 M9.4 table、其中全部資料及 Job tenant columns。必須另行取得破壞性變更核准；通常優先保留 additive schema、切回 `m9.3` application 或採 forward fix。
+
+公司驗證結果：升級前先保存 `/data/omnicheck/archive/omnicheck_app_pre_m9_4_20260805.dump`，SHA-256 為 `e07edb51bcab5d71e14c4de19ad5c539186bfc6ea650e658da2c8cf07e7822df`，且 `pg_restore --list` 可讀。Release `9dc7d76` 在 VM 通過 65 tests，schema 升至 `0002_m9_4 (head)`；六張新表、constraints、legacy Job、transaction rollback smoke、Web／Worker 與 live Golden Queue 均通過。完整 restore 與實際 downgrade drill 尚未執行。
 
 ## 11. 安裝 systemd Web 與 Worker
 
@@ -813,7 +816,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 ## 22. 已知限制與後續工作
 
 - M9.3 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、SCRAM／pgpass、DOCX/PDF、重啟持久性、Golden 與實際客戶資料 E2E。
-- M9.4 foundation 已在功能分支通過 65 tests、PostgreSQL offline migration 與台灣行動支付 14 檔隔離投影；尚未部署公司 `.81`。
+- M9.4 已部署公司 `.77/.81`：current release `9dc7d76`、Alembic `0002_m9_4`、Web／Worker active、Golden Job `cf384056cf7045878f12341324cb1852` succeeded。尚未 merge／tag，完整 restore／downgrade drill 尚待安排。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。

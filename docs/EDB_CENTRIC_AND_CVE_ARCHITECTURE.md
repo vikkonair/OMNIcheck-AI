@@ -1,6 +1,6 @@
 # OMNIcheck AI：EDB 中心化與 CVE 自動化架構決策
 
-狀態：已核准；M9.4 功能分支本機實作與實際資料唯讀驗證完成，M9.5～M15 待分階段實作
+狀態：已核准；M9.4 功能分支與公司 EPAS deployment 驗證完成，M9.5～M15 待分階段實作
 決策日期：2026-08-05  
 適用範圍：M9.4～M15  
 前置基準：M1～M8.1 Pipeline 與 M9.3 Web／EDB Queue／Worker
