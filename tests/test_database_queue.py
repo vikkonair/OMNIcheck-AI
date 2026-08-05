@@ -8,8 +8,26 @@ from sqlalchemy.dialects import postgresql
 from omni_healthcheck.database import (
     DatabaseMetadataStore,
     JobLeaseLostError,
+    create_database_engine,
     queue_claim_statement,
 )
+
+
+def test_epas_engine_forces_iso_datestyle(monkeypatch) -> None:
+    captured = {}
+
+    def fake_create_engine(url, **options):
+        captured["url"] = url
+        captured["options"] = options
+        return object()
+
+    monkeypatch.setattr("omni_healthcheck.database.create_engine", fake_create_engine)
+    engine = create_database_engine(
+        "postgresql+psycopg://omnicheck_app@db/omnicheck_app"
+    )
+
+    assert engine is not None
+    assert captured["options"]["connect_args"] == {"options": "-c DateStyle=ISO"}
 from omni_healthcheck.job_store import JobStore
 from omni_healthcheck.web import create_app
 from omni_healthcheck.worker import run_once

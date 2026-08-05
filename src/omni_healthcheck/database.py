@@ -78,6 +78,11 @@ def create_database_engine(database_url: str) -> Engine:
     options: dict[str, Any] = {"pool_pre_ping": True}
     if database_url.startswith("sqlite"):
         options["execution_options"] = {"schema_translate_map": {SCHEMA: None}}
+    else:
+        # EPAS can default to Redwood DateStyle, whose timestamptz text format
+        # psycopg 3 intentionally does not parse.  Keep the database-wide
+        # compatibility mode unchanged and normalize only OMNIcheck sessions.
+        options["connect_args"] = {"options": "-c DateStyle=ISO"}
     return create_engine(database_url, **options)
 
 
