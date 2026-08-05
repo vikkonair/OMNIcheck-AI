@@ -162,6 +162,7 @@ class DatabaseMetadataStore:
         """Create tables for isolated tests; production uses Alembic."""
         # Registers the M9.4 tables referenced by nullable job tenant keys.
         import omni_healthcheck.application_data  # noqa: F401
+        import omni_healthcheck.pipeline_persistence  # noqa: F401
 
         metadata.create_all(self.engine)
 

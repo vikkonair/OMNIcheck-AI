@@ -1,7 +1,7 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.4
+文件版本：0.9.5-draft.1
 最後更新：2026-08-05  
 適用程式基準：`main` / `m9.4`
 正式可回復基準：`m9.4`
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.5-draft.1 | 2026-08-05 | 新增 M9.5 scoped Pipeline snapshot、row-level persistence、冪等與 failure gate | 本機 70 tests、offline migration 與實際資料唯讀投影通過；公司 EDB 待驗證 |
 | 0.9.4 | 2026-08-05 | M9.4 合併 main 並建立正式回復點 | 合併後 tests、V4 manifest 與文件 render 通過 |
 | 0.9.4-draft.2 | 2026-08-05 | 完成公司 `.77/.81` M9.4 migration、release 切換與 live Queue 驗收 | Backup/hash、VM 65 tests、`0002_m9_4`、constraints、rollback smoke、health 與 Golden Job 通過 |
 | 0.9.4-draft.1 | 2026-08-05 | 新增 M9.4 Customer／System／Node／Topology／Evidence／Artifact、tenant scope 與 `0002_m9_4` migration 手順 | 本機 65 tests、offline upgrade/downgrade、實際資料隔離投影與來源 hash 通過；公司 EDB 待驗證 |
@@ -64,7 +65,8 @@
 | M9.3 | 本機完成 | EDB metadata、queue、獨立 Worker、retry／heartbeat／lease |
 | M9.3 實機 | 正式完成 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過 |
 | M9.4 | 正式完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key、公司部署與 live Queue 驗收 |
-| M9.5～M15 | 已核准、待實作 | Pipeline Persistence、Artifact lifecycle、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
+| M9.5 | 功能分支本機完成 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等 EDB 投影；公司 EDB 待驗證 |
+| M9.6～M15 | 已核准、待實作 | Artifact lifecycle、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m9.4` 是目前正式可回復版本；`m9.3` 保留為 foundation 前的 rollback 點，`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。正式重建應 checkout `m9.4`，不得部署 floating branch HEAD。
 
@@ -423,6 +425,7 @@ OMNICHECK_WORKER_POLL_SECONDS=2
 OMNICHECK_WORKER_RETRY_SECONDS=60
 OMNICHECK_WORKER_HEARTBEAT_SECONDS=30
 OMNICHECK_WORKER_STALE_SECONDS=3600
+OMNICHECK_PERSIST_RESULTS=true
 ```
 
 ```bash
@@ -490,6 +493,10 @@ Alembic downgrade 會刪表，屬破壞性操作；只有完成 metadata backup 
 需要回到 M9.3 schema 時，`alembic downgrade 0001_m9_3` 會刪除六張 M9.4 table、其中全部資料及 Job tenant columns。必須另行取得破壞性變更核准；通常優先保留 additive schema、切回 `m9.3` application 或採 forward fix。
 
 公司驗證結果：升級前先保存 `/data/omnicheck/archive/omnicheck_app_pre_m9_4_20260805.dump`，SHA-256 為 `e07edb51bcab5d71e14c4de19ad5c539186bfc6ea650e658da2c8cf07e7822df`，且 `pg_restore --list` 可讀。Release `9dc7d76` 在 VM 通過 65 tests，schema 升至 `0002_m9_4 (head)`；六張新表、constraints、legacy Job、transaction rollback smoke、Web／Worker 與 live Golden Queue 均通過。完整 restore 與實際 downgrade drill 尚未執行。
+
+### 10.4 M9.5 migration（公司環境待驗證）
+
+`0003_m9_5` 新增 `pipeline_snapshots`、`scope_decisions`、`normalized_checks`、`normalized_unparsed`、`configuration_comparisons`、`pipeline_assessments`、`coverage_items`、`quality_results`。部署前先備份目前 `0002_m9_4`；升級後以完整 scoped Job 驗證 snapshot 與 child row counts。`alembic downgrade 0002_m9_4` 會刪除全部 M9.5 results，必須另行核准。
 
 ## 11. 安裝 systemd Web 與 Worker
 
@@ -818,6 +825,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 
 - M9.3 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、SCRAM／pgpass、DOCX/PDF、重啟持久性、Golden 與實際客戶資料 E2E。
 - M9.4 已正式化並部署公司 `.77/.81`：部署 release `9dc7d76`、Alembic `0002_m9_4`、Web／Worker active、Golden Job `cf384056cf7045878f12341324cb1852` succeeded。完整 restore／downgrade drill 尚待安排。
+- M9.5 功能分支已通過 70 tests、offline migration 與台灣行動支付唯讀冪等投影；公司 `.81` 尚未執行 `0003_m9_5`。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
@@ -826,7 +834,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
 - 歷史比較、CVE cache、可選 AI gateway 尚未實作。
-- EDB 中心化與 CVE 自動化方向已核准；Application Data foundation tables 已實作，完整 Persistence Adapter、Artifact lifecycle 與 CVE tables 尚未實作。
+- EDB 中心化與 CVE 自動化方向已核准；Application Data foundation tables 與 M9.5 Persistence Adapter 已實作，Artifact lifecycle 與 CVE tables 尚未實作。
 
 ## 附錄 A：官方與專案依據
 
@@ -837,6 +845,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - 專案規範：`AGENTS.md`、`docs/PIPELINE_SPEC.md`、`docs/ACCEPTANCE_CRITERIA.md`
 - M9.3：`docs/M9_3_EDB_QUEUE.md`、`docs/M9_3_VALIDATION.md`
 - M9.4：`docs/M9_4_APPLICATION_DATA_FOUNDATION.md`、`docs/M9_4_VALIDATION.md`
+- M9.5：`docs/M9_5_PIPELINE_RESULT_PERSISTENCE.md`、`docs/M9_5_VALIDATION.md`
 - M9.4～M15 架構決策：`docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`
 
 ## 附錄 B：交付驗收簽核表

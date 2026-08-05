@@ -3,7 +3,7 @@
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
 目前正式版本：M9.4
-目前開發進度：M9.4 EDB Application Data Foundation 正式完成；下一階段為 M9.5 Pipeline Result Persistence
+目前開發進度：M9.5 Pipeline Result Persistence 功能分支已完成本機與實際資料驗證；待公司 EDB deployment
 
 ## 1. 文件目的
 
@@ -59,9 +59,9 @@ M8～M8.1 Golden Regression + Service/Backup Registry
         ↓
 M9 Web、案件管理、EDB Queue、獨立 Worker
         ↓
-M9.4 EDB Application Data Foundation（功能分支已驗證）
+M9.4 EDB Application Data Foundation（正式完成）
         ↓
-M9.5～M9.6 Persistence Adapter、Pipeline 結果、Artifact Registry（已核准／待實作）
+M9.5 Pipeline 結果 Persistence Adapter（分支驗證完成、待公司部署）；M9.6 Artifact Registry（已核准／待實作）
         ↓
 M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化（已排定／待實作）
 ```
@@ -90,6 +90,7 @@ M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化�
 | M9.2 | 功能分支完成 | `6cb7ccf` | 可回到 M9.1 或 M8.1 | 圖形化操作流程 |
 | M9.3 | 正式完成、目前 main | `m9.3` | 是 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
 | M9.4 | 正式完成、目前 main | `m9.4` | 是；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
+| M9.5 | 功能分支驗證完成 | 尚未建立 tag | 可回到 `m9.4`；DB downgrade 需另行核准 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等投影 |
 
 目前 `main` 與 `m9.4` 是正式可回復基準；`m9.3` 保留為 foundation 前的 rollback 點，`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。
 

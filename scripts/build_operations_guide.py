@@ -436,6 +436,17 @@ def build() -> None:
     core.subject = "可重建、部署、驗證、維運與回復的系統手冊"
     core.author = "Omniwaresoft Tech"
     core.keywords = "OMNIcheck AI, EDB, EPAS, deployment, operations, runbook"
+    # Word requires a paragraph after a table, but the spacer added by
+    # ``add_table`` can otherwise spill onto an empty trailing page when the
+    # document ends with a table.  Keep it, but collapse it to the smallest
+    # printable footprint.
+    if document.paragraphs and not document.paragraphs[-1].text:
+        trailing = document.paragraphs[-1]
+        trailing.paragraph_format.space_before = Pt(0)
+        trailing.paragraph_format.space_after = Pt(0)
+        trailing.paragraph_format.line_spacing = Pt(1)
+        run = trailing.add_run()
+        run.font.size = Pt(1)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     document.save(OUTPUT)
     print(OUTPUT)

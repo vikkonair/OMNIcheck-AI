@@ -2,7 +2,7 @@
 
 OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-目前正式版本已完成至 **M9.4：EDB Application Data Foundation**。M9.4 已完成本機、實際客戶資料唯讀、公司 CentOS 9 App VM 與 EPAS 17.10 migration、tenant constraints、CRUD rollback smoke、live Queue／Worker Golden E2E 與回歸驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
+目前正式版本已完成至 **M9.4：EDB Application Data Foundation**；M9.5 Pipeline Result Persistence 已在功能分支完成本機與實際客戶資料唯讀驗證，公司 EDB 尚未部署。M9.4 已完成公司 CentOS 9 App VM 與 EPAS 17.10 migration、tenant constraints、CRUD rollback smoke、live Queue／Worker Golden E2E 與回歸驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
 > `main` 與 `m9.4` tag 是目前正式可回復版本；`m9.3` 保留為 M9.4 Application Data Foundation 前的 rollback 點，`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。
 
@@ -24,7 +24,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 使用去識別 Golden Dataset 防止 Parser、Scope、規則與報告版面回歸。
 - 透過 M9 Web API 建立案件、上傳不可覆寫的原始證據、執行既有 Pipeline、查詢狀態及下載輸出。
 - 可選用 EDB／PostgreSQL 保存案件 metadata，透過獨立 Worker 與資料庫佇列可靠執行、重試及保留事件紀錄。
-- 後續已核准採用 EDB 中心化架構：EDB 保存結構化應用資料與歷史、`/data` 保存大型檔案、Canonical JSON 繼續作為 Pipeline 契約與 rollback 保護層。M9.4 已建立 tenant-scoped Customer／System／Node／Topology／Evidence／Artifact 基礎；M9.5～M9.6 尚待實作。
+- 後續已核准採用 EDB 中心化架構：EDB 保存結構化應用資料與歷史、`/data` 保存大型檔案、Canonical JSON 繼續作為 Pipeline 契約與 rollback 保護層。M9.4 已建立 tenant-scoped Customer／System／Node／Topology／Evidence／Artifact 基礎；M9.5 的 Pipeline 結果持久化已完成分支驗證，M9.6 Artifact lifecycle 尚待實作。
 - M9.4 使用安全相對 storage key、SHA-256、大小與 media type 登錄 Evidence／Artifact，不把大型檔案以 `BYTEA` 存入 EDB；既有 M9.3 Job 可維持未關聯 tenant，避免破壞現有 Queue。
 
 目前規則涵蓋：
@@ -186,7 +186,8 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - M9.1～M9.2：Web API、案件管理與圖形化操作流程（已完成）
 - M9.3：EDB metadata、可靠工作佇列與獨立 Worker（正式完成）
 - M9.4：EDB Application Data Foundation（正式完成）
-- M9.5～M9.6：Pipeline 結果持久化與完整 Artifact Registry／Retention／Archive
+- M9.5：Pipeline 結果持久化（功能分支驗證完成，待公司 EDB deployment）
+- M9.6：完整 Artifact Registry／Retention／Archive
 - M10～M12：拓撲確認、登入／RBAC／隔離／稽核、歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
 - M14～M15：選配 AI Gateway 與正式 HA／VIP／TLS／Backup／Monitoring 強化
