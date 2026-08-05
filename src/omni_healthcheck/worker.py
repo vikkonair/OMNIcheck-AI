@@ -12,6 +12,7 @@ from pathlib import Path
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.job_store import JobStore
+from omni_healthcheck.pipeline_persistence import PipelineResultStore
 
 
 def run_once(
@@ -21,6 +22,7 @@ def run_once(
     *,
     retry_seconds: int,
     heartbeat_seconds: float = 30,
+    persist_results: bool = True,
 ) -> bool:
     job = store.claim_next(worker_id)
     if job is None:
@@ -40,6 +42,19 @@ def run_once(
     try:
         paths = store.paths(job_id)
         run_generate(paths["job"], paths["input"], paths["output"], rules_path)
+        customer_id = job.get("customer_id")
+        system_id = job.get("system_id")
+        if persist_results and (customer_id or system_id):
+            if not customer_id or not system_id:
+                raise RuntimeError("Pipeline persistence requires complete customer/system scope")
+            if store.metadata_store is None:
+                raise RuntimeError("Pipeline persistence requires database metadata")
+            PipelineResultStore(engine=store.metadata_store.engine).persist(
+                job_id=job_id,
+                customer_id=str(customer_id),
+                system_id=str(system_id),
+                output_dir=paths["output"],
+            )
     except Exception as exc:
         store.fail(
             job_id,
@@ -71,6 +86,9 @@ def main() -> None:
         os.environ.get("OMNICHECK_WORKER_HEARTBEAT_SECONDS", "30")
     )
     stale_seconds = int(os.environ.get("OMNICHECK_WORKER_STALE_SECONDS", "3600"))
+    persist_results = os.environ.get("OMNICHECK_PERSIST_RESULTS", "true").lower() not in {
+        "0", "false", "no",
+    }
     worker_id = os.environ.get(
         "OMNICHECK_WORKER_ID",
         f"{socket.gethostname()}-{os.getpid()}",
@@ -96,6 +114,7 @@ def main() -> None:
             rules_path,
             retry_seconds=retry_seconds,
             heartbeat_seconds=heartbeat_seconds,
+            persist_results=persist_results,
         )
         if not processed:
             time.sleep(poll_seconds)
