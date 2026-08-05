@@ -2,8 +2,8 @@
 
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
-目前正式版本：M9.3
-目前開發進度：M9.4 EDB Application Data Foundation 已完成公司 EDB deployment；待 merge `main`、重跑與建立 `m9.4` tag
+目前正式版本：M9.4
+目前開發進度：M9.4 EDB Application Data Foundation 正式完成；下一階段為 M9.5 Pipeline Result Persistence
 
 ## 1. 文件目的
 
@@ -89,9 +89,9 @@ M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化�
 | M9.1 | 功能分支完成 | `84ec2e6` | 可回到 M8.1 | Web API／JobStore 骨架 |
 | M9.2 | 功能分支完成 | `6cb7ccf` | 可回到 M9.1 或 M8.1 | 圖形化操作流程 |
 | M9.3 | 正式完成、目前 main | `m9.3` | 是 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
-| M9.4 | 功能分支與公司部署驗證完成 | `9dc7d76`；尚未建立 tag | 可回到 `m9.3`；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
+| M9.4 | 正式完成、目前 main | `m9.4` | 是；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
 
-目前 `main` 與 `m9.3` 是正式可回復基準；`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。
+目前 `main` 與 `m9.4` 是正式可回復基準；`m9.3` 保留為 foundation 前的 rollback 點，`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。
 
 ## 5. 各 Milestone 手順與成果
 

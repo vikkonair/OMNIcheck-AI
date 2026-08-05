@@ -1,10 +1,10 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.4-draft.2
+文件版本：0.9.4
 最後更新：2026-08-05  
-適用程式基準：`main` / `m9.3`，以及待驗收的 `feature/m9-4-application-data-foundation`
-正式可回復基準：`m9.3`
+適用程式基準：`main` / `m9.4`
+正式可回復基準：`m9.4`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
 
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.4 | 2026-08-05 | M9.4 合併 main 並建立正式回復點 | 合併後 tests、V4 manifest 與文件 render 通過 |
 | 0.9.4-draft.2 | 2026-08-05 | 完成公司 `.77/.81` M9.4 migration、release 切換與 live Queue 驗收 | Backup/hash、VM 65 tests、`0002_m9_4`、constraints、rollback smoke、health 與 Golden Job 通過 |
 | 0.9.4-draft.1 | 2026-08-05 | 新增 M9.4 Customer／System／Node／Topology／Evidence／Artifact、tenant scope 與 `0002_m9_4` migration 手順 | 本機 65 tests、offline upgrade/downgrade、實際資料隔離投影與來源 hash 通過；公司 EDB 待驗證 |
 | 0.9.3 | 2026-08-05 | M9.3 合併 main 並建立正式回復點 | 合併後 60 tests、V4 manifest 與文件 render 通過 |
@@ -62,10 +63,10 @@
 | M9.1～M9.2 | 功能分支完成 | Web API、不可覆寫上傳、圖形化案件流程 |
 | M9.3 | 本機完成 | EDB metadata、queue、獨立 Worker、retry／heartbeat／lease |
 | M9.3 實機 | 正式完成 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過 |
-| M9.4 | 功能分支與公司部署完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key；待 merge／tag |
+| M9.4 | 正式完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key、公司部署與 live Queue 驗收 |
 | M9.5～M15 | 已核准、待實作 | Pipeline Persistence、Artifact lifecycle、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
-`main`／`m9.3` 是目前正式可回復版本；`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。正式重建應 checkout `m9.3`，不得部署 floating branch HEAD。
+`main`／`m9.4` 是目前正式可回復版本；`m9.3` 保留為 foundation 前的 rollback 點，`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。正式重建應 checkout `m9.4`，不得部署 floating branch HEAD。
 
 ## 3. 系統架構
 
@@ -816,7 +817,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 ## 22. 已知限制與後續工作
 
 - M9.3 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、SCRAM／pgpass、DOCX/PDF、重啟持久性、Golden 與實際客戶資料 E2E。
-- M9.4 已部署公司 `.77/.81`：current release `9dc7d76`、Alembic `0002_m9_4`、Web／Worker active、Golden Job `cf384056cf7045878f12341324cb1852` succeeded。尚未 merge／tag，完整 restore／downgrade drill 尚待安排。
+- M9.4 已正式化並部署公司 `.77/.81`：部署 release `9dc7d76`、Alembic `0002_m9_4`、Web／Worker active、Golden Job `cf384056cf7045878f12341324cb1852` succeeded。完整 restore／downgrade drill 尚待安排。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。

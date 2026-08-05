@@ -2,7 +2,7 @@
 
 日期：2026-08-05  
 分支：`feature/m9-4-application-data-foundation`  
-狀態：本機、實際客戶資料唯讀與公司 `.77/.81` deployment 驗證通過；待 merge／tag
+狀態：Passed；已合併 `main` 並建立 `m9.4` 正式回復點
 
 ## 1. 自動化測試
 
@@ -81,4 +81,4 @@ Dataset：台灣行動支付 2026 上半年
 
 ## 6. 結論
 
-M9.4 本機、實際客戶資料唯讀、公司 EPAS migration、CRUD rollback smoke 與 live Queue／Worker Golden E2E 均通過。尚未合併 `main` 或建立 `m9.4` tag，因此目前正式 Git rollback 基準仍是 `m9.3`；公司 EDB schema 已為 `0002_m9_4` additive state。
+M9.4 本機、實際客戶資料唯讀、公司 EPAS migration、CRUD rollback smoke 與 live Queue／Worker Golden E2E 均通過。`main` 與 `m9.4` 為正式 Git rollback 基準；`m9.3` 保留為 foundation 前的 application rollback 點。公司 EDB schema 為 `0002_m9_4` additive state，database downgrade 仍需備份、staging 演練與獨立核准。
