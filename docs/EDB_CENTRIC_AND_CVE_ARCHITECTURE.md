@@ -1,6 +1,6 @@
 # OMNIcheck AI：EDB 中心化與 CVE 自動化架構決策
 
-狀態：已核准；M9.4 正式完成，M9.5 功能分支本機與實際資料驗證完成，M9.6～M15 待分階段實作
+狀態：已核准；M9.5 正式完成並通過公司 EPAS deployment，M9.6～M15 待分階段實作
 決策日期：2026-08-05  
 適用範圍：M9.4～M15  
 前置基準：M1～M8.1 Pipeline 與 M9.3 Web／EDB Queue／Worker
@@ -39,7 +39,7 @@ M1～M8.1 已建立可追溯、可離線運作的健檢 Pipeline；M9.3 已讓 W
 - 不取消 Canonical JSON，也不讓 Renderer 直接依賴資料庫內部表格。
 - 不把圖片、DOCX、PDF 或大型壓縮檔大量存成 EDB `BYTEA`。
 - 不讓 AI 決定 Primary、Scope、規則狀態、CVE 適用性或官方來源。
-- 本文件本身不取代實作與驗收。M9.4 已由 `0002_m9_4` migration 建立 foundation tables；M9.5 Persistence Adapter 已完成分支驗證、待公司 EDB 驗收，排程器與 AI Gateway 仍必須依後續 Milestone 驗收。
+- 本文件本身不取代實作與驗收。M9.4 已由 `0002_m9_4` migration 建立 foundation tables；M9.5 Persistence Adapter 已由 `0003_m9_5` 完成公司 EDB 驗收，排程器與 AI Gateway 仍必須依後續 Milestone 驗收。
 
 ## 3. 目標架構
 
@@ -120,7 +120,7 @@ Pipeline 完成
 
 ## 6. EDB 資料領域
 
-M9.4 foundation 已確認實體 table；M9.5 Pipeline result tables 已由 `0003_m9_5` 完成分支驗證，M9.6 的完整 Artifact lifecycle table／constraint／index 仍待設計確認。
+M9.4 foundation 已確認實體 table；M9.5 Pipeline result tables 已由 `0003_m9_5` 完成公司 EDB 驗收，M9.6 的完整 Artifact lifecycle table／constraint／index 仍待設計確認。
 
 ### 6.1 M9.4 Application Data Foundation
 

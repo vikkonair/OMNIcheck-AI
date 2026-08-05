@@ -1,7 +1,7 @@
 # M9.5 Pipeline Result Persistence
 
 日期：2026-08-05
-狀態：功能分支本機與實際客戶資料唯讀驗證完成；公司 EDB 尚未部署
+狀態：Passed；已完成公司 EDB deployment，待隨本次變更建立 `m9.5` 正式 tag
 
 ## 目的
 

@@ -2,8 +2,8 @@
 
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
-目前正式版本：M9.4
-目前開發進度：M9.5 Pipeline Result Persistence 功能分支已完成本機與實際資料驗證；待公司 EDB deployment
+目前正式版本：M9.5
+目前開發進度：M9.5 Pipeline Result Persistence 正式完成；下一階段為 M9.6 Artifact Registry／Retention／Archive
 
 ## 1. 文件目的
 
@@ -61,7 +61,7 @@ M9 Web、案件管理、EDB Queue、獨立 Worker
         ↓
 M9.4 EDB Application Data Foundation（正式完成）
         ↓
-M9.5 Pipeline 結果 Persistence Adapter（分支驗證完成、待公司部署）；M9.6 Artifact Registry（已核准／待實作）
+M9.5 Pipeline 結果 Persistence Adapter（正式完成）；M9.6 Artifact Registry（已核准／待實作）
         ↓
 M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化（已排定／待實作）
 ```
@@ -88,11 +88,11 @@ M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化�
 | M8.1 | 正式完成 | `m8.1` | 是 | XDB、Barman、多備份工具架構 |
 | M9.1 | 功能分支完成 | `84ec2e6` | 可回到 M8.1 | Web API／JobStore 骨架 |
 | M9.2 | 功能分支完成 | `6cb7ccf` | 可回到 M9.1 或 M8.1 | 圖形化操作流程 |
-| M9.3 | 正式完成、目前 main | `m9.3` | 是 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
-| M9.4 | 正式完成、目前 main | `m9.4` | 是；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
-| M9.5 | 功能分支驗證完成 | 尚未建立 tag | 可回到 `m9.4`；DB downgrade 需另行核准 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等投影 |
+| M9.3 | 正式完成 | `m9.3` | 是 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
+| M9.4 | 正式完成 | `m9.4` | 是；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
+| M9.5 | 正式完成、目前 main | `m9.5` | 可回到 `m9.4` application；DB downgrade 需另行核准 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等投影與公司部署 |
 
-目前 `main` 與 `m9.4` 是正式可回復基準；`m9.3` 保留為 foundation 前的 rollback 點，`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。
+目前 `main` 與 `m9.5` 是正式可回復基準；`m9.4` 保留為 Persistence 前的 application rollback 點，`m9.3` 保留為 foundation 前的 rollback 點。
 
 ## 5. 各 Milestone 手順與成果
 
@@ -374,11 +374,29 @@ Service：systemd
 
 驗證：M9.4／M9.3 targeted tests 13 passed，完整 65 tests passed，PostgreSQL offline upgrade／downgrade SQL 生成成功。台灣行動支付 14 個來源檔案以隔離 SQLite 投影，建立 1 Customer、1 System、5 Nodes、4 Topology relations、14 Evidence records；來源前後 path／size／SHA-256 manifest 完全一致。公司 `.77/.81` 已由 `0001_m9_3` 升級至 `0002_m9_4`，備份 archive／hash、新表 constraints、legacy Job、transaction rollback smoke、Web／Worker health 與 Golden live Queue E2E 均通過；current release 為 `9dc7d76`。
 
-限制：尚未讓 Web 自動建立 Customer／System／Node，也尚未持久化 Scope／Normalized／Assessment／QA；後者屬 M9.5。Artifact 衍生版本與 retention/archive workflow 屬 M9.6。完整 restore／實際 downgrade drill 尚未執行。
+限制：尚未讓 Web 自動建立 Customer／System／Node。Scope／Normalized／Assessment／QA 已在後續 M9.5 完成；Artifact 衍生版本與 retention/archive workflow 屬 M9.6。完整 restore／實際 downgrade drill 尚未執行。
 
-Rollback：目前正式 application 基準仍為 `m9.3`。`0002_m9_4 → 0001_m9_3` downgrade 會刪除 M9.4 tables／data 與 Job tenant columns，必須先停止服務、備份、完成 staging restore drill 並另行核准；優先採 forward fix 或讓舊程式忽略 additive schema。
+Rollback：M9.4 正式 application 基準為 `m9.4`，目前最新基準為 `m9.5`。`0002_m9_4 → 0001_m9_3` downgrade 會刪除 M9.4 tables／data 與 Job tenant columns，必須先停止服務、備份、完成 staging restore drill 並另行核准；優先採 forward fix 或讓舊程式忽略 additive schema。
 
 詳細文件：`docs/M9_4_APPLICATION_DATA_FOUNDATION.md`、`docs/M9_4_VALIDATION.md`。
+
+### M9.5：Pipeline Result Persistence
+
+目的：在既有 Pipeline 後加入冪等 Persistence Adapter，讓 Scope、Normalized、設定比較、Assessment、Coverage 與 QA 可依 Customer／System／Job 查詢，同時保留 Canonical JSON 契約。
+
+完成內容：
+
+- `0003_m9_5` 新增 `pipeline_snapshots` 與七張 row-level child tables。
+- Snapshot 以 `job_id + schema_version + canonical_sha256` 冪等；相同輸出重跑不重複寫入。
+- Worker 只有在單一 transaction 完成投影後才標記 succeeded；失敗沿用 retry／failed 流程。
+- `normalized_unparsed` 保存 Parser 尚未支援的證據，不讓資料靜默消失。
+- Legacy unscoped Job 保持相容；`OMNICHECK_PERSIST_RESULTS=false` 可暫停 Adapter。
+
+驗證：本機與公司 VM 70 tests、V4 hashes、PostgreSQL offline migration、台灣行動支付 14 檔唯讀投影均通過。公司 `.77/.81` 已部署 release `916adff` 並升級至 `0003_m9_5`；Scoped Golden Job `fa28fea9f9d04f53bbd96f209042fe44` 一次成功，建立 Snapshot `1be99fddb5404aa8add49a89146ee339`，冪等重寫與 Web／Worker restart 後資料仍存在。
+
+Rollback：application 可切回 `m9.4` 並保留 additive M9.5 schema。`0003_m9_5 → 0002_m9_4` 會刪除全部 Pipeline snapshots 與 child rows，必須先備份、完成 staging restore/downgrade drill 並另行核准。
+
+詳細文件：`docs/M9_5_PIPELINE_RESULT_PERSISTENCE.md`、`docs/M9_5_VALIDATION.md`。
 
 ## 6. 標準開發手順
 
