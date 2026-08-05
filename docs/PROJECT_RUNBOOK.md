@@ -33,6 +33,8 @@
 8. 每個 milestone 完成前，都要跑自動測試、Golden Regression、實際客戶資料唯讀驗證及適用的報告 QA。
 9. 功能分支驗證通過後才能合併 `main`；正式 milestone 才建立 tag。
 10. 密碼、private key、客戶資料、實際輸出和本機 `.env` 不得進 Git。
+11. EDB 是結構化應用資料與歷史的主要查詢來源，`/data` 保存大型檔案，Canonical JSON 保留為不可變 Pipeline／Renderer 契約與 rollback 保護。
+12. AI 只能翻譯、解釋、摘要與產生文字初稿；事實、版本、Scope、規則狀態及 CVE 適用性由官方來源與確定性程式決定。
 
 ## 3. 目前整體架構
 
@@ -56,6 +58,10 @@ M7 V4 Adapter + DOCX/PDF Renderer + V4 QA
 M8～M8.1 Golden Regression + Service/Backup Registry
         ↓
 M9 Web、案件管理、EDB Queue、獨立 Worker
+        ↓
+M9.4～M9.6 Persistence Adapter、EDB 應用資料、Artifact Registry（已核准／待實作）
+        ↓
+M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化（已排定／待實作）
 ```
 
 正式 M8.1 可以完全使用 CLI。M9 未設定 `OMNICHECK_DATABASE_URL` 時使用 filesystem metadata 與 Web 同程序背景工作；設定後使用 EDB metadata 與獨立 Worker。
@@ -80,7 +86,7 @@ M9 Web、案件管理、EDB Queue、獨立 Worker
 | M8.1 | 正式完成、目前 main | `m8.1` | 是 | XDB、Barman、多備份工具架構 |
 | M9.1 | 功能分支完成 | `84ec2e6` | 可回到 M8.1 | Web API／JobStore 骨架 |
 | M9.2 | 功能分支完成 | `6cb7ccf` | 可回到 M9.1 或 M8.1 | 圖形化操作流程 |
-| M9.3 | 本機完成、實機待驗證 | `f87cfec` | 可回到 M9.2 或 M8.1 | EDB metadata／Queue／Worker |
+| M9.3 | 公司 core 已驗證、正式化待完成 | `18e21ee` | 可回到 M9.2 或 M8.1 | EDB metadata／Queue／Worker／systemd／Golden E2E |
 
 目前 `main` 指向 M8.1 後續 README commit；M9 位於 `feature/m9-web-job-management`。在公司環境驗證完成前，不建立 `m9.3` tag，也不合併 `main`。
 
@@ -347,7 +353,7 @@ Service：systemd
 
 尚待驗證／修正：台灣行動支付實際資料唯讀 E2E、application user SCRAM 密碼與 pgpass、TLS/VIP、stale lease 的實際中斷時間驗證。修正前 API 500 留下兩筆空 draft Golden 案件，未經核准不直接刪除。
 
-開發 commit：`f87cfec`。未建立正式 tag。
+目前驗證 commit：`18e21ee`。未建立正式 tag。
 
 ## 6. 標準開發手順
 
@@ -434,14 +440,21 @@ git switch feature/m9-web-job-management
 
 ## 10. 後續方向
 
-尚未正式排定 tag 的工作：
+後續架構已由 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；下列項目尚未實作或建立正式 tag：
 
-- 資料包自動探索 hostname、元件與角色建議，再由使用者確認
-- 登入、角色權限、客戶隔離與稽核 UI
-- EFM failover／VIP／TLS `verify-full`
-- 歷史健檢比較
-- CVE cache 與環球晶圓方向的 CVE 版面
-- 實際 Barman wrapper fixtures
-- 可選 AI 摘要、解釋與報告問答
+| 階段 | 預計內容 | 達成方式與主要驗收 |
+|---|---|---|
+| M9.3 正式化 | 完成目前公司部署 | SCRAM／pgpass、實際客戶資料唯讀 E2E、測試、merge `main`、`m9.3` tag |
+| M9.4 | EDB Application Data Foundation | Additive migration；Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
+| M9.5 | Pipeline Result Persistence | Pipeline 後加冪等 Persistence Adapter；保存 Scope／Normalized／Assessment／Coverage／QA，可由 Canonical JSON 重建 |
+| M9.6 | Artifact Registry／Retention／Archive | `storage_backend + storage_key`、hash、版本關係、保留與封存 Worker |
+| M10 | 自動探索與拓撲確認 | Parser evidence 產生角色建議與信心，使用者確認後才進正式 Pipeline |
+| M11 | Login／RBAC／客戶隔離／Audit | 身份提供者、角色政策、tenant enforcement、稽核事件 |
+| M12 | 歷史比較 | 依 customer／system／period 比較 normalized checks 與 assessment，產生趨勢 |
+| M13.1 | CVE／Release Sync 與 Cache | 固定官方來源、排程 Worker、來源快照、freshness policy |
+| M13.2 | Version Parser／Matcher | 確定性 product/version range、EDB backport、component 條件與 match reason |
+| M13.3 | CVE V4 Section／Quality Gate | 環球晶圓方向版面、stale data 警告／阻擋、逐頁 QA |
+| M14 | 選配 AI Gateway | 遮蔽後翻譯、摘要、觀察建議初稿與問答；完整 prompt/model/approval audit |
+| M15 | 生產強化 | EFM／VIP、TLS `verify-full`、backup/restore、監控與故障演練 |
 
-未來新增或調整上述項目時，必須在本手順記錄 milestone 編號、範圍、驗證、commit、tag、rollback 與已知限制。
+實際 Barman wrapper fixtures 仍待提供，但不阻擋 M9.3 正式化與 M9.4。未來每一階段都必須記錄範圍、migration、驗證、commit、tag、資料 rollback／forward-fix 與已知限制。

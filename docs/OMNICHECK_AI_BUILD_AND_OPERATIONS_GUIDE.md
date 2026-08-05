@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.3-draft.2
+文件版本：0.9.3-draft.3
 最後更新：2026-08-05  
-適用程式基準：`feature/m9-web-job-management` / `8faff37`
+適用程式基準：`feature/m9-web-job-management` / `18e21ee`
 正式可回復基準：`m8.1`  
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.3-draft.3 | 2026-08-05 | 納入 EDB 中心化、Canonical JSON、Artifact、CVE 與 AI 責任邊界決策 | 文件與 DOCX 驗證；後續資料模型尚未實作 |
 | 0.9.3-draft.2 | 2026-08-05 | 完成公司 App VM／EDB core deployment、EPAS Redwood 與 Linux fontconfig 修正 | 公司 Golden E2E 通過；TLS／密碼驗證與實際客戶資料待完成 |
 | 0.9.3-draft.1 | 2026-08-05 | 首次建立可重建系統的建置與維運主手冊 | 本機驗證 |
 
@@ -56,7 +57,8 @@
 | M8～M8.1 | 正式完成 | Golden Regression、Witness service、XDB、pgBackRest、Barman 架構 |
 | M9.1～M9.2 | 功能分支完成 | Web API、不可覆寫上傳、圖形化案件流程 |
 | M9.3 | 本機完成 | EDB metadata、queue、獨立 Worker、retry／heartbeat／lease |
-| M9.3 實機 | 待驗證 | 公司 EDB migration、systemd、網路、字型與 PDF |
+| M9.3 實機 | Core 已驗證 | 公司 EDB migration、systemd、網路、Golden DOCX／PDF 與重啟持久性通過；安全與實際資料待完成 |
+| M9.4～M15 | 已核准、待實作 | EDB 應用資料、Artifact、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m8.1` 是目前正式可回復版本。M9.3 尚未合併 `main`，重建 M9.3 時要 checkout 文件表頭所列 commit，不能把它誤稱為正式 release。
 
@@ -84,9 +86,9 @@ Raw evidence (immutable) -> M1 Inventory/SHA-256
                          /data/omnicheck/jobs/<job_id>/output
 ```
 
-### 3.1 資料責任
+### 3.1 目前 M9.3 資料責任
 
-- EDB 只保存案件 metadata、狀態、claim、attempt 與事件。
+- 目前已實作的 EDB 只保存案件 metadata、狀態、claim、attempt 與事件。
 - 客戶 input、JSON、DOCX、PDF 留在應用 VM `/data/omnicheck/jobs`。
 - input 檔案建立後不可覆寫；Pipeline 以 SHA-256 保留可追溯性。
 - Database／Schema／Table／Index 等邏輯證據只採 Primary。
@@ -96,6 +98,20 @@ Raw evidence (immutable) -> M1 Inventory/SHA-256
 ### 3.2 AI 邊界
 
 目前正式路徑不需要外部 AI。Primary、Scope、狀態、證據、版面與品質閘門均為確定性程式。未來 AI 只能做已遮蔽內容的摘要、解釋或問答，不得更動證據與判斷。
+
+### 3.3 已核准的目標資料架構（M9.4 起）
+
+詳細權威決策為 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`。實作原則如下：
+
+- EDB 逐步成為結構化應用資料、歷史、規則結果與 CVE Cache 的主要查詢來源。
+- `/data` 繼續保存原始證據、圖片、壓縮檔、Canonical JSON、DOCX、PDF 與 Render 暫存檔。
+- EDB 對大型檔案只保存 `storage_backend`、`storage_key`、hash、大小、media type、保留與封存狀態。
+- Canonical JSON 不取消；它是不可變 Pipeline／Renderer 契約、Golden、除錯、重建與 rollback 保護。
+- Pipeline 後增加冪等 Persistence Adapter；持久化失敗時 Job 不得標成 succeeded。
+- Customer／tenant key 從 M9.4 進資料模型；M11 再完成 Login／RBAC／Audit enforcement。
+- CVE 由固定官方來源排程同步，Version Matcher 確定性判斷；AI 不決定漏洞適用性。
+
+此節是核准的未來狀態，不代表 M9.4～M15 的 table、migration、sync worker 或 AI Gateway 已經存在。
 
 ## 4. 目標環境基準
 
@@ -777,6 +793,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
 - 歷史比較、CVE cache、可選 AI gateway 尚未實作。
+- EDB 中心化與 CVE 自動化方向已核准，但 Persistence Adapter、Application Data tables、Artifact Registry 與 CVE tables 尚未實作。
 
 ## 附錄 A：官方與專案依據
 
@@ -786,6 +803,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - Python venv：<https://docs.python.org/3/library/venv.html>
 - 專案規範：`AGENTS.md`、`docs/PIPELINE_SPEC.md`、`docs/ACCEPTANCE_CRITERIA.md`
 - M9.3：`docs/M9_3_EDB_QUEUE.md`、`docs/M9_3_VALIDATION.md`
+- M9.4～M15 架構決策：`docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`
 
 ## 附錄 B：交付驗收簽核表
 

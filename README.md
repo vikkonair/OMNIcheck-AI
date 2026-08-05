@@ -24,6 +24,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 使用去識別 Golden Dataset 防止 Parser、Scope、規則與報告版面回歸。
 - 透過 M9 Web API 建立案件、上傳不可覆寫的原始證據、執行既有 Pipeline、查詢狀態及下載輸出。
 - 可選用 EDB／PostgreSQL 保存案件 metadata，透過獨立 Worker 與資料庫佇列可靠執行、重試及保留事件紀錄。
+- 後續已核准採用 EDB 中心化架構：EDB 保存結構化應用資料與歷史、`/data` 保存大型檔案、Canonical JSON 繼續作為 Pipeline 契約與 rollback 保護層；目前仍待 M9.4～M9.6 分階段實作。
 
 目前規則涵蓋：
 
@@ -168,6 +169,7 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - `docs/MILESTONE_VALIDATION.md`
 - `docs/RULE_PROVENANCE.md`
 - `docs/REPORT_REFERENCE_POLICY.md`
+- `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`：M9.4～M15 的 EDB 中心化、CVE 與 AI 責任邊界決策
 
 ## 專案進度
 
@@ -182,6 +184,9 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - M8.1：Witness 元件 Registry 與多備份工具架構（已完成）
 - M9.1～M9.2：Web API、案件管理與圖形化操作流程（已完成）
 - M9.3：EDB metadata、可靠工作佇列與獨立 Worker（公司 core deployment 驗證完成，待安全強化與實際客戶資料驗證）
-- 後續：正式權限與部署、歷史比較、CVE 資料與可選 AI 輔助
+- M9.4～M9.6：EDB 應用資料、Pipeline 結果與 Artifact Registry
+- M10～M12：拓撲確認、登入／RBAC／隔離／稽核、歷史比較
+- M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
+- M14～M15：選配 AI Gateway 與正式 HA／VIP／TLS／Backup／Monitoring 強化
 
 報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。
