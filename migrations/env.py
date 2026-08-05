@@ -11,6 +11,7 @@ from sqlalchemy import engine_from_config, pool
 from omni_healthcheck.database import SCHEMA, metadata
 import omni_healthcheck.application_data  # noqa: F401 - registers M9.4 tables
 import omni_healthcheck.pipeline_persistence  # noqa: F401 - registers M9.5 tables
+import omni_healthcheck.artifact_lifecycle  # noqa: F401 - registers M9.6 tables
 
 
 config = context.config

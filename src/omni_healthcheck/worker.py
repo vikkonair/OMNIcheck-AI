@@ -9,6 +9,7 @@ import threading
 import time
 from pathlib import Path
 
+from omni_healthcheck.artifact_lifecycle import ArtifactRegistry
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.job_store import JobStore
@@ -23,6 +24,8 @@ def run_once(
     retry_seconds: int,
     heartbeat_seconds: float = 30,
     persist_results: bool = True,
+    register_artifacts: bool = True,
+    artifact_retention_days: int = 365,
 ) -> bool:
     job = store.claim_next(worker_id)
     if job is None:
@@ -44,16 +47,26 @@ def run_once(
         run_generate(paths["job"], paths["input"], paths["output"], rules_path)
         customer_id = job.get("customer_id")
         system_id = job.get("system_id")
-        if persist_results and (customer_id or system_id):
+        if (persist_results or register_artifacts) and (customer_id or system_id):
             if not customer_id or not system_id:
-                raise RuntimeError("Pipeline persistence requires complete customer/system scope")
+                raise RuntimeError("Pipeline results require complete customer/system scope")
             if store.metadata_store is None:
-                raise RuntimeError("Pipeline persistence requires database metadata")
+                raise RuntimeError("Pipeline results require database metadata")
+        if persist_results and customer_id and system_id:
             PipelineResultStore(engine=store.metadata_store.engine).persist(
                 job_id=job_id,
                 customer_id=str(customer_id),
                 system_id=str(system_id),
                 output_dir=paths["output"],
+            )
+        if register_artifacts and customer_id and system_id:
+            ArtifactRegistry(engine=store.metadata_store.engine).register_outputs(
+                job_id=job_id,
+                customer_id=str(customer_id),
+                system_id=str(system_id),
+                output_dir=paths["output"],
+                data_root=store.root.parent,
+                retention_days=artifact_retention_days,
             )
     except Exception as exc:
         store.fail(
@@ -89,6 +102,12 @@ def main() -> None:
     persist_results = os.environ.get("OMNICHECK_PERSIST_RESULTS", "true").lower() not in {
         "0", "false", "no",
     }
+    register_artifacts = os.environ.get(
+        "OMNICHECK_REGISTER_ARTIFACTS", "true"
+    ).lower() not in {"0", "false", "no"}
+    artifact_retention_days = int(
+        os.environ.get("OMNICHECK_ARTIFACT_RETENTION_DAYS", "365")
+    )
     worker_id = os.environ.get(
         "OMNICHECK_WORKER_ID",
         f"{socket.gethostname()}-{os.getpid()}",
@@ -115,6 +134,8 @@ def main() -> None:
             retry_seconds=retry_seconds,
             heartbeat_seconds=heartbeat_seconds,
             persist_results=persist_results,
+            register_artifacts=register_artifacts,
+            artifact_retention_days=artifact_retention_days,
         )
         if not processed:
             time.sleep(poll_seconds)

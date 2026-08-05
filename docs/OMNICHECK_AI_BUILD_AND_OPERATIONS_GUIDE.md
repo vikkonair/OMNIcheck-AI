@@ -1,7 +1,7 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.5
+文件版本：0.9.6-draft.1
 最後更新：2026-08-05  
 適用程式基準：`main` / `m9.5`
 正式可回復基準：`m9.5`
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.6-draft.1 | 2026-08-05 | Artifact version、derivation、event、Retention 與 copy-verify archive | 本機 74 tests、offline migration 與實際資料唯讀驗證通過；公司 EDB 待驗證 |
 | 0.9.5 | 2026-08-05 | M9.5 公司 EDB deployment、Scoped Golden Persistence 與正式回復點 | Backup/hash、VM 70 tests、`0003_m9_5`、冪等、restart persistence 與 health 通過 |
 | 0.9.5-draft.1 | 2026-08-05 | 新增 M9.5 scoped Pipeline snapshot、row-level persistence、冪等與 failure gate | 本機 70 tests、offline migration 與實際資料唯讀投影通過；公司 EDB 待驗證 |
 | 0.9.4 | 2026-08-05 | M9.4 合併 main 並建立正式回復點 | 合併後 tests、V4 manifest 與文件 render 通過 |
@@ -67,7 +68,8 @@
 | M9.3 實機 | 正式完成 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過 |
 | M9.4 | 正式完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key、公司部署與 live Queue 驗收 |
 | M9.5 | 正式完成 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等 EDB 投影與公司部署 |
-| M9.6～M15 | 已核准、待實作 | Artifact lifecycle、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
+| M9.6 | 功能分支本機完成 | Artifact version、derivation、events、Retention、copy-verify archive；公司 EDB 待驗證 |
+| M10～M15 | 已核准、待實作 | 拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m9.5` 是目前正式可回復版本；`m9.4` 保留為 Persistence 前的 application rollback 點，`m9.3` 保留為 foundation 前的 rollback 點。正式重建應 checkout `m9.5`，不得部署 floating branch HEAD。
 
@@ -427,6 +429,10 @@ OMNICHECK_WORKER_RETRY_SECONDS=60
 OMNICHECK_WORKER_HEARTBEAT_SECONDS=30
 OMNICHECK_WORKER_STALE_SECONDS=3600
 OMNICHECK_PERSIST_RESULTS=true
+OMNICHECK_REGISTER_ARTIFACTS=true
+OMNICHECK_ARTIFACT_RETENTION_DAYS=365
+OMNICHECK_STORAGE_ROOT=/data/omnicheck
+OMNICHECK_ARCHIVE_ROOT=/data/omnicheck/archive
 ```
 
 ```bash
@@ -500,6 +506,29 @@ Alembic downgrade 會刪表，屬破壞性操作；只有完成 metadata backup 
 `0003_m9_5` 新增 `pipeline_snapshots`、`scope_decisions`、`normalized_checks`、`normalized_unparsed`、`configuration_comparisons`、`pipeline_assessments`、`coverage_items`、`quality_results`。部署前先備份目前 `0002_m9_4`；升級後以完整 scoped Job 驗證 snapshot 與 child row counts。`alembic downgrade 0002_m9_4` 會刪除全部 M9.5 results，必須另行核准。
 
 公司驗證結果：release `916adff` 在 VM 通過 70 tests 與 V4 hashes；備份 `/data/omnicheck/archive/omnicheck_app_pre_m9_5_20260805.dump` 的 SHA-256 為 `b1bab16fa5c006a8832a621dd9fce0fe2ce7a18c4025d0b290a865da030e1575`，且 `pg_restore --list` 可讀。Schema 升至 `0003_m9_5`，Scoped Golden Job `fa28fea9f9d04f53bbd96f209042fe44` succeeded 並建立 Snapshot `1be99fddb5404aa8add49a89146ee339`；冪等重寫、Web／Worker restart 與 health 均通過。Release 切換時必須同步重新安裝 editable package；health probe 應允許 Uvicorn 最多 30 秒啟動。
+
+### 10.5 M9.6 migration（公司環境待驗證）
+
+`0004_m9_6` 擴充 `artifacts` 並新增 `artifact_relations`、`artifact_events`。部署前先備份 `0003_m9_5`；升級後以 scoped Job 驗證 11 或 13 個輸出 Artifact、版本、relations、events 與冪等。Downgrade 會刪除 M9.6 metadata 與 version 2 以上 registry rows，必須另行核准；實體檔案不由 migration 刪除。
+
+先用 dry-run 查看已到期項目，人工確認後才 apply：
+
+```bash
+sudo -u omnicheck env \
+  OMNICHECK_DATABASE_URL="$(sed -n 's/^OMNICHECK_DATABASE_URL=//p' /etc/omnicheck-ai/omnicheck.env)" \
+  OMNICHECK_STORAGE_ROOT=/data/omnicheck \
+  OMNICHECK_ARCHIVE_ROOT=/data/omnicheck/archive \
+  /data/omnicheck/venv/bin/omni-healthcheck-artifacts
+
+# 經核准後才執行；只 copy + verify，不刪來源
+sudo -u omnicheck env \
+  OMNICHECK_DATABASE_URL="$(sed -n 's/^OMNICHECK_DATABASE_URL=//p' /etc/omnicheck-ai/omnicheck.env)" \
+  OMNICHECK_STORAGE_ROOT=/data/omnicheck \
+  OMNICHECK_ARCHIVE_ROOT=/data/omnicheck/archive \
+  /data/omnicheck/venv/bin/omni-healthcheck-artifacts --apply
+```
+
+M9.6 不提供自動實體刪除。`pending_delete` 只代表已提出刪除申請，仍可取消；未經獨立備份、legal hold 檢查與明確核准，不得手動刪檔。
 
 ## 11. 安裝 systemd Web 與 Worker
 
@@ -837,6 +866,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M9.3 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、SCRAM／pgpass、DOCX/PDF、重啟持久性、Golden 與實際客戶資料 E2E。
 - M9.4 已正式化並部署公司 `.77/.81`：部署 release `9dc7d76`、Alembic `0002_m9_4`、Web／Worker active、Golden Job `cf384056cf7045878f12341324cb1852` succeeded。完整 restore／downgrade drill 尚待安排。
 - M9.5 已部署公司 `.77/.81`：release `916adff`、Alembic `0003_m9_5`、70 tests、Scoped Golden Persistence、冪等與服務重啟均通過。
+- M9.6 功能分支已通過 74 tests、offline migration、V4 hashes 與台灣行動支付 Artifact 唯讀驗證；公司 `.81` 尚未執行 `0004_m9_6`。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
@@ -857,6 +887,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M9.3：`docs/M9_3_EDB_QUEUE.md`、`docs/M9_3_VALIDATION.md`
 - M9.4：`docs/M9_4_APPLICATION_DATA_FOUNDATION.md`、`docs/M9_4_VALIDATION.md`
 - M9.5：`docs/M9_5_PIPELINE_RESULT_PERSISTENCE.md`、`docs/M9_5_VALIDATION.md`
+- M9.6：`docs/M9_6_ARTIFACT_LIFECYCLE.md`、`docs/M9_6_VALIDATION.md`
 - M9.4～M15 架構決策：`docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`
 
 ## 附錄 B：交付驗收簽核表

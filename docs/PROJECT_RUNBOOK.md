@@ -3,7 +3,7 @@
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
 目前正式版本：M9.5
-目前開發進度：M9.5 Pipeline Result Persistence 正式完成；下一階段為 M9.6 Artifact Registry／Retention／Archive
+目前開發進度：M9.6 Artifact Registry／Retention／Archive 功能分支已完成本機與實際資料驗證；待公司 EDB deployment
 
 ## 1. 文件目的
 
@@ -61,7 +61,7 @@ M9 Web、案件管理、EDB Queue、獨立 Worker
         ↓
 M9.4 EDB Application Data Foundation（正式完成）
         ↓
-M9.5 Pipeline 結果 Persistence Adapter（正式完成）；M9.6 Artifact Registry（已核准／待實作）
+M9.5 Pipeline 結果 Persistence Adapter（正式完成）；M9.6 Artifact Registry（分支驗證完成／待公司部署）
         ↓
 M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化（已排定／待實作）
 ```
@@ -91,6 +91,7 @@ M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化�
 | M9.3 | 正式完成 | `m9.3` | 是 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
 | M9.4 | 正式完成 | `m9.4` | 是；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
 | M9.5 | 正式完成、目前 main | `m9.5` | 可回到 `m9.4` application；DB downgrade 需另行核准 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等投影與公司部署 |
+| M9.6 | 功能分支驗證完成 | 尚未建立 tag | 可回到 `m9.5`；DB downgrade 需另行核准 | Artifact 版本、衍生關係、事件、Retention 與 copy-verify Archive |
 
 目前 `main` 與 `m9.5` 是正式可回復基準；`m9.4` 保留為 Persistence 前的 application rollback 點，`m9.3` 保留為 foundation 前的 rollback 點。
 
@@ -397,6 +398,18 @@ Rollback：M9.4 正式 application 基準為 `m9.4`，目前最新基準為 `m9.
 Rollback：application 可切回 `m9.4` 並保留 additive M9.5 schema。`0003_m9_5 → 0002_m9_4` 會刪除全部 Pipeline snapshots 與 child rows，必須先備份、完成 staging restore/downgrade drill 並另行核准。
 
 詳細文件：`docs/M9_5_PIPELINE_RESULT_PERSISTENCE.md`、`docs/M9_5_VALIDATION.md`。
+
+### M9.6：Artifact Registry／Retention／Archive
+
+目的：讓 `/data` 大型輸出具備可攜 metadata、版本、衍生關係與安全封存流程，不把 DOCX／PDF／圖片存成 EDB `BYTEA`。
+
+完成內容：`0004_m9_6` 新增 Artifact version、timestamps、`artifact_relations` 與 `artifact_events`；Scoped Worker 自動登錄輸出；同檔冪等、內容改變升版。Archive Worker 預設 dry-run，apply 時先複製、驗 SHA-256、再更新 metadata，且保留來源。刪除只到可取消的 `pending_delete`，不自動刪實體檔。
+
+驗證：74 tests、PostgreSQL offline upgrade/downgrade、V4 hashes 與台灣行動支付 14 檔唯讀驗證通過；11 artifacts、2 relations、11 events，來源 manifest 不變。
+
+Rollback：application 可回 `m9.5`。`0004_m9_6 → 0003_m9_5` 會刪除 relations、events、M9.6 欄位與 version 2 以上 registry rows，必須備份、staging 演練並另行核准；migration 不刪實體檔。
+
+詳細文件：`docs/M9_6_ARTIFACT_LIFECYCLE.md`、`docs/M9_6_VALIDATION.md`。
 
 ## 6. 標準開發手順
 
