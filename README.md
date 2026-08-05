@@ -160,6 +160,7 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 
 詳細規範請參閱：
 
+- `docs/PROJECT_RUNBOOK.md`：M1 至目前及後續持續更新的專案手順
 - `docs/PIPELINE_SPEC.md`
 - `docs/ACCEPTANCE_CRITERIA.md`
 - `docs/MILESTONE_VALIDATION.md`

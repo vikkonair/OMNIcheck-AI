@@ -42,8 +42,10 @@ data/jobs/<job-id>/
 - `GET /api/jobs/{job_id}/outputs`
 - `GET /api/jobs/{job_id}/outputs/{filename}`
 
-## 已知限制與後續工作
+## 執行模式與已知限制
 
-目前 metadata 使用檔案系統，背景工作在 Web 程序內執行；程序中斷時不具備可靠重試或工作接手能力。瀏覽器基於安全限制不能直接讀取任意本機路徑，因此使用者需透過資料夾選擇器授權上傳。後續 M9 會加入 PostgreSQL metadata、Redis／Worker、辨識結果確認畫面、身分驗證、取消／重試與部署設定。
+未設定 `OMNICHECK_DATABASE_URL` 時，metadata 使用檔案系統，背景工作在 Web 程序內執行，適合本機開發。M9.3 已新增 EDB／PostgreSQL metadata、資料庫工作佇列與獨立 Worker，不需要 Redis；公司環境仍待實機部署驗證。
+
+瀏覽器基於安全限制不能直接讀取任意本機路徑，因此使用者需透過資料夾選擇器授權上傳。辨識結果確認畫面、身分驗證、取消操作與完整權限控管仍屬後續工作。
 
 Barman parser 已具備 provider 架構與 Golden 測試；實際客戶輸出範本不是 M9 的阻擋條件，但取得後仍須新增對應 fixture，驗證不同版本與 wrapper 格式。

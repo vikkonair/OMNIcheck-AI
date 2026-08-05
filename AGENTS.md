@@ -49,6 +49,9 @@ AI must remain optional and replaceable.
 - Every parser and rule needs fixtures and automated tests.
 - Use golden datasets for Jiuxing, GlobalWafers, and a multi-node Primary/Standby/DR case.
 - Keep code changes focused, run relevant tests, and report verification results.
+- Treat `docs/PROJECT_RUNBOOK.md` as a living project record. Update it whenever
+  a milestone starts, completes validation, merges to `main`, receives a tag,
+  changes deployment assumptions, or adds a known limitation or rollback step.
 
 ## Proposed stack
 
