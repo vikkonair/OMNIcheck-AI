@@ -160,6 +160,8 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 
 詳細規範請參閱：
 
+- `docs/OMNICHECK_AI_BUILD_AND_OPERATIONS_GUIDE.md`：從空白 VM 重建、部署、驗證、維運與回復的權威主手冊
+- `docs/OMNICHECK_AI_BUILD_AND_OPERATIONS_GUIDE.docx`：可傳承與交付的主手冊文件版
 - `docs/PROJECT_RUNBOOK.md`：M1 至目前及後續持續更新的專案手順
 - `docs/PIPELINE_SPEC.md`
 - `docs/ACCEPTANCE_CRITERIA.md`

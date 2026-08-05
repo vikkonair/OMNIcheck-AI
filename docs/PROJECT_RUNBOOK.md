@@ -19,6 +19,8 @@
 
 每個 milestone 開始、完成、驗證、合併或 rollback 時，都必須同步更新本手順。個別階段的詳細技術證據仍以 `docs/` 內的規格與 validation 文件為準。
 
+從空白 VM 重建、套件安裝、EDB、systemd、驗證、備份、升級與復原的詳細命令，統一由 `docs/OMNICHECK_AI_BUILD_AND_OPERATIONS_GUIDE.md` 管理，並以 `docs/OMNICHECK_AI_BUILD_AND_OPERATIONS_GUIDE.docx` 交付。本文件不重複維護那些命令，以免兩份內容漂移。
+
 ## 2. 核心原則
 
 1. 客戶原始資料永遠唯讀，不得修改或提交 Git。
