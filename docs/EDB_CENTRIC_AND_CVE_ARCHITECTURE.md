@@ -1,6 +1,6 @@
 # OMNIcheck AI：EDB 中心化與 CVE 自動化架構決策
 
-狀態：已核准，待依 Milestone 分階段實作  
+狀態：已核准；M9.4 功能分支本機實作與實際資料唯讀驗證完成，M9.5～M15 待分階段實作
 決策日期：2026-08-05  
 適用範圍：M9.4～M15  
 前置基準：M1～M8.1 Pipeline 與 M9.3 Web／EDB Queue／Worker
@@ -39,7 +39,7 @@ M1～M8.1 已建立可追溯、可離線運作的健檢 Pipeline；M9.3 已讓 W
 - 不取消 Canonical JSON，也不讓 Renderer 直接依賴資料庫內部表格。
 - 不把圖片、DOCX、PDF 或大型壓縮檔大量存成 EDB `BYTEA`。
 - 不讓 AI 決定 Primary、Scope、規則狀態、CVE 適用性或官方來源。
-- 本文件不直接建立 migration、資料表、排程器或 AI Gateway；實作必須依後續 Milestone 驗收。
+- 本文件本身不取代實作與驗收。M9.4 已由 `0002_m9_4` migration 建立 foundation tables；排程器、完整 Persistence Adapter 與 AI Gateway 仍必須依後續 Milestone 驗收。
 
 ## 3. 目標架構
 
@@ -120,7 +120,7 @@ Pipeline 完成
 
 ## 6. EDB 資料領域
 
-以下是邏輯領域，不是已建立的實體表名；正式 table／constraint／index 由 M9.4～M9.6 migration 設計確認。
+M9.4 foundation 已確認實體 table；M9.5～M9.6 的 Pipeline result 與完整 Artifact lifecycle table／constraint／index 仍由各自 migration 設計確認。
 
 ### 6.1 M9.4 Application Data Foundation
 
@@ -130,6 +130,8 @@ Pipeline 完成
 - Topology：Primary／Standby／DR／Witness 關係與確認狀態。
 - Evidence File：storage key、SHA-256、大小、media type、來源與節點映射。
 - Artifact：Canonical JSON、QA JSON、DOCX、PDF 等輸出索引。
+
+M9.4 已實作 `customers`、`systems`、`nodes`、`topology_relations`、`evidence_files`、`artifacts`，並為 `jobs` 增加 nullable tenant scope。Evidence／Artifact 目前是安全 storage metadata 基礎；衍生關係、Retention／Archive workflow 仍屬 M9.6。
 
 `customer_id`／tenant key 必須從 M9.4 就存在於所有核心資料，不能等到 M11 才補；M11 再加入登入、政策與 Row-Level／application-level access control。
 

@@ -14,8 +14,12 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
     Column,
+    CheckConstraint,
+    ForeignKeyConstraint,
     create_engine,
+    event,
     insert,
     select,
     text,
@@ -31,6 +35,8 @@ jobs = Table(
     "jobs",
     metadata,
     Column("job_id", String(32), primary_key=True),
+    Column("customer_id", String(32)),
+    Column("system_id", String(32)),
     Column("customer", Text, nullable=False),
     Column("system_name", Text),
     Column("period", Text, nullable=False),
@@ -45,6 +51,28 @@ jobs = Table(
     Column("available_at", DateTime(timezone=True), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint(
+        "job_id",
+        "customer_id",
+        "system_id",
+        name="uq_jobs_tenant_scope",
+    ),
+    ForeignKeyConstraint(
+        ["customer_id"],
+        [f"{SCHEMA}.customers.customer_id"],
+        ondelete="RESTRICT",
+        name="fk_jobs_customer",
+    ),
+    ForeignKeyConstraint(
+        ["system_id", "customer_id"],
+        [f"{SCHEMA}.systems.system_id", f"{SCHEMA}.systems.customer_id"],
+        ondelete="RESTRICT",
+        name="fk_jobs_system_tenant",
+    ),
+    CheckConstraint(
+        "system_id IS NULL OR customer_id IS NOT NULL",
+        name="ck_jobs_system_requires_customer",
+    ),
 )
 
 job_events = Table(
@@ -83,7 +111,14 @@ def create_database_engine(database_url: str) -> Engine:
         # psycopg 3 intentionally does not parse.  Keep the database-wide
         # compatibility mode unchanged and normalize only OMNIcheck sessions.
         options["connect_args"] = {"options": "-c DateStyle=ISO"}
-    return create_engine(database_url, **options)
+    engine = create_engine(database_url, **options)
+    if database_url.startswith("sqlite"):
+        @event.listens_for(engine, "connect")
+        def _enable_sqlite_foreign_keys(dbapi_connection: Any, _: Any) -> None:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+    return engine
 
 
 def _serialize(row: RowMapping) -> dict:
@@ -125,6 +160,9 @@ class DatabaseMetadataStore:
 
     def create_schema_for_test(self) -> None:
         """Create tables for isolated tests; production uses Alembic."""
+        # Registers the M9.4 tables referenced by nullable job tenant keys.
+        import omni_healthcheck.application_data  # noqa: F401
+
         metadata.create_all(self.engine)
 
     def ping(self) -> None:

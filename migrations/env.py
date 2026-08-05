@@ -9,6 +9,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from omni_healthcheck.database import SCHEMA, metadata
+import omni_healthcheck.application_data  # noqa: F401 - registers M9.4 tables
 
 
 config = context.config

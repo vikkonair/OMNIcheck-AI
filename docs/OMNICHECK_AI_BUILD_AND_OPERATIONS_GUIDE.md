@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.3
+文件版本：0.9.4-draft.1
 最後更新：2026-08-05  
-適用程式基準：`main` / `m9.3`
+適用程式基準：`main` / `m9.3`，以及待驗收的 `feature/m9-4-application-data-foundation`
 正式可回復基準：`m9.3`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.4-draft.1 | 2026-08-05 | 新增 M9.4 Customer／System／Node／Topology／Evidence／Artifact、tenant scope 與 `0002_m9_4` migration 手順 | 本機 65 tests、offline upgrade/downgrade、實際資料隔離投影與來源 hash 通過；公司 EDB 待驗證 |
 | 0.9.3 | 2026-08-05 | M9.3 合併 main 並建立正式回復點 | 合併後 60 tests、V4 manifest 與文件 render 通過 |
 | 0.9.3-draft.4 | 2026-08-05 | 完成 SCRAM／pgpass、實際客戶資料 E2E 與 V4 摘要分頁修正 | 本機／VM 60 tests、QA、V4 QA、29 頁 PDF 與來源 hash 通過；待 merge/tag |
 | 0.9.3-draft.3 | 2026-08-05 | 納入 EDB 中心化、Canonical JSON、Artifact、CVE 與 AI 責任邊界決策 | 文件與 DOCX 驗證；後續資料模型尚未實作 |
@@ -39,7 +40,7 @@
 2. 建立或連接 EDB Postgres Advanced Server 17 metadata database。
 3. 部署 Web 與 Worker systemd service。
 4. 執行 CLI、Web 與 EDB queue 三種模式。
-5. 驗證 M1～M9.3 的輸出、Golden Regression 與 PDF 字型。
+5. 驗證 M1～M9.3 的輸出、Golden Regression 與 PDF 字型，以及 M9.4 application data foundation。
 6. 進行備份、復原、升級、故障排除與 rollback。
 
 標記方式：
@@ -60,7 +61,8 @@
 | M9.1～M9.2 | 功能分支完成 | Web API、不可覆寫上傳、圖形化案件流程 |
 | M9.3 | 本機完成 | EDB metadata、queue、獨立 Worker、retry／heartbeat／lease |
 | M9.3 實機 | 正式完成 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過 |
-| M9.4～M15 | 已核准、待實作 | EDB 應用資料、Artifact、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
+| M9.4 | 功能分支本機完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key；公司 EDB 待驗證 |
+| M9.5～M15 | 已核准、待實作 | Pipeline Persistence、Artifact lifecycle、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m9.3` 是目前正式可回復版本；`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。正式重建應 checkout `m9.3`，不得部署 floating branch HEAD。
 
@@ -101,7 +103,7 @@ Raw evidence (immutable) -> M1 Inventory/SHA-256
 
 目前正式路徑不需要外部 AI。Primary、Scope、狀態、證據、版面與品質閘門均為確定性程式。未來 AI 只能做已遮蔽內容的摘要、解釋或問答，不得更動證據與判斷。
 
-### 3.3 已核准的目標資料架構（M9.4 起）
+### 3.3 M9.4 起的目標資料架構
 
 詳細權威決策為 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`。實作原則如下：
 
@@ -113,7 +115,7 @@ Raw evidence (immutable) -> M1 Inventory/SHA-256
 - Customer／tenant key 從 M9.4 進資料模型；M11 再完成 Login／RBAC／Audit enforcement。
 - CVE 由固定官方來源排程同步，Version Matcher 確定性判斷；AI 不決定漏洞適用性。
 
-此節是核准的未來狀態，不代表 M9.4～M15 的 table、migration、sync worker 或 AI Gateway 已經存在。
+M9.4 已建立 `customers`、`systems`、`nodes`、`topology_relations`、`evidence_files`、`artifacts`，並為 `jobs` 加入 nullable tenant scope。完整 Pipeline Persistence、Artifact lifecycle、sync worker 與 AI Gateway 尚未完成。
 
 ## 4. 目標環境基準
 
@@ -463,7 +465,7 @@ sudo -u omnicheck env \
   -c /data/omnicheck/app/current/alembic.ini current
 ```
 
-預期 revision 為 `0001_m9_3 (head)`，schema 有 `jobs`、`job_events`、`alembic_version`。
+正式 `m9.3` 預期 revision 為 `0001_m9_3`，schema 有 `jobs`、`job_events`、`alembic_version`。M9.4 功能分支部署後預期為 `0002_m9_4 (head)`，並新增 `customers`、`systems`、`nodes`、`topology_relations`、`evidence_files`、`artifacts`；`jobs` 新增 nullable `customer_id/system_id`。
 
 ```sql
 SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema='omnicheck' ORDER BY 2;
@@ -471,6 +473,19 @@ SELECT version_num FROM omnicheck.alembic_version;
 ```
 
 Alembic downgrade 會刪表，屬破壞性操作；只有完成 metadata backup 並取得明確核准後才能執行。
+
+### 10.3 M9.4 migration 待驗證手順
+
+目前只在本機 SQLite 與 PostgreSQL offline SQL 驗證，尚未於公司 `.81` 執行。安排公司測試時：
+
+1. 停止 Web／Worker，記錄目前 app commit 與 `alembic current`。
+2. 使用 `pg_dump -Fc` 備份 `omnicheck_app`，並確認備份檔大小與 checksum。
+3. 在隔離 staging restore，演練 `upgrade 0002_m9_4`、基本 CRUD 與回復。
+4. 公司測試 EDB 執行 `alembic upgrade 0002_m9_4`。
+5. 查核六張新表、Job nullable tenant columns、FK／unique／check constraints。
+6. 重啟 Web／Worker，確認既有 M9.3 Job 可讀、新 Job Queue／Worker E2E 通過。
+
+需要回到 M9.3 schema 時，`alembic downgrade 0001_m9_3` 會刪除六張 M9.4 table、其中全部資料及 Job tenant columns。必須另行取得破壞性變更核准；通常優先保留 additive schema、切回 `m9.3` application 或採 forward fix。
 
 ## 11. 安裝 systemd Web 與 Worker
 
@@ -529,7 +544,7 @@ cd /data/omnicheck/app/current
 git diff --check
 ```
 
-公司實機修正後基準為 59 tests 全部通過。實際數量會隨版本增加，不應硬性只等於 59；重點是 0 failed。
+公司 M9.3 正式基準為 60 tests；M9.4 功能分支本機基準為 65 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
 
 ### 13.2 V4 bundle 完整性
 
@@ -577,6 +592,16 @@ pdffonts /tmp/report-check/report.pdf
 - Worker 中止後，在 lease 超時才 stale recovery。
 - 兩個 Worker 同時啟動不得重複 claim 同一 job。
 - EDB unavailable 時 `/api/health` 必須 503，不能假裝正常。
+
+### 13.7 M9.4 application data 驗收
+
+- Legacy M9.3 Job 在 `customer_id/system_id` 為 `NULL` 時仍可運作。
+- Customer 內可建立 System 與 Primary／Standby／DR／Witness Node。
+- Topology source／target 必須屬於同一 Customer／System。
+- 已關聯 Job 不得改掛另一個 tenant。
+- Evidence／Artifact 只能使用安全相對 storage key，且保存 SHA-256、size、media type。
+- 大型原始檔與報告留在 `/data`，EDB 不存 `BYTEA`。
+- 實際客戶資料只讀投影前後 manifest 必須一致。
 
 ## 14. Pipeline 產物與判讀
 
@@ -668,6 +693,7 @@ systemctl start omnicheck-web omnicheck-worker
 - 先復原到隔離 staging。
 - 比對 job directory SHA-256。
 - restore EDB 後檢查 job counts／events／Alembic revision。
+- M9.4 起另檢查 Customer／System／Node／Topology／Evidence／Artifact row counts 與孤兒外鍵。
 - 啟動 Web／Worker，挑一個既有 succeeded job 確認下載。
 - 建立新 Golden job 確認 queue 與 Renderer。
 
@@ -701,7 +727,7 @@ git switch -c rollback/m9.3 m9.3
 
 ### 17.4 Database rollback
 
-Git rollback 不會自動 rollback schema。若新程式已寫入新格式，直接切舊版可能不相容。優先採 forward fix；需要 downgrade 時，停止 Web／Worker、備份、在 staging 演練，再經核准執行精確 revision。`0001_m9_3` downgrade 會刪除 `jobs` 與 `job_events`。
+Git rollback 不會自動 rollback schema。若新程式已寫入新格式，直接切舊版可能不相容。優先採 forward fix；需要 downgrade 時，停止 Web／Worker、備份、在 staging 演練，再經核准執行精確 revision。`0002_m9_4 → 0001_m9_3` 會刪除 M9.4 tables／data 與 Job tenant columns；`0001_m9_3 → base` 會刪除 `jobs` 與 `job_events`。
 
 ## 18. 故障排除
 
@@ -787,6 +813,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 ## 22. 已知限制與後續工作
 
 - M9.3 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、SCRAM／pgpass、DOCX/PDF、重啟持久性、Golden 與實際客戶資料 E2E。
+- M9.4 foundation 已在功能分支通過 65 tests、PostgreSQL offline migration 與台灣行動支付 14 檔隔離投影；尚未部署公司 `.81`。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
@@ -795,7 +822,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
 - 歷史比較、CVE cache、可選 AI gateway 尚未實作。
-- EDB 中心化與 CVE 自動化方向已核准，但 Persistence Adapter、Application Data tables、Artifact Registry 與 CVE tables 尚未實作。
+- EDB 中心化與 CVE 自動化方向已核准；Application Data foundation tables 已實作，完整 Persistence Adapter、Artifact lifecycle 與 CVE tables 尚未實作。
 
 ## 附錄 A：官方與專案依據
 
@@ -805,6 +832,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - Python venv：<https://docs.python.org/3/library/venv.html>
 - 專案規範：`AGENTS.md`、`docs/PIPELINE_SPEC.md`、`docs/ACCEPTANCE_CRITERIA.md`
 - M9.3：`docs/M9_3_EDB_QUEUE.md`、`docs/M9_3_VALIDATION.md`
+- M9.4：`docs/M9_4_APPLICATION_DATA_FOUNDATION.md`、`docs/M9_4_VALIDATION.md`
 - M9.4～M15 架構決策：`docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`
 
 ## 附錄 B：交付驗收簽核表
