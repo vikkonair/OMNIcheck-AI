@@ -2,9 +2,9 @@
 
 OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-目前正式版本已完成至 **M8.1：Golden Regression、Witness 元件與多備份工具架構**，並正在正式化 **M9.3：Web UI、EDB Queue 與獨立 Worker**。M9.3 已在公司 CentOS 9 App VM 與 EPAS 17.10 完成 systemd、SCRAM／pgpass、Golden、實際客戶資料唯讀 E2E、DOCX／PDF、重啟持久性與回歸測試，待合併 `main` 及建立正式 tag。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
+目前正式版本已完成至 **M9.3：Web UI、EDB Queue 與獨立 Worker**。M9.3 已在公司 CentOS 9 App VM 與 EPAS 17.10 完成 systemd、SCRAM／pgpass、Golden、實際客戶資料唯讀 E2E、DOCX／PDF、重啟持久性與回歸測試。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-> `main` 與 `m8.1` tag 是目前正式可回復版本；M9 功能先在 `feature/m9-web-job-management` 分支開發與驗證。
+> `main` 與 `m9.3` tag 是目前正式可回復版本；`m8.1` 仍保留為導入 Web／EDB 前的 CLI rollback 點。
 
 ## 目前可以做到什麼
 
@@ -183,7 +183,7 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - M8：去識別 Golden Dataset 與端對端回歸測試（已完成）
 - M8.1：Witness 元件 Registry 與多備份工具架構（已完成）
 - M9.1～M9.2：Web API、案件管理與圖形化操作流程（已完成）
-- M9.3：EDB metadata、可靠工作佇列與獨立 Worker（公司 SCRAM 與實際客戶資料驗證完成，待合併與 tag）
+- M9.3：EDB metadata、可靠工作佇列與獨立 Worker（正式完成）
 - M9.4～M9.6：EDB 應用資料、Pipeline 結果與 Artifact Registry
 - M10～M12：拓撲確認、登入／RBAC／隔離／稽核、歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section

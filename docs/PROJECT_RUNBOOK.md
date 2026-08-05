@@ -2,8 +2,8 @@
 
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
-目前正式版本：M8.1  
-目前開發進度：M9.3 公司 SCRAM 與實際客戶資料驗證完成，待合併 `main` 與建立 tag
+目前正式版本：M9.3
+目前開發進度：M9.3 正式完成；下一階段為 M9.4 EDB Application Data Foundation
 
 ## 1. 文件目的
 
@@ -83,12 +83,12 @@ M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化�
 | M7 Legacy | 歷史 checkpoint | `m7-legacy-renderer` | 是 | 舊報告 Renderer 保留點 |
 | M7 | 正式完成 | `m7` | 是 | 九興 V4 DOCX／PDF |
 | M8 | 正式完成 | `m8` | 是 | Golden Dataset／Regression |
-| M8.1 | 正式完成、目前 main | `m8.1` | 是 | XDB、Barman、多備份工具架構 |
+| M8.1 | 正式完成 | `m8.1` | 是 | XDB、Barman、多備份工具架構 |
 | M9.1 | 功能分支完成 | `84ec2e6` | 可回到 M8.1 | Web API／JobStore 骨架 |
 | M9.2 | 功能分支完成 | `6cb7ccf` | 可回到 M9.1 或 M8.1 | 圖形化操作流程 |
-| M9.3 | 公司正式化驗證完成、待 merge/tag | `a1d286f` | 可回到 M9.2 或 M8.1 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
+| M9.3 | 正式完成、目前 main | `m9.3` | 是 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
 
-目前 `main` 指向 M8.1 後續 README commit；M9 位於 `feature/m9-web-job-management`。在公司環境驗證完成前，不建立 `m9.3` tag，也不合併 `main`。
+目前 `main` 與 `m9.3` 是正式可回復基準；`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。
 
 ## 5. 各 Milestone 手順與成果
 
@@ -281,7 +281,7 @@ Rollback：`m8`。
 
 限制：Barman 實際客戶 wrapper 尚待取得實際去識別範本後補 fixture。
 
-Rollback：`m8.1`。這是目前正式基準。
+Rollback：`m8.1`。這是導入 Web／EDB 前的正式 CLI 基準。
 
 ### M9.1：Web API 與 Filesystem JobStore
 
@@ -353,7 +353,7 @@ Service：systemd
 
 正式化驗證：application user 已使用精確 `.77/32` SCRAM 規則與 `0600` pgpass；無密碼登入遭拒。台灣行動支付實際資料在 SCRAM 重啟後完成 E2E，13 inputs／13 outputs、Scope 11 allowed／2 excluded／0 pending、QA 8/8、V4 QA、29 頁 PDF 逐頁 QA 與來源 SHA-256 不變均通過。TLS／VIP／EFM failover 納入 M15；既有 cluster-wide trust 規則需另案盤點收斂。修正前 API 500 留下兩筆空 draft Golden 案件，未經核准不直接刪除。
 
-目前驗證 commit：`a1d286f`。待合併 `main` 與建立正式 tag。
+正式版本：`m9.3`；Renderer 分頁修正 commit：`a1d286f`。
 
 ## 6. 標準開發手順
 
@@ -402,13 +402,13 @@ git tag --list --sort=version:refname
 檢查某一正式版本，不修改目前分支：
 
 ```bash
-git switch --detach m8.1
+git switch --detach m9.3
 ```
 
 從正式版本建立可修改的 rollback／hotfix 分支：
 
 ```bash
-git switch -c rollback/m8.1 m8.1
+git switch -c rollback/m9.3 m9.3
 ```
 
 回到目前 M9 開發分支：

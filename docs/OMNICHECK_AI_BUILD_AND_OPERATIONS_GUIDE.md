@@ -1,10 +1,10 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.3-draft.4
+文件版本：0.9.3
 最後更新：2026-08-05  
-適用程式基準：`feature/m9-web-job-management` / `a1d286f`
-正式可回復基準：`m8.1`  
+適用程式基準：`main` / `m9.3`
+正式可回復基準：`m9.3`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
 
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.3 | 2026-08-05 | M9.3 合併 main 並建立正式回復點 | 合併後 60 tests、V4 manifest 與文件 render 通過 |
 | 0.9.3-draft.4 | 2026-08-05 | 完成 SCRAM／pgpass、實際客戶資料 E2E 與 V4 摘要分頁修正 | 本機／VM 60 tests、QA、V4 QA、29 頁 PDF 與來源 hash 通過；待 merge/tag |
 | 0.9.3-draft.3 | 2026-08-05 | 納入 EDB 中心化、Canonical JSON、Artifact、CVE 與 AI 責任邊界決策 | 文件與 DOCX 驗證；後續資料模型尚未實作 |
 | 0.9.3-draft.2 | 2026-08-05 | 完成公司 App VM／EDB core deployment、EPAS Redwood 與 Linux fontconfig 修正 | 公司 Golden E2E 通過；TLS／密碼驗證與實際客戶資料待完成 |
@@ -58,10 +59,10 @@
 | M8～M8.1 | 正式完成 | Golden Regression、Witness service、XDB、pgBackRest、Barman 架構 |
 | M9.1～M9.2 | 功能分支完成 | Web API、不可覆寫上傳、圖形化案件流程 |
 | M9.3 | 本機完成 | EDB metadata、queue、獨立 Worker、retry／heartbeat／lease |
-| M9.3 實機 | 正式化驗證通過 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過；待 merge/tag |
+| M9.3 實機 | 正式完成 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過 |
 | M9.4～M15 | 已核准、待實作 | EDB 應用資料、Artifact、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
-`main`／`m8.1` 是目前正式可回復版本。M9.3 尚未合併 `main`，重建 M9.3 時要 checkout 文件表頭所列 commit，不能把它誤稱為正式 release。
+`main`／`m9.3` 是目前正式可回復版本；`m8.1` 保留為導入 Web／EDB 前的 CLI rollback 點。正式重建應 checkout `m9.3`，不得部署 floating branch HEAD。
 
 ## 3. 系統架構
 
@@ -695,7 +696,7 @@ curl --fail http://127.0.0.1:8000/api/health
 若 migration 向下相容，可停止服務、把 `current` 指回舊 release、啟動並驗證。Git 操作使用 tag 建分支，不使用 `git reset --hard`：
 
 ```bash
-git switch -c rollback/m8.1 m8.1
+git switch -c rollback/m9.3 m9.3
 ```
 
 ### 17.4 Database rollback
