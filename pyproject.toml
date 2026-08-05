@@ -9,19 +9,28 @@ description = "Deterministic on-premises database health-check pipeline"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "alembic>=1.16,<2",
+  "fastapi>=0.116,<0.120",
+  "psycopg[binary]>=3.2,<4",
+  "python-multipart>=0.0.20,<1",
   "pydantic>=2.7,<3",
   "PyYAML>=6.0.1,<7",
   "python-docx>=1.1,<2",
+  "SQLAlchemy>=2.0.40,<3",
+  "uvicorn>=0.35,<0.40",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "httpx>=0.28,<1",
   "pytest>=8.2,<9",
   "pytest-cov>=5,<7",
 ]
 
 [project.scripts]
 omni-healthcheck = "omni_healthcheck.cli:main"
+omni-healthcheck-web = "omni_healthcheck.web:main"
+omni-healthcheck-worker = "omni_healthcheck.worker:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/omni_healthcheck"]

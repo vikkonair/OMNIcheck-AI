@@ -49,6 +49,15 @@ AI must remain optional and replaceable.
 - Every parser and rule needs fixtures and automated tests.
 - Use golden datasets for Jiuxing, GlobalWafers, and a multi-node Primary/Standby/DR case.
 - Keep code changes focused, run relevant tests, and report verification results.
+- Treat `docs/PROJECT_RUNBOOK.md` as a living project record. Update it whenever
+  a milestone starts, completes validation, merges to `main`, receives a tag,
+  changes deployment assumptions, or adds a known limitation or rollback step.
+- Treat `docs/OMNICHECK_AI_BUILD_AND_OPERATIONS_GUIDE.md` as the authoritative
+  rebuild and operations manual. Any dependency, package, environment variable,
+  migration, service, directory, network, backup, validation, upgrade, or
+  rollback change must update the Markdown source, regenerate the DOCX with
+  `scripts/build_operations_guide.py`, and pass page-by-page render inspection
+  in the same change. Never mark an unexecuted environment step as verified.
 
 ## Proposed stack
 

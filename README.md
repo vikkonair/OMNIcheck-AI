@@ -2,9 +2,9 @@
 
 OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-目前專案已完成至 **M8.1：Golden Regression、Witness 元件與多備份工具架構**。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
+目前正式版本已完成至 **M8.1：Golden Regression、Witness 元件與多備份工具架構**，並正在正式化 **M9.3：Web UI、EDB Queue 與獨立 Worker**。M9.3 已在公司 CentOS 9 App VM 與 EPAS 17.10 完成 systemd、SCRAM／pgpass、Golden、實際客戶資料唯讀 E2E、DOCX／PDF、重啟持久性與回歸測試，待合併 `main` 及建立正式 tag。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-> 當前版本已完成後端 Pipeline、確定性判斷、Golden Regression 與正式 V4 DOCX／PDF 報告；Web 操作介面與背景工作管理將於 M9 建置。
+> `main` 與 `m8.1` tag 是目前正式可回復版本；M9 功能先在 `feature/m9-web-job-management` 分支開發與驗證。
 
 ## 目前可以做到什麼
 
@@ -22,6 +22,9 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 在交付前檢查 Primary 資料、證據引用、敏感資訊、來源路徑與客戶資料隔離。
 - 產生九興 V4 方向的 DOCX 與 PDF 正式報告。
 - 使用去識別 Golden Dataset 防止 Parser、Scope、規則與報告版面回歸。
+- 透過 M9 Web API 建立案件、上傳不可覆寫的原始證據、執行既有 Pipeline、查詢狀態及下載輸出。
+- 可選用 EDB／PostgreSQL 保存案件 metadata，透過獨立 Worker 與資料庫佇列可靠執行、重試及保留事件紀錄。
+- 後續已核准採用 EDB 中心化架構：EDB 保存結構化應用資料與歷史、`/data` 保存大型檔案、Canonical JSON 繼續作為 Pipeline 契約與 rollback 保護層；目前仍待 M9.4～M9.6 分階段實作。
 
 目前規則涵蓋：
 
@@ -134,6 +137,19 @@ docker compose run --rm omni-healthcheck generate \
 
 請依照 `compose.yaml` 掛載或替換輸入與輸出資料夾。
 
+## M9 Web 介面（開發中）
+
+啟動本機服務：
+
+```bash
+OMNICHECK_DATA_ROOT=./data/jobs \
+  .venv/bin/omni-healthcheck-web
+```
+
+開啟 `http://127.0.0.1:8000` 後，可透過圖形化表單設定客戶與節點、選取整包健檢資料、一鍵執行 Pipeline，並從結果頁下載輸出；不需手寫 JSON 或使用 Terminal。互動式 API 文件仍保留於 `http://127.0.0.1:8000/docs`。
+
+未設定資料庫連線時，M9 使用本機檔案系統與 FastAPI 同程序背景工作；設定 `OMNICHECK_DATABASE_URL` 後，則由 EDB／PostgreSQL 保存案件狀態，並由獨立 Worker 領取及重試工作。權限控管與辨識結果確認頁面仍在後續 M9 階段。
+
 ## 開發與驗證原則
 
 - 客戶原始資料必須維持唯讀，不得修改。
@@ -145,11 +161,15 @@ docker compose run --rm omni-healthcheck generate \
 
 詳細規範請參閱：
 
+- `docs/OMNICHECK_AI_BUILD_AND_OPERATIONS_GUIDE.md`：從空白 VM 重建、部署、驗證、維運與回復的權威主手冊
+- `docs/OMNICHECK_AI_BUILD_AND_OPERATIONS_GUIDE.docx`：可傳承與交付的主手冊文件版
+- `docs/PROJECT_RUNBOOK.md`：M1 至目前及後續持續更新的專案手順
 - `docs/PIPELINE_SPEC.md`
 - `docs/ACCEPTANCE_CRITERIA.md`
 - `docs/MILESTONE_VALIDATION.md`
 - `docs/RULE_PROVENANCE.md`
 - `docs/REPORT_REFERENCE_POLICY.md`
+- `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`：M9.4～M15 的 EDB 中心化、CVE 與 AI 責任邊界決策
 
 ## 專案進度
 
@@ -162,6 +182,11 @@ docker compose run --rm omni-healthcheck generate \
 - M7：正式 DOCX／PDF 健檢報告（已完成）
 - M8：去識別 Golden Dataset 與端對端回歸測試（已完成）
 - M8.1：Witness 元件 Registry 與多備份工具架構（已完成）
-- 後續：Web UI、背景工作、歷史比較、CVE 資料與可選 AI 輔助
+- M9.1～M9.2：Web API、案件管理與圖形化操作流程（已完成）
+- M9.3：EDB metadata、可靠工作佇列與獨立 Worker（公司 SCRAM 與實際客戶資料驗證完成，待合併與 tag）
+- M9.4～M9.6：EDB 應用資料、Pipeline 結果與 Artifact Registry
+- M10～M12：拓撲確認、登入／RBAC／隔離／稽核、歷史比較
+- M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
+- M14～M15：選配 AI Gateway 與正式 HA／VIP／TLS／Backup／Monitoring 強化
 
 報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。

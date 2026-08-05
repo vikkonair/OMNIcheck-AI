@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -31,6 +32,14 @@ STATUS_COLORS = {
     "critical": ("C00000", "C00000"),
     "pending": ("A6A6A6", "666666"),
 }
+
+
+def _font_config_for_platform(platform: str) -> Path | None:
+    """Return the macOS-only font fallback without masking Linux fonts."""
+    font_config = Path(__file__).parents[2] / "config" / "fonts.macos.conf"
+    if platform == "darwin" and font_config.is_file():
+        return font_config
+    return None
 
 
 def _font(run, size=10, bold=False, color="111111", name=FONT):
@@ -383,8 +392,8 @@ def convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
         Path(environment["XDG_CONFIG_HOME"]).mkdir()
         Path(environment["XDG_CACHE_HOME"]).mkdir()
         environment["TMPDIR"] = "/private/tmp" if Path("/private/tmp").is_dir() else profile
-        font_config = Path(__file__).parents[2] / "config" / "fonts.macos.conf"
-        if font_config.is_file():
+        font_config = _font_config_for_platform(sys.platform)
+        if font_config is not None:
             environment["FONTCONFIG_FILE"] = str(font_config)
         result = subprocess.run(
             [

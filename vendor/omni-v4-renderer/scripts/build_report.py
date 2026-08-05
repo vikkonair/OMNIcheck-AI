@@ -910,10 +910,12 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
                 for run in cells[0].paragraphs[0].runs:
                     format_run(run, size=8.5, bold=True, color=WHITE)
         style_table(table)
-        for row in table.rows[:-1]:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    paragraph.paragraph_format.keep_with_next = True
+        # Keep only the header attached to the first finding. Chaining every
+        # summary row makes LibreOffice move the complete multi-page table to
+        # the following page and leaves the major-section heading orphaned.
+        for cell in table.rows[0].cells:
+            for paragraph in cell.paragraphs:
+                paragraph.paragraph_format.keep_with_next = True
 
 
 def build(data: dict[str, Any], output: Path) -> None:
