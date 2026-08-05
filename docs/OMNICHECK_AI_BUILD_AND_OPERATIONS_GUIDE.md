@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.3-draft.3
+文件版本：0.9.3-draft.4
 最後更新：2026-08-05  
-適用程式基準：`feature/m9-web-job-management` / `18e21ee`
+適用程式基準：`feature/m9-web-job-management` / `a1d286f`
 正式可回復基準：`m8.1`  
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.9.3-draft.4 | 2026-08-05 | 完成 SCRAM／pgpass、實際客戶資料 E2E 與 V4 摘要分頁修正 | 本機／VM 60 tests、QA、V4 QA、29 頁 PDF 與來源 hash 通過；待 merge/tag |
 | 0.9.3-draft.3 | 2026-08-05 | 納入 EDB 中心化、Canonical JSON、Artifact、CVE 與 AI 責任邊界決策 | 文件與 DOCX 驗證；後續資料模型尚未實作 |
 | 0.9.3-draft.2 | 2026-08-05 | 完成公司 App VM／EDB core deployment、EPAS Redwood 與 Linux fontconfig 修正 | 公司 Golden E2E 通過；TLS／密碼驗證與實際客戶資料待完成 |
 | 0.9.3-draft.1 | 2026-08-05 | 首次建立可重建系統的建置與維運主手冊 | 本機驗證 |
@@ -57,7 +58,7 @@
 | M8～M8.1 | 正式完成 | Golden Regression、Witness service、XDB、pgBackRest、Barman 架構 |
 | M9.1～M9.2 | 功能分支完成 | Web API、不可覆寫上傳、圖形化案件流程 |
 | M9.3 | 本機完成 | EDB metadata、queue、獨立 Worker、retry／heartbeat／lease |
-| M9.3 實機 | Core 已驗證 | 公司 EDB migration、systemd、網路、Golden DOCX／PDF 與重啟持久性通過；安全與實際資料待完成 |
+| M9.3 實機 | 正式化驗證通過 | 公司 EDB、systemd、SCRAM／pgpass、Golden、實際資料、DOCX／PDF 與重啟持久性通過；待 merge/tag |
 | M9.4～M15 | 已核准、待實作 | EDB 應用資料、Artifact、拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m8.1` 是目前正式可回復版本。M9.3 尚未合併 `main`，重建 M9.3 時要 checkout 文件表頭所列 commit，不能把它誤稱為正式 release。
@@ -401,7 +402,7 @@ chown omnicheck:omnicheck /etc/omnicheck-ai/pgpass
 chmod 0600 /etc/omnicheck-ai/pgpass
 ```
 
-公司首次測試發現未提供 `.pgpass` 仍可由 `.77` 登入 `.81`，代表目前 `pg_hba.conf` 未要求 application password。測試部署暫時移除 URL 的 `passfile` 參數；正式上線前必須改為 `scram-sha-256`、設定 application password、建立 `0600` pgpass，再恢復以下標準設定。
+公司首次測試發現前置 `host all all 0.0.0.0/0 trust` 會蓋過後方 application 規則。M9.3 正式化已在該規則前新增只匹配 database/user `omnicheck_app`、來源 `192.168.118.77/32` 的 `scram-sha-256` 規則，輪替密碼並建立 `0600` pgpass。無密碼登入已驗證拒絕；pgpass 登入成功。既有全域 trust 規則尚未移除，因其可能影響其他應用，必須另案盤點後收斂。
 
 ### 9.2 Environment file
 
@@ -784,9 +785,9 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 
 ## 22. 已知限制與後續工作
 
-- M9.3 core deployment 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、DOCX/PDF、重啟持久性與 Golden E2E。
-- 尚未以台灣行動支付實際資料在公司 VM 執行唯讀驗證。
-- `.81` 目前允許 application user 無密碼登入，正式上線前必須改為 SCRAM。
+- M9.3 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、SCRAM／pgpass、DOCX/PDF、重啟持久性、Golden 與實際客戶資料 E2E。
+- 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
+- `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
 - 正式 TLS/VIP、EFM failover、reverse proxy、登入／RBAC 尚未完成。
 - 完全未知資料包尚不能自動決定節點角色，仍需使用者確認。

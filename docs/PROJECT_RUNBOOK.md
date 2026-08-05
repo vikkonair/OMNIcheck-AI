@@ -3,7 +3,7 @@
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
 目前正式版本：M8.1  
-目前開發進度：M9.3 公司 core deployment 驗證完成，待安全強化與實際客戶資料驗證
+目前開發進度：M9.3 公司 SCRAM 與實際客戶資料驗證完成，待合併 `main` 與建立 tag
 
 ## 1. 文件目的
 
@@ -86,7 +86,7 @@ M10～M15 拓撲確認、權限隔離、歷史、CVE、選配 AI、生產強化�
 | M8.1 | 正式完成、目前 main | `m8.1` | 是 | XDB、Barman、多備份工具架構 |
 | M9.1 | 功能分支完成 | `84ec2e6` | 可回到 M8.1 | Web API／JobStore 骨架 |
 | M9.2 | 功能分支完成 | `6cb7ccf` | 可回到 M9.1 或 M8.1 | 圖形化操作流程 |
-| M9.3 | 公司 core 已驗證、正式化待完成 | `18e21ee` | 可回到 M9.2 或 M8.1 | EDB metadata／Queue／Worker／systemd／Golden E2E |
+| M9.3 | 公司正式化驗證完成、待 merge/tag | `a1d286f` | 可回到 M9.2 或 M8.1 | EDB Queue／Worker／systemd／SCRAM／客戶 E2E／PDF QA |
 
 目前 `main` 指向 M8.1 後續 README commit；M9 位於 `feature/m9-web-job-management`。在公司環境驗證完成前，不建立 `m9.3` tag，也不合併 `main`。
 
@@ -349,11 +349,11 @@ TLS：off（僅測試）
 Service：systemd
 ```
 
-公司實機驗證（2026-08-05）：`omnicheck-ai-app`（192.168.118.77）已連接 EPAS 17.10（192.168.118.81:5444），完成 `0001_m9_3` migration、Web／Worker systemd、EDB queue、retry reset、LibreOffice／Noto CJK、Golden DOCX／10 頁 PDF、服務重啟與 metadata/output persistence。實機驗證揭露並修正 EPAS Redwood DateStyle 與 Linux 誤用 macOS fontconfig 兩項跨平台問題，修正版為 `8faff37`，完整測試 59 項通過。
+公司實機驗證（2026-08-05）：`omnicheck-ai-app`（192.168.118.77）已連接 EPAS 17.10（192.168.118.81:5444），完成 `0001_m9_3` migration、Web／Worker systemd、EDB queue、retry reset、LibreOffice／Noto CJK、Golden、服務重啟與 metadata/output persistence。實機驗證揭露並修正 EPAS Redwood DateStyle、Linux fontconfig 與 V4 摘要孤立標題三項跨平台問題，部署版本為 `a1d286f`，本機與公司 VM 完整測試均為 60 項通過。
 
-尚待驗證／修正：台灣行動支付實際資料唯讀 E2E、application user SCRAM 密碼與 pgpass、TLS/VIP、stale lease 的實際中斷時間驗證。修正前 API 500 留下兩筆空 draft Golden 案件，未經核准不直接刪除。
+正式化驗證：application user 已使用精確 `.77/32` SCRAM 規則與 `0600` pgpass；無密碼登入遭拒。台灣行動支付實際資料在 SCRAM 重啟後完成 E2E，13 inputs／13 outputs、Scope 11 allowed／2 excluded／0 pending、QA 8/8、V4 QA、29 頁 PDF 逐頁 QA 與來源 SHA-256 不變均通過。TLS／VIP／EFM failover 納入 M15；既有 cluster-wide trust 規則需另案盤點收斂。修正前 API 500 留下兩筆空 draft Golden 案件，未經核准不直接刪除。
 
-目前驗證 commit：`18e21ee`。未建立正式 tag。
+目前驗證 commit：`a1d286f`。待合併 `main` 與建立正式 tag。
 
 ## 6. 標準開發手順
 
