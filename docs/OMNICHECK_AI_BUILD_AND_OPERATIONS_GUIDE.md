@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.3-draft.1  
+文件版本：0.9.3-draft.2
 最後更新：2026-08-05  
-適用程式基準：`feature/m9-web-job-management` / `dc1c5ba`  
+適用程式基準：`feature/m9-web-job-management` / `8faff37`
 正式可回復基準：`m8.1`  
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,7 +25,8 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.9.3-draft.1 | 2026-08-05 | 首次建立可重建系統的建置與維運主手冊 | 本機驗證；公司 EDB／VM 實機待驗證 |
+| 0.9.3-draft.2 | 2026-08-05 | 完成公司 App VM／EDB core deployment、EPAS Redwood 與 Linux fontconfig 修正 | 公司 Golden E2E 通過；TLS／密碼驗證與實際客戶資料待完成 |
+| 0.9.3-draft.1 | 2026-08-05 | 首次建立可重建系統的建置與維運主手冊 | 本機驗證 |
 
 ## 1. 使用方式與責任邊界
 
@@ -102,16 +103,16 @@ Raw evidence (immutable) -> M1 Inventory/SHA-256
 
 | 項目 | 值 | 狀態 |
 |---|---|---|
-| App VM | `192.168.118.77`，CentOS 9 VM | 已提供，待部署 |
-| App data | `/data/omnicheck`，約 46 GB 可用 | 已準備 |
-| EDB Primary | `192.168.118.81:5444` | 已提供，待連線驗證 |
+| App VM | `omnicheck-ai-app`／`192.168.118.77`，CentOS Stream 9 x86_64 | 已部署並驗證 |
+| App data | `/data/omnicheck`，約 46 GB 可用 | 已驗證 |
+| EDB Primary | `192.168.118.81:5444` | EPAS protocol／SQLAlchemy／migration 已驗證 |
 | EDB version | EPAS 17.10 | 使用者確認 |
 | Database／User | `omnicheck_app`／`omnicheck_app` | 使用者確認 |
 | Schema | `omnicheck` | 使用者確認 |
 | TLS | `off` | 僅測試；正式禁止沿用 |
 | HA | EFM；Primary、Standby、Witness、DR | 使用者確認 |
 | Container | 不使用 Docker Compose | 使用者確認 |
-| Service manager | systemd | 設計完成，待實機驗證 |
+| Service manager | systemd | Web／Worker enabled、active、重啟持久性通過 |
 
 ### 4.2 最低建議資源
 
@@ -166,20 +167,20 @@ timedatectl
 先查詢，避免套件名稱因公司 mirror 不同而失敗：
 
 ```bash
-dnf info git python3.12 python3.12-pip fontconfig libreoffice-headless
+dnf info git python3.12 python3.12-pip fontconfig libreoffice
 dnf list available '*noto*cjk*' '*source*han*'
 ```
 
 若 `python3.12` 可用：
 
 ```bash
-dnf install -y git python3.12 python3.12-pip fontconfig libreoffice-headless
+dnf install -y git python3.12 python3.12-pip fontconfig libreoffice google-noto-sans-cjk-ttc-fonts
 python3.12 --version
 libreoffice --version
 fc-list | head
 ```
 
-預期 Python 為 3.12.x。若公司 repository 沒有 Python 3.12 或 `libreoffice-headless`，停止並由 OS 管理員提供核准 repository／RPM；不可臨時從不明網站下載，也不可用系統 Python 3.9 代替。
+公司實測版本為 Python 3.12.13、LibreOffice 7.1.8.1、Noto Sans CJK TC。若 repository 沒有上述套件，停止並由 OS 管理員提供核准 repository／RPM；不可臨時從不明網站下載，也不可用系統 Python 3.9 代替。
 
 ### 6.3 中文字型
 
@@ -331,10 +332,10 @@ SELECT * FROM pg_hba_file_rules WHERE database @> ARRAY['omnicheck_app'] OR data
 ```bash
 cd /data/omnicheck/app
 install -d -o omnicheck -g omnicheck -m 0750 /data/omnicheck/app/releases
-sudo -u omnicheck git clone <APPROVED_GIT_URL> releases/dc1c5ba
-cd releases/dc1c5ba
+sudo -u omnicheck git clone <APPROVED_GIT_URL> releases/8faff37
+cd releases/8faff37
 sudo -u omnicheck git fetch --tags --prune
-sudo -u omnicheck git checkout dc1c5ba
+sudo -u omnicheck git checkout 8faff37
 git status --short
 git rev-parse HEAD
 ```
@@ -344,7 +345,7 @@ git rev-parse HEAD
 建立 stable symlink：
 
 ```bash
-ln -sfn /data/omnicheck/app/releases/dc1c5ba /data/omnicheck/app/current
+ln -sfn /data/omnicheck/app/releases/8faff37 /data/omnicheck/app/current
 chown -h omnicheck:omnicheck /data/omnicheck/app/current
 ```
 
@@ -355,7 +356,7 @@ chown -h omnicheck:omnicheck /data/omnicheck/app/current
 ```bash
 python3.12 -m venv /data/omnicheck/venv
 /data/omnicheck/venv/bin/python -m pip install --upgrade pip
-/data/omnicheck/venv/bin/pip install '/data/omnicheck/app/current[dev]'
+/data/omnicheck/venv/bin/pip install -e '/data/omnicheck/app/current[dev]'
 /data/omnicheck/venv/bin/python --version
 /data/omnicheck/venv/bin/pip check
 /data/omnicheck/venv/bin/omni-healthcheck --help
@@ -367,13 +368,13 @@ python3.12 -m venv /data/omnicheck/venv
 /data/omnicheck/venv/bin/pip freeze
 ```
 
-目前 `pyproject.toml` 允許版本範圍，尚未提供完整 lock file；這是重現性風險，正式上線前應建立受控 lock／wheelhouse。
+目前 V4 vendor bundle 位於固定 source release 外部，不包含於 wheel，因此部署採固定 release + editable link。`pyproject.toml` 仍允許版本範圍且尚未提供完整 lock file；正式上線前應建立可攜式 package data 與受控 lock／wheelhouse。
 
 ## 9. Secret 與環境設定
 
 ### 9.1 pgpass
 
-建立 `/etc/omnicheck-ai/pgpass`：
+正式環境建立 `/etc/omnicheck-ai/pgpass`：
 
 ```text
 192.168.118.81:5444:omnicheck_app:omnicheck_app:<REPLACE_WITH_PASSWORD>
@@ -383,6 +384,8 @@ python3.12 -m venv /data/omnicheck/venv
 chown omnicheck:omnicheck /etc/omnicheck-ai/pgpass
 chmod 0600 /etc/omnicheck-ai/pgpass
 ```
+
+公司首次測試發現未提供 `.pgpass` 仍可由 `.77` 登入 `.81`，代表目前 `pg_hba.conf` 未要求 application password。測試部署暫時移除 URL 的 `passfile` 參數；正式上線前必須改為 `scram-sha-256`、設定 application password、建立 `0600` pgpass，再恢復以下標準設定。
 
 ### 9.2 Environment file
 
@@ -508,7 +511,7 @@ cd /data/omnicheck/app/current
 git diff --check
 ```
 
-M9.3 本機基準為 56 tests 全部通過。實際數量會隨版本增加，不應硬性只等於 56；重點是 0 failed。
+公司實機修正後基準為 59 tests 全部通過。實際數量會隨版本增加，不應硬性只等於 59；重點是 0 failed。
 
 ### 13.2 V4 bundle 完整性
 
@@ -765,7 +768,10 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 
 ## 22. 已知限制與後續工作
 
-- M9.3 尚未在公司 `.77/.81` 實機驗證。
+- M9.3 core deployment 已在公司 `.77/.81` 通過 migration、systemd、EDB queue、retry、DOCX/PDF、重啟持久性與 Golden E2E。
+- 尚未以台灣行動支付實際資料在公司 VM 執行唯讀驗證。
+- `.81` 目前允許 application user 無密碼登入，正式上線前必須改為 SCRAM。
+- 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
 - 正式 TLS/VIP、EFM failover、reverse proxy、登入／RBAC 尚未完成。
 - 完全未知資料包尚不能自動決定節點角色，仍需使用者確認。
 - Barman 真實 wrapper fixture 待提供。

@@ -3,7 +3,7 @@
 最後更新：2026-08-05  
 適用 Repository：`codex-handoff`  
 目前正式版本：M8.1  
-目前開發進度：M9.3 本機實作完成，待公司環境驗證
+目前開發進度：M9.3 公司 core deployment 驗證完成，待安全強化與實際客戶資料驗證
 
 ## 1. 文件目的
 
@@ -343,7 +343,9 @@ TLS：off（僅測試）
 Service：systemd
 ```
 
-尚待驗證：實際 EDB migration、pgpass、systemd、Worker 中斷恢復、未來 VIP／TLS、LibreOffice 與繁體中文字型。
+公司實機驗證（2026-08-05）：`omnicheck-ai-app`（192.168.118.77）已連接 EPAS 17.10（192.168.118.81:5444），完成 `0001_m9_3` migration、Web／Worker systemd、EDB queue、retry reset、LibreOffice／Noto CJK、Golden DOCX／10 頁 PDF、服務重啟與 metadata/output persistence。實機驗證揭露並修正 EPAS Redwood DateStyle 與 Linux 誤用 macOS fontconfig 兩項跨平台問題，修正版為 `8faff37`，完整測試 59 項通過。
+
+尚待驗證／修正：台灣行動支付實際資料唯讀 E2E、application user SCRAM 密碼與 pgpass、TLS/VIP、stale lease 的實際中斷時間驗證。修正前 API 500 留下兩筆空 draft Golden 案件，未經核准不直接刪除。
 
 開發 commit：`f87cfec`。未建立正式 tag。
 
