@@ -1,7 +1,9 @@
 import hashlib
+import importlib.util
 from pathlib import Path
 
 import pytest
+from docx import Document
 
 from omni_healthcheck.reporting import ReportModel
 from omni_healthcheck.v4_adapter import _prepare_unit, build_v4_report
@@ -185,4 +187,39 @@ def test_v4_quality_blocks_pending_scope() -> None:
 
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
-    assert digest == "34c5298c78cbd78b8dc68b1d9af7f0035cf4b99ef0f9ae167f12919203a701b7"
+    assert digest == "32148a52f1ce2e889305833df8ef862dfb66ca2e2d09d47bf262022b1ccc2533"
+
+
+def test_v4_summary_rows_do_not_chain_the_whole_table_to_the_next_page() -> None:
+    spec = importlib.util.spec_from_file_location("omni_v4_pagination_test", VENDOR_RENDERER)
+    assert spec is not None and spec.loader is not None
+    renderer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(renderer)
+    document = Document()
+    renderer.configure_document(document)
+    summary = [
+        {
+            "status": "注意",
+            "item": f"檢查項目 {index}",
+            "finding": "需要後續處理",
+            "recommendation": "請安排確認",
+            "reference": "4.2",
+        }
+        for index in range(20)
+    ]
+
+    renderer.add_updates_and_summary(document, {"summary": summary}, 6)
+
+    table = document.tables[-1]
+    assert len(table.rows) == 21
+    assert all(
+        paragraph.paragraph_format.keep_with_next
+        for cell in table.rows[0].cells
+        for paragraph in cell.paragraphs
+    )
+    assert all(
+        not paragraph.paragraph_format.keep_with_next
+        for row in table.rows[1:]
+        for cell in row.cells
+        for paragraph in cell.paragraphs
+    )
