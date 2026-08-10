@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from omni_healthcheck.application_data import ApplicationDataStore
+from omni_healthcheck.artifact_lifecycle import ArtifactRegistry
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.config import JobConfig
 from omni_healthcheck.database import DatabaseMetadataStore
@@ -104,6 +105,12 @@ def test_worker_persists_scoped_job_before_success(tmp_path: Path) -> None:
         row = connection.execute(pipeline_snapshots.select()).mappings().one()
     assert row["customer_id"] == customer["customer_id"]
     assert row["system_id"] == system["system_id"]
+    assert len(app.list_artifacts(
+        customer["customer_id"], system["system_id"], job["job_id"]
+    )) == 11
+    assert len(ArtifactRegistry(url).list_relations(
+        customer["customer_id"], job["job_id"]
+    )) == 2
 
 
 def test_legacy_unscoped_worker_remains_compatible(tmp_path: Path) -> None:

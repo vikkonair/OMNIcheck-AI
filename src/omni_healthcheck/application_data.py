@@ -25,6 +25,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     insert,
+    func,
     select,
     update,
 )
@@ -202,6 +203,7 @@ artifacts = Table(
     Column("system_id", String(32), nullable=False),
     Column("job_id", String(32), nullable=False),
     Column("artifact_type", String(40), nullable=False),
+    Column("artifact_version", BigInteger, nullable=False),
     Column("storage_backend", String(32), nullable=False),
     Column("storage_root_version", String(32), nullable=False),
     Column("storage_key", Text, nullable=False),
@@ -211,13 +213,26 @@ artifacts = Table(
     Column("retention_until", DateTime(timezone=True)),
     Column("archive_status", String(24), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("archived_at", DateTime(timezone=True)),
+    Column("deleted_at", DateTime(timezone=True)),
     ForeignKeyConstraint(
         ["job_id", "customer_id", "system_id"],
         [f"{SCHEMA}.jobs.job_id", f"{SCHEMA}.jobs.customer_id", f"{SCHEMA}.jobs.system_id"],
         ondelete="CASCADE",
         name="fk_artifacts_job_tenant",
     ),
-    UniqueConstraint("job_id", "artifact_type", "storage_key", name="uq_artifacts_job_key"),
+    UniqueConstraint(
+        "job_id", "artifact_type", "artifact_version",
+        name="uq_artifacts_job_type_version",
+    ),
+    UniqueConstraint(
+        "job_id", "storage_key", "sha256", name="uq_artifacts_job_storage_digest"
+    ),
+    UniqueConstraint(
+        "artifact_id", "customer_id", "system_id", "job_id",
+        name="uq_artifacts_tenant_scope",
+    ),
     CheckConstraint("file_size >= 0", name="ck_artifacts_file_size"),
     CheckConstraint(
         "archive_status IN ('active', 'archived', 'pending_delete', 'deleted')",
@@ -521,6 +536,7 @@ class ApplicationDataStore:
         storage_root_version: str = "data-v1",
         retention_until: datetime | None = None,
         archive_status: str = "active",
+        artifact_version: int | None = None,
         artifact_id: str | None = None,
     ) -> dict:
         self._job_is_scoped(customer_id, system_id, job_id)
@@ -528,12 +544,24 @@ class ApplicationDataStore:
             raise ValueError("invalid archive status")
         if file_size < 0:
             raise ValueError("file_size must be non-negative")
+        if artifact_version is not None and artifact_version < 1:
+            raise ValueError("artifact_version must be positive")
+        if artifact_version is None:
+            with self.engine.connect() as connection:
+                artifact_version = 1 + int(connection.scalar(
+                    select(func.coalesce(func.max(artifacts.c.artifact_version), 0)).where(
+                        artifacts.c.job_id == job_id,
+                        artifacts.c.artifact_type == artifact_type,
+                    )
+                ) or 0)
+        now = _now()
         record = {
             "artifact_id": artifact_id or _id(),
             "customer_id": customer_id,
             "system_id": system_id,
             "job_id": job_id,
             "artifact_type": _required(artifact_type, "artifact_type"),
+            "artifact_version": artifact_version,
             "storage_backend": _required(storage_backend, "storage_backend"),
             "storage_root_version": _required(storage_root_version, "storage_root_version"),
             "storage_key": _storage_key(storage_key),
@@ -542,7 +570,10 @@ class ApplicationDataStore:
             "media_type": _required(media_type, "media_type"),
             "retention_until": retention_until,
             "archive_status": archive_status,
-            "created_at": _now(),
+            "created_at": now,
+            "updated_at": now,
+            "archived_at": now if archive_status == "archived" else None,
+            "deleted_at": now if archive_status == "deleted" else None,
         }
         with self.engine.begin() as connection:
             connection.execute(insert(artifacts).values(**record))
@@ -575,3 +606,6 @@ class ApplicationDataStore:
                 .order_by(artifacts.c.created_at)
             ).mappings().all()
         return [_serialize(row) for row in rows]
+
+    def get_artifact(self, customer_id: str, artifact_id: str) -> dict:
+        return self._get(artifacts, artifacts.c.artifact_id, artifact_id, customer_id)
