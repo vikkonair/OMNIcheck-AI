@@ -123,3 +123,12 @@ MemTotal: 1024 kB
         "os_version",
         "cpu_count",
     }
+
+
+def test_legacy_named_check_is_classified_by_database_content() -> None:
+    content = """資料庫訊息查看
+db_ver | PostgreSQL 16.6
+List of databases
+pg_stat_activity 查看
+"""
+    assert classify_evidence_domain("ENGDB_check.txt", ".txt", content) == "database"

@@ -59,3 +59,19 @@ def test_discovery_fails_closed_when_primary_is_unknown() -> None:
     assert result["summary"]["primary_candidates"] == 0
     assert result["nodes"][0]["suggested_role"] == "Unknown"
     assert "必須確認" in result["warnings"][0]
+
+
+def test_discovery_proposes_mapping_for_legacy_database_output() -> None:
+    result = discover_topology([
+        _item("HealthChekOS-LOG-db01-20260715.txt", "bind.address=efm-primary:7800\ndb.user=efm"),
+        _item("HealthChekOS-LOG-db02-20260715.txt", "bind.address=efm-standby:7800\ndb.user=efm"),
+        _item("ENGDB_check.txt", "資料庫訊息查看\ndb_ver | PostgreSQL 16.6\nList of databases\npg_stat_activity 查看"),
+    ])
+
+    assert result["evidence_candidates"] == [{
+        "path": "ENGDB_check.txt",
+        "suggested_domain": "database",
+        "suggested_node": "db01",
+        "confidence": "high",
+        "reason": "偵測到 4 個資料庫輸出結構標記；來源節點需人工確認",
+    }]

@@ -2,17 +2,18 @@
 
 OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-目前正式版本已完成至 **M10：自動探索節點與拓撲確認**。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 Web → EDB Queue → Worker → V4 Report 端到端驗證、服務重啟與 EDB 持久性驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
+目前正式版本已完成至 **M10.1：舊式 Database Output 分類與來源確認**，並已通過公司環境使用者驗收。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 Web → EDB Queue → Worker → V4 Report 端到端驗證、服務重啟與 EDB 持久性驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
 選取未知資料包後，M10 會提出節點、角色、服務、信心與理由，必須由使用者確認後才執行既有 Pipeline；系統不會自行取代 DBA 的最終判斷。
 
-> `main` 與 `m10` tag 是目前正式可回復版本；`m9.6` 保留為自動探索導入前的 rollback 點。M10 沒有新增 migration，回復不需 database downgrade。
+> `main` 與 `m10.1` tag 是目前正式可回復版本；`m10` 保留為 M10.1 前的 rollback 點。M10.1 沒有新增 migration，回復不需 database downgrade。
 
 ## 目前可以做到什麼
 
 - 掃描輸入資料夾並建立完整檔案清冊及 SHA-256 雜湊值。
 - 辨識 Primary、Standby、DR 與 Witness 節點。
 - 從未知資料包提出節點與角色候選，保留判斷理由並要求人工確認。
+- 對 `ENGDB_check.txt` 等沒有 hostname 的舊式 Database Output 進行內容分類，並要求使用者指定實際來源節點。
 - 辨識各節點承載的 EFM、PEM、XDB 與備份服務。
 - 解析 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 與資料庫邏輯資料。
 - 將不同來源和格式的資料轉換成統一的標準化 JSON。
@@ -174,6 +175,8 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - `docs/RULE_PROVENANCE.md`
 - `docs/REPORT_REFERENCE_POLICY.md`
 - `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`：M9.4～M15 的 EDB 中心化、CVE 與 AI 責任邊界決策
+- `docs/MILESTONE_ROADMAP.md`：M10.2～M15 的前端、Section、CVE、Ollama 與生產強化順序
+- `docs/FRONTEND_INTEGRATION_ARCHITECTURE.md`：組員前端整合所需資料、責任邊界與開工 Gate
 
 ## 專案進度
 
@@ -192,7 +195,11 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - M9.5：Pipeline 結果持久化（正式完成）
 - M9.6：完整 Artifact Registry／Retention／Archive（正式完成）
 - M10：自動探索節點與拓撲人工確認（正式完成）
-- M11～M12：登入／RBAC／隔離／稽核、歷史比較
+- M10.1：舊格式 Database Output 分類與來源節點確認（正式完成）
+- M10.2：既有前端 App 的 REST／OpenAPI 整合
+- M10.3：Section API、AI 草稿與人工審核流程
+- M11：登入／RBAC／隔離／稽核（選配、延後）
+- M12：歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
 - M14～M15：選配 AI Gateway 與正式 HA／VIP／TLS／Backup／Monitoring 強化
 

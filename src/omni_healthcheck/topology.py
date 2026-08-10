@@ -37,6 +37,14 @@ DB_HINTS = {"db", "database", "postgres", "postgresql", "epas", "edb", "sql"}
 MONITORING_HINTS = {"monitoring", "pem", "screenshot", "trend", "graph"}
 DOCUMENT_HINTS = {"document", "documents", "report", "reports", "prior"}
 MONITORING_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"}
+DATABASE_CONTENT_MARKERS = (
+    "資料庫訊息查看",
+    "list of databases",
+    "pg_stat_activity",
+    "pg_hba 設定",
+    "資料庫重要參數",
+    "db_ver",
+)
 
 
 @dataclass(frozen=True)
@@ -162,7 +170,12 @@ def resolve_node(path: Path, relative_path: str, job: JobConfig) -> NodeResoluti
     )
 
 
-def classify_evidence_domain(relative_path: str, extension: str) -> str:
+def database_content_score(text: str) -> int:
+    folded = text.casefold()
+    return sum(marker.casefold() in folded for marker in DATABASE_CONTENT_MARKERS)
+
+
+def classify_evidence_domain(relative_path: str, extension: str, content: str = "") -> str:
     basename = relative_path.rsplit("/", 1)[-1].casefold()
     if basename == ".ds_store":
         return "system_metadata"
@@ -173,6 +186,8 @@ def classify_evidence_domain(relative_path: str, extension: str) -> str:
     if "healthcheckos" in compact_basename or "healthchekos" in compact_basename:
         return "os"
     if "db" in basename_tokens and "check" in basename_tokens:
+        return "database"
+    if database_content_score(content) >= 2:
         return "database"
 
     top_level = relative_path.casefold().split("/", 1)[0]
@@ -262,8 +277,22 @@ def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict
     primary = next(node for node in job.nodes if node.role == "Primary")
     for item in inventory["files"]:
         relative_path = item["path"]
-        resolution = resolve_node(input_dir / relative_path, relative_path, job)
-        domain = classify_evidence_domain(relative_path, item["extension"])
+        full_path = input_dir / relative_path
+        sample = _sample_text(full_path)
+        mapping = next(
+            (value for value in job.evidence_mappings if value.path.casefold() == relative_path.casefold()),
+            None,
+        )
+        if mapping:
+            node = next(value for value in job.nodes if value.hostname.casefold() == mapping.node.casefold())
+            resolution = NodeResolution(
+                hostname=node.hostname, role=node.role, status="resolved",
+                matched_nodes=[node.hostname], sources=["operator_confirmed_evidence_mapping"],
+            )
+            domain = mapping.domain
+        else:
+            resolution = resolve_node(full_path, relative_path, job)
+            domain = classify_evidence_domain(relative_path, item["extension"], sample)
         if (
             domain == "monitoring"
             and item["extension"] in MONITORING_IMAGE_EXTENSIONS

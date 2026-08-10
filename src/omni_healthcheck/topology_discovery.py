@@ -7,6 +7,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from omni_healthcheck.topology import database_content_score
+
 
 TEXT_EXTENSIONS = {".txt", ".log", ".out", ".sql", ".csv", ".tsv", ".conf"}
 ROLE_ORDER = {"Primary": 0, "Standby": 1, "DR": 2, "Witness": 3, "Unknown": 4}
@@ -139,6 +141,7 @@ def discover_topology(items: list[DiscoveryEvidence]) -> dict:
     grouped_text: dict[str, list[str]] = defaultdict(list)
     grouped_files: dict[str, int] = defaultdict(int)
     unassigned = 0
+    unassigned_items: list[tuple[DiscoveryEvidence, str]] = []
 
     for item in items:
         text = _safe_text(item)
@@ -149,6 +152,7 @@ def discover_topology(items: list[DiscoveryEvidence]) -> dict:
                 grouped_text[hostname].append(text)
         else:
             unassigned += 1
+            unassigned_items.append((item, text))
 
     nodes = [
         _discover_node(hostname, grouped_text[hostname], grouped_files[hostname])
@@ -156,13 +160,27 @@ def discover_topology(items: list[DiscoveryEvidence]) -> dict:
     ]
     primary_count = sum(node["suggested_role"] == "Primary" for node in nodes)
     unresolved = [node["hostname"] for node in nodes if node["suggested_role"] == "Unknown"]
+    primary = next((node["hostname"] for node in nodes if node["suggested_role"] == "Primary"), None)
+    evidence_candidates = [
+        {
+            "path": item.path,
+            "suggested_domain": "database",
+            "suggested_node": primary,
+            "confidence": "high" if database_content_score(text) >= 4 else "medium",
+            "reason": f"偵測到 {database_content_score(text)} 個資料庫輸出結構標記；來源節點需人工確認",
+        }
+        for item, text in unassigned_items
+        if database_content_score(text) >= 2
+    ]
     warnings = []
     if primary_count != 1:
         warnings.append(f"Primary 候選數為 {primary_count}；正式執行前必須確認且只能保留一台")
     if unresolved:
         warnings.append("下列節點角色無法確定：" + "、".join(unresolved))
     if unassigned:
-        warnings.append(f"有 {unassigned} 個檔案尚未映射節點；圖片將沿用既有 Primary 規則")
+        warnings.append(
+            f"有 {unassigned} 個檔案尚未映射節點；資料庫候選需人工指定，圖片沿用既有 Primary 規則"
+        )
 
     return {
         "schema_version": "1.0",
@@ -175,5 +193,6 @@ def discover_topology(items: list[DiscoveryEvidence]) -> dict:
             "unassigned_files": unassigned,
         },
         "nodes": nodes,
+        "evidence_candidates": evidence_candidates,
         "warnings": warnings,
     }
