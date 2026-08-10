@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10
-目前開發進度：M11 功能分支已部署公司 VM 並升至 `0005_m11`；待建立管理員、啟用 Auth、逐角色與實際資料驗收
+目前開發進度：依使用者決定暫停 M11；公司 application 已 rollback 至 M10，M11 功能分支與 additive schema 保留
 
 ## 1. 文件目的
 
@@ -97,7 +97,7 @@ M12～M15 歷史、CVE、選配 AI、生產強化（已排定／待實作）
 | M9.5 | 正式完成 | `m9.5` | 可回到 `m9.4` application；DB downgrade 需另行核准 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等投影與公司部署 |
 | M9.6 | 正式完成 | `m9.6` | 可回到 `m9.5` application；DB downgrade 需另行核准 | Artifact 版本、衍生關係、事件、Retention、Archive 與公司部署 |
 | M10 | 正式完成、目前 main | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
-| M11 | 功能分支實作中 | 待驗收／tag | application 可回 `m10`；DB downgrade 需另行核准 | 本機帳號、Session、RBAC、Customer enforcement 與 Audit |
+| M11 | 暫停、功能分支保留 | 無正式 tag | 公司 application 已回 `m10`；保留 additive schema | 本機帳號、Session、RBAC、Customer enforcement 與 Audit，暫不啟用 |
 
 目前 `main` 與 `m10` 是正式可回復基準；`m9.6` 保留為 M10 自動探索前的 application rollback 點，`m9.5` 與 `m9.4` 繼續保留較早期 rollback 點。
 
@@ -436,6 +436,8 @@ Rollback：application 可直接切回 `m9.6`，不需 Alembic downgrade。詳�
 目前驗證：Auth/Web targeted 14 tests、完整回歸 87 tests、V4 manifest、PostgreSQL offline SQL 與安全 header 通過。公司 release `d93da78` 已部署、備份 hash 已確認、EDB 升至 `0005_m11`，四張 M11 tables、Web／Worker 與 health 通過；帳號 bootstrap、各角色瀏覽器驗收及實際客戶資料 E2E 尚未執行。
 
 Rollback：application 可切回 `m10` 並保留 additive schema；`0005_m11 → 0004_m9_6` 會刪除身份與 Audit 資料，必須備份並另行核准。詳細文件：`docs/M11_AUTH_RBAC_AUDIT.md`、`docs/M11_VALIDATION.md`。
+
+使用者登入 smoke test 後決定暫不採用 M11。公司 `.77` 已還原登入前 environment、重新安裝 M10 package 並切回 release `6e8ee6e`；Web／Worker、health、未登入 Jobs API 與 M10 UI 驗證通過。EDB 保留 `0005_m11` additive tables，不做破壞性 downgrade。`main`／`m10` 始終未變更。
 
 ## 6. 標準開發手順
 

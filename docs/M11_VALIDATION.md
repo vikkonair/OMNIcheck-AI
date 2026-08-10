@@ -2,7 +2,7 @@
 
 日期：2026-08-10  
 分支：`feature/m11-auth-rbac-audit`  
-狀態：In progress；本機與公司 migration／服務驗證通過，帳號與逐角色驗收待完成
+狀態：Paused by product decision；功能分支與 schema 保留，公司 application 已 rollback 至 M10
 
 ## 已通過
 
@@ -35,3 +35,14 @@
 - `0004_m9_6 → 0005_m11` transactional migration passed；四張 M11 table 存在，總計 23 張 application tables。
 - Current release 指向 `d93da78`；Web／Worker active、health 正常、journal 無 error。
 - Auth 暫維持 disabled，避免第一個平台管理員建立前鎖住 Web。
+
+## 使用者決定與 Application Rollback
+
+使用者登入 smoke test 後決定目前先不要登入功能及授權 Customer／System 欄位。公司環境已完成非破壞性 application rollback：
+
+- 還原 `/etc/omnicheck-ai/omnicheck.env.pre_m11_auth`。
+- 重新安裝並切回 M10 release `6e8ee6e`，不是只切 symlink。
+- Web／Worker active、health 正常、Jobs API 無登入回 200、M11 登入頁不存在。
+- Python import path 指向 `/data/omnicheck/app/releases/6e8ee6e`；journal 無 error。
+- EDB revision 保留 `0005_m11`，四張 additive tables 不刪除；M10 會忽略它們。
+- 正式 `main`／`m10` 從未移動，因此 Git rollback 點不變。

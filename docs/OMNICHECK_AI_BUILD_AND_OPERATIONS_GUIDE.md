@@ -25,7 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.11.0-draft.1 | 2026-08-10 | M11 本機帳號、Session、RBAC、Customer enforcement、Audit、`0005_m11` 與帳號 CLI | 本機／VM 87 tests、V4、backup/hash、`0005_m11`、tables 與 services 通過；帳號及逐角色驗收待執行 |
+| 0.11.0-draft.1 | 2026-08-10 | M11 本機帳號、Session、RBAC、Customer enforcement、Audit、`0005_m11` 與 application rollback | 本機／VM 87 tests 與 migration 通過；依使用者決定公司 application 已回 M10，M11 暫不啟用 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
 | 0.9.6-draft.1 | 2026-08-05 | Artifact version、derivation、event、Retention 與 copy-verify archive | 本機 74 tests、offline migration 與實際資料唯讀驗證通過；公司 EDB 待驗證 |
@@ -571,6 +571,8 @@ curl --fail http://127.0.0.1:8000/api/health
 Application rollback 可切回 `m10` 並保留四張 additive table。`alembic downgrade 0004_m9_6` 會永久刪除帳號、Membership、Session 與 Audit，未完成備份、restore/downgrade drill 及核准不得執行。
 
 公司階段結果：release `d93da78` 在 `.77` 通過 87 tests 與 5 項 V4 manifest；升級前 backup `/data/omnicheck/archive/omnicheck_app_pre_m11_20260810.dump` 為 67 KiB，SHA-256 `0a27b7ea507d97d2605e0a1180aaef5d9dd5c84b106dafcfd89f30d5d0901bd4`，且 `pg_restore --list` 可讀。EDB 已升至 `0005_m11`，四張 M11 table、Web／Worker、health 與 journal 通過。Auth 尚未啟用，等待第一個 platform admin 由使用者在安全終端建立。
+
+後續使用者登入 smoke test 成功，但產品決定暫不採用登入及 Customer／System 欄位。公司已還原登入前 environment、重新安裝並切回 M10 release `6e8ee6e`；Web／Worker active、health 正常、Jobs API 無登入回 200、M11 登入頁不存在。EDB 保留 `0005_m11` additive tables，不執行破壞性 downgrade；未來恢復 M11 時可重新部署功能分支、確認帳號後再啟用 Auth。
 
 ## 11. 安裝 systemd Web 與 Worker
 

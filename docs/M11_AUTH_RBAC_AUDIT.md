@@ -1,7 +1,7 @@
 # M11 登入、RBAC、客戶隔離與 Audit
 
 日期：2026-08-10  
-狀態：功能分支實作中；本機測試與公司 `0005_m11` migration 通過，第一個管理員及正式 Auth 尚未啟用
+狀態：功能分支保留；公司曾完成 `0005_m11` migration 與登入 smoke test，依使用者決定已將 application rollback 至 M10 並停用 Auth
 
 ## 目的
 
@@ -41,3 +41,5 @@
 部署順序：備份 EDB → migration `0005_m11` → 建立 platform admin → 建立 Customer grants → 測試登入 → 設定 `OMNICHECK_AUTH_REQUIRED=true` → 重啟 Web。Worker 不使用瀏覽器 Session，Pipeline 行為不變。
 
 Application 可切回 `m10` 並保留 additive M11 tables；舊程式會忽略它們。`alembic downgrade 0004_m9_6` 會刪除 User、Session、Membership 與 Audit 全部資料，必須先備份並另行取得破壞性操作核准。
+
+2026-08-10 使用者決定暫不採用登入及 Customer／System 選擇。公司 `.77` 已還原登入前 environment、重新安裝 M10 release `6e8ee6e` 並切回 `current`；Web／Worker active、health 正常、未登入 Jobs API 200、登入頁不存在。EDB 保留 `0005_m11` additive tables，不執行破壞性 downgrade；M10 不會讀寫這四張表。
