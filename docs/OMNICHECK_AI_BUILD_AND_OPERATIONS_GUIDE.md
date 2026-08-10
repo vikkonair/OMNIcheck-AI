@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.10.0
+文件版本：0.11.0-draft.1
 最後更新：2026-08-10
-適用程式基準：`main` / `m10`
+適用程式基準：`feature/m11-auth-rbac-audit`；正式基準仍為 `main` / `m10`
 正式可回復基準：`m10`；前一個 application rollback 點為 `m9.6`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.11.0-draft.1 | 2026-08-10 | M11 本機帳號、Session、RBAC、Customer enforcement、Audit、`0005_m11` 與帳號 CLI | 本機 Auth/Web、完整回歸與 PostgreSQL offline migration 通過；公司 EDB 與瀏覽器各角色驗收待執行 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
 | 0.9.6-draft.1 | 2026-08-05 | Artifact version、derivation、event、Retention 與 copy-verify archive | 本機 74 tests、offline migration 與實際資料唯讀驗證通過；公司 EDB 待驗證 |
@@ -72,7 +73,8 @@
 | M9.5 | 正式完成 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等 EDB 投影與公司部署 |
 | M9.6 | 正式完成 | Artifact version、derivation、events、Retention、copy-verify archive 與公司部署 |
 | M10 | 正式完成 | 未知資料包的確定性節點／角色／服務候選、人工確認、fail-closed gate 與公司部署 |
-| M11～M15 | 已核准、待實作 | 權限、歷史、CVE、選配 AI 與生產強化 |
+| M11 | 功能分支實作中 | Login、RBAC、Customer enforcement、Session 與 Audit；公司環境待驗證 |
+| M12～M15 | 已核准、待實作 | 歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m10` 是目前正式可回復版本；`m9.6` 保留為 M10 前的 application rollback 點，`m9.5` 與 `m9.4` 保留較早期 rollback 點。正式重建應 checkout `m10`，不得部署 floating branch HEAD。
 
@@ -436,6 +438,8 @@ OMNICHECK_REGISTER_ARTIFACTS=true
 OMNICHECK_ARTIFACT_RETENTION_DAYS=365
 OMNICHECK_STORAGE_ROOT=/data/omnicheck
 OMNICHECK_ARCHIVE_ROOT=/data/omnicheck/archive
+OMNICHECK_AUTH_REQUIRED=false
+OMNICHECK_COOKIE_SECURE=false
 ```
 
 ```bash
@@ -447,6 +451,8 @@ chmod 0640 /etc/omnicheck-ai/omnicheck.env
 
 ```text
 OMNICHECK_DATABASE_URL=postgresql+psycopg://omnicheck_app@<VIP_DNS>:5444/omnicheck_app?sslmode=verify-full&sslrootcert=/etc/omnicheck-ai/ca.crt&passfile=/etc/omnicheck-ai/pgpass
+OMNICHECK_AUTH_REQUIRED=true
+OMNICHECK_COOKIE_SECURE=true
 ```
 
 ## 10. Database Migration
@@ -480,7 +486,7 @@ sudo -u omnicheck env \
   -c /data/omnicheck/app/current/alembic.ini current
 ```
 
-正式 `m9.3` revision 為 `0001_m9_3`。M9.4 為 `0002_m9_4`，並新增 application foundation；M9.5 為 `0003_m9_5`。M9.6 正式 revision 為 `0004_m9_6 (head)`。
+正式 `m9.3` revision 為 `0001_m9_3`。M9.4 為 `0002_m9_4`，並新增 application foundation；M9.5 為 `0003_m9_5`。M9.6 正式 revision 為 `0004_m9_6`。M11 功能分支 revision 為 `0005_m11 (head)`，公司環境尚未套用。
 
 ```sql
 SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema='omnicheck' ORDER BY 2;
@@ -534,6 +540,35 @@ sudo -u omnicheck env \
 M9.6 不提供自動實體刪除。`pending_delete` 只代表已提出刪除申請，仍可取消；未經獨立備份、legal hold 檢查與明確核准，不得手動刪檔。
 
 公司驗證結果：release `2fc2ce7` 在 VM 通過 74 tests 與 V4 hashes；備份 `/data/omnicheck/archive/omnicheck_app_pre_m9_6_20260810.dump` 的 SHA-256 為 `de79b27dc6d05a04f9415d4ef91b04132bde9ea7bc29b57bd38ebf84be4877e2`，且 `pg_restore --list` 可讀。Schema 升至 `0004_m9_6`，Scoped Golden Job `3c600f747da84d4e92f3c86f6fd0f6d3` 建立 11 artifacts、2 relations、11 events；冪等、Archive dry-run、archive manifest、Web／Worker restart 與 health 均通過。
+
+### 10.6 M11 identity／RBAC／Audit migration（公司環境待驗證）
+
+`0005_m11` 新增 `users`、`customer_memberships`、`user_sessions`、`audit_events`。部署前必須先備份 `0004_m9_6`；migration 後先建立第一個平台管理員，再啟用 Auth，避免鎖死 Web：
+
+```bash
+sudo -u omnicheck env \
+  OMNICHECK_DATABASE_URL="$(sed -n 's/^OMNICHECK_DATABASE_URL=//p' /etc/omnicheck-ai/omnicheck.env)" \
+  /data/omnicheck/venv/bin/omni-healthcheck-auth create-user \
+  --username <ADMIN_USERNAME> --display-name '<ADMIN_DISPLAY_NAME>' --platform-admin
+```
+
+密碼會由 `getpass` 在終端互動輸入，不得放在 command line、聊天、Git 或 shell history。一般使用者建立後，用 EDB 查詢取得 Customer ID，再授權：
+
+```bash
+sudo -u omnicheck env \
+  OMNICHECK_DATABASE_URL="$(sed -n 's/^OMNICHECK_DATABASE_URL=//p' /etc/omnicheck-ai/omnicheck.env)" \
+  /data/omnicheck/venv/bin/omni-healthcheck-auth grant-customer \
+  --user-id <USER_ID> --customer-id <CUSTOMER_ID> --role engineer
+```
+
+確認管理員可登入後，在 `/etc/omnicheck-ai/omnicheck.env` 加入 `OMNICHECK_AUTH_REQUIRED=true`。目前公司環境仍為 HTTP，`OMNICHECK_COOKIE_SECURE=false`；完成 M15 TLS 後必須改為 `true`。修改後重啟 Web，Worker 不需瀏覽器 Session：
+
+```bash
+systemctl restart omnicheck-web
+curl --fail http://127.0.0.1:8000/api/health
+```
+
+Application rollback 可切回 `m10` 並保留四張 additive table。`alembic downgrade 0004_m9_6` 會永久刪除帳號、Membership、Session 與 Audit，未完成備份、restore/downgrade drill 及核准不得執行。
 
 ## 11. 安裝 systemd Web 與 Worker
 
@@ -898,7 +933,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
-- 正式 TLS/VIP、EFM failover、reverse proxy、登入／RBAC 尚未完成。
+- M11 登入／RBAC 核心已在功能分支完成本機驗證，但公司 migration、帳號 bootstrap、角色驗收尚未完成；正式 TLS/VIP、EFM failover 與 reverse proxy 仍未完成。
 - M10 可對標準搜集包提出角色候選；非標準檔名、缺少 EFM／OS 訊號或衝突時仍需使用者指定，且所有案件都必須人工確認。
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。

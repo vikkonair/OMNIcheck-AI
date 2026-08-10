@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10
-目前開發進度：M10 已通過使用者驗收、公司部署與端到端驗證；下一步為 M11 登入／RBAC／客戶隔離／Audit
+目前開發進度：M11 登入／RBAC／客戶隔離／Audit 功能分支實作中；本機基礎驗證通過，公司環境待驗證
 
 ## 1. 文件目的
 
@@ -65,7 +65,9 @@ M9.5 Pipeline 結果 Persistence Adapter（正式完成）；M9.6 Artifact Regis
         ↓
 M10 Deterministic Discovery + Operator Confirmation（正式完成）
         ↓
-M11～M15 權限隔離、歷史、CVE、選配 AI、生產強化（已排定／待實作）
+M11 Login／RBAC／Customer Isolation／Audit（功能分支實作中）
+        ↓
+M12～M15 歷史、CVE、選配 AI、生產強化（已排定／待實作）
 ```
 
 正式 M8.1 可以完全使用 CLI。M9 未設定 `OMNICHECK_DATABASE_URL` 時使用 filesystem metadata 與 Web 同程序背景工作；設定後使用 EDB metadata 與獨立 Worker。
@@ -95,6 +97,7 @@ M11～M15 權限隔離、歷史、CVE、選配 AI、生產強化（已排定／�
 | M9.5 | 正式完成 | `m9.5` | 可回到 `m9.4` application；DB downgrade 需另行核准 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等投影與公司部署 |
 | M9.6 | 正式完成 | `m9.6` | 可回到 `m9.5` application；DB downgrade 需另行核准 | Artifact 版本、衍生關係、事件、Retention、Archive 與公司部署 |
 | M10 | 正式完成、目前 main | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
+| M11 | 功能分支實作中 | 待驗收／tag | application 可回 `m10`；DB downgrade 需另行核准 | 本機帳號、Session、RBAC、Customer enforcement 與 Audit |
 
 目前 `main` 與 `m10` 是正式可回復基準；`m9.6` 保留為 M10 自動探索前的 application rollback 點，`m9.5` 與 `m9.4` 繼續保留較早期 rollback 點。
 
@@ -423,6 +426,16 @@ Rollback：application 可回 `m9.5`。`0004_m9_6 → 0003_m9_5` 會刪除 relat
 驗證：本機與公司 VM 均為 78 tests；台灣行動支付 13 檔找出 5 台節點與唯一 Primary，Web 未確認 gate、確認後 13 outputs、QA 8／8、V4 QA、DOCX／PDF 及來源 SHA-256 不變均通過。2.1 Database 欄已驗證為節點安裝清冊：Primary／Standby／DR 顯示案件資料庫產品，PEM Server 顯示 PostgreSQL backend，純 EFM Witness 留白；此顯示規則不改變邏輯資料 Primary-only Scope。公司 `.77/.81` release `6e8ee6e` 的 Queue／Worker Job `12c90aa3da354f1c83dbc42e6d57e118`、重啟持久性與 journal 檢查通過；EDB revision 維持 `0004_m9_6`。
 
 Rollback：application 可直接切回 `m9.6`，不需 Alembic downgrade。詳細文件：`docs/M10_TOPOLOGY_DISCOVERY.md`、`docs/M10_VALIDATION.md`。
+
+### M11：登入、RBAC、客戶隔離與 Audit
+
+目的：讓 Web 與 API 的每個案件操作都有可識別使用者、角色與 Customer 邊界，並保存關鍵 Audit event。
+
+目前內容：`0005_m11` additive migration 新增 User、Customer membership、Session 與 Audit；PBKDF2 password hash、HttpOnly Session、platform admin／engineer／reviewer／viewer、跨 Customer API enforcement、legacy Job admin-only、登入／登出／建案／上傳／執行／下載 Audit，以及互動式帳號 CLI。Web 正式模式會先登入並選取授權 Customer／System。
+
+目前驗證：Auth/Web targeted tests、完整回歸、PostgreSQL offline upgrade/downgrade SQL 與安全 header 通過。公司 EDB migration、帳號 bootstrap、各角色瀏覽器驗收及實際客戶資料 E2E 尚未執行。
+
+Rollback：application 可切回 `m10` 並保留 additive schema；`0005_m11 → 0004_m9_6` 會刪除身份與 Audit 資料，必須備份並另行核准。詳細文件：`docs/M11_AUTH_RBAC_AUDIT.md`、`docs/M11_VALIDATION.md`。
 
 ## 6. 標準開發手順
 

@@ -32,6 +32,7 @@ omni-healthcheck = "omni_healthcheck.cli:main"
 omni-healthcheck-web = "omni_healthcheck.web:main"
 omni-healthcheck-worker = "omni_healthcheck.worker:main"
 omni-healthcheck-artifacts = "omni_healthcheck.artifact_worker:main"
+omni-healthcheck-auth = "omni_healthcheck.auth_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/omni_healthcheck"]

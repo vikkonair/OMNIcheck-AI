@@ -12,6 +12,7 @@ from omni_healthcheck.database import SCHEMA, metadata
 import omni_healthcheck.application_data  # noqa: F401 - registers M9.4 tables
 import omni_healthcheck.pipeline_persistence  # noqa: F401 - registers M9.5 tables
 import omni_healthcheck.artifact_lifecycle  # noqa: F401 - registers M9.6 tables
+import omni_healthcheck.auth  # noqa: F401 - registers M11 identity/RBAC/audit tables
 
 
 config = context.config

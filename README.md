@@ -152,7 +152,7 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 
 開啟 `http://127.0.0.1:8000` 後，可選取整包健檢資料，由系統先提出節點／角色／服務候選；核對並確認後即可一鍵執行 Pipeline，再從結果頁下載輸出，不需手寫 JSON 或使用 Terminal。互動式 API 文件仍保留於 `http://127.0.0.1:8000/docs`。
 
-未設定資料庫連線時，M9 使用本機檔案系統與 FastAPI 同程序背景工作；設定 `OMNICHECK_DATABASE_URL` 後，則由 EDB／PostgreSQL 保存案件狀態，並由獨立 Worker 領取及重試工作。權限控管與辨識結果確認頁面仍在後續 M9 階段。
+未設定資料庫連線時，M9 使用本機檔案系統與 FastAPI 同程序背景工作；設定 `OMNICHECK_DATABASE_URL` 後，則由 EDB／PostgreSQL 保存案件狀態，並由獨立 Worker 領取及重試工作。M11 功能分支已加入登入、角色、Customer 授權與 Audit；正式版本仍為 `m10`，完成公司驗證與使用者驗收前不得在正式環境啟用。
 
 ## 開發與驗證原則
 
@@ -192,7 +192,8 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - M9.5：Pipeline 結果持久化（正式完成）
 - M9.6：完整 Artifact Registry／Retention／Archive（正式完成）
 - M10：自動探索節點與拓撲人工確認（正式完成）
-- M11～M12：登入／RBAC／隔離／稽核、歷史比較
+- M11：登入／RBAC／Customer 隔離／Audit（功能分支實作中）
+- M12：歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
 - M14～M15：選配 AI Gateway 與正式 HA／VIP／TLS／Backup／Monitoring 強化
 

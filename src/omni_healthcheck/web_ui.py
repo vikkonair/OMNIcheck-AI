@@ -76,7 +76,19 @@ INDEX_HTML = r"""<!doctype html>
 </head>
 <body>
 <header><h1>OMNIcheck AI</h1><p>On-premises Database Health Check</p></header>
-<main>
+<main id="loginPanel" class="hidden">
+  <section>
+    <h2>登入 OMNIcheck AI</h2>
+    <p class="muted">請使用公司核發的帳號登入。系統會依客戶授權顯示案件。</p>
+    <form id="loginForm" class="grid">
+      <label>帳號<input id="loginUsername" autocomplete="username" required></label>
+      <label>密碼<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+      <div class="actions"><button class="primary" type="submit">登入</button></div>
+    </form>
+    <div class="message" id="loginMessage"></div>
+  </section>
+</main>
+<main id="workspace">
   <div class="steps" aria-label="操作步驟">
     <span class="step active" id="step1">1 案件資料</span>
     <span class="step" id="step2">2 節點架構</span>
@@ -89,6 +101,8 @@ INDEX_HTML = r"""<!doctype html>
       <h2>案件資料</h2>
       <p class="muted">填寫本次健檢的基本資料，不需要再編輯 JSON。</p>
       <div class="grid">
+        <label id="customerScopeLabel" class="hidden">授權客戶 *<select id="customerScope"></select></label>
+        <label id="systemScopeLabel" class="hidden">系統 *<select id="systemScope"></select></label>
         <label>客戶名稱 *<input id="customer" required placeholder="例如：範例科技"></label>
         <label>系統名稱<input id="systemName" placeholder="例如：ERP Production"></label>
         <label>健檢期間 *<input id="period" required placeholder="例如：2026-H2"></label>
@@ -151,7 +165,7 @@ INDEX_HTML = r"""<!doctype html>
   </section>
 </main>
 <script>
-const state = { options:null, nodes:[{hostname:'', role:'Primary', services:[]}], files:[], jobId:null, discovery:null };
+const state = { options:null, context:null, nodes:[{hostname:'', role:'Primary', services:[]}], files:[], jobId:null, discovery:null };
 const el = id => document.getElementById(id);
 
 function setMessage(text, kind='info') {
@@ -169,8 +183,24 @@ function formatError(body) {
 async function api(url, options={}) {
   const response = await fetch(url, options);
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(formatError(body));
+  if (!response.ok) { const error=new Error(formatError(body)); error.status=response.status; throw error; }
   return body;
+}
+
+function renderTenantContext() {
+  if (!state.context || !state.context.customers.length) return;
+  el('customerScopeLabel').classList.remove('hidden'); el('systemScopeLabel').classList.remove('hidden');
+  const customer=el('customerScope'); customer.replaceChildren();
+  state.context.customers.forEach(item => { const option=document.createElement('option'); option.value=item.customer_id; option.textContent=item.name; customer.append(option); });
+  const refreshSystems=() => {
+    const selected=state.context.customers.find(item => item.customer_id === customer.value);
+    if (selected) el('customer').value=selected.name;
+    const system=el('systemScope'); system.replaceChildren();
+    state.context.systems.filter(item => item.customer_id === customer.value).forEach(item => {
+      const option=document.createElement('option'); option.value=item.system_id; option.textContent=`${item.name}（${item.environment}）`; system.append(option);
+    });
+  };
+  customer.addEventListener('change', refreshSystems); refreshSystems();
 }
 
 function renderNodes() {
@@ -291,7 +321,9 @@ async function startJob(event) {
   const button=el('startButton'); button.disabled=true; el('resultSection').classList.add('hidden');
   try {
     setProgress(5); setMessage('正在建立案件…');
-    const job=await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildConfig())});
+    const scope=state.context?.customers?.length ? `?customer_id=${encodeURIComponent(el('customerScope').value)}&system_id=${encodeURIComponent(el('systemScope').value)}` : '';
+    if (state.context?.customers?.length && !el('systemScope').value) throw new Error('選取的客戶尚未建立可用系統。');
+    const job=await api(`/api/jobs${scope}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildConfig())});
     state.jobId=job.job_id; setProgress(15); await uploadFiles(job.job_id);
     setMessage('資料上傳完成，正在啟動健檢…'); await api(`/api/jobs/${job.job_id}/run`,{method:'POST'});
     const result=await pollJob(job.job_id); setProgress(100); showResult(result);
@@ -331,7 +363,24 @@ el('folderInput').addEventListener('change', event => updateFiles(event.target.f
 el('dropZone').addEventListener('dragover', event => event.preventDefault());
 el('dropZone').addEventListener('drop', event => { event.preventDefault(); if (event.dataTransfer.files.length) updateFiles(event.dataTransfer.files); });
 el('jobForm').addEventListener('submit', startJob);
-(async () => { try { state.options=await api('/api/config-options'); } catch (_) {} renderNodes(); refreshJobs(); })();
+el('loginForm').addEventListener('submit', async event => {
+  event.preventDefault(); const message=el('loginMessage');
+  try {
+    await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:el('loginUsername').value,password:el('loginPassword').value})});
+    message.className='message'; await initialize();
+  } catch(error) { message.textContent=error.message; message.className='message show error'; }
+});
+async function initialize() {
+  try {
+    state.context=await api('/api/auth/context');
+    el('loginPanel').classList.add('hidden'); el('workspace').classList.remove('hidden');
+    state.options=await api('/api/config-options'); renderTenantContext(); renderNodes(); await refreshJobs();
+  } catch(error) {
+    if (error.status === 401) { el('workspace').classList.add('hidden'); el('loginPanel').classList.remove('hidden'); return; }
+    setMessage(error.message,'error');
+  }
+}
+initialize();
 </script>
 </body>
 </html>"""
