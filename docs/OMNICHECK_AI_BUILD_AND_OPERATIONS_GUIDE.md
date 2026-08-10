@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.10.0
+文件版本：0.10.1-draft.1
 最後更新：2026-08-10
-適用程式基準：`main` / `m10`
+適用程式基準：`feature/m10-1-legacy-db-evidence`；正式基準仍為 `main` / `m10`
 正式可回復基準：`m10`；前一個 application rollback 點為 `m9.6`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.10.1-draft.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping 與 Scope 稽核 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF 與來源 hash 通過；待 Web 驗收 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
 | 0.9.6-draft.1 | 2026-08-05 | Artifact version、derivation、event、Retention 與 copy-verify archive | 本機 74 tests、offline migration 與實際資料唯讀驗證通過；公司 EDB 待驗證 |
@@ -72,6 +73,7 @@
 | M9.5 | 正式完成 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等 EDB 投影與公司部署 |
 | M9.6 | 正式完成 | Artifact version、derivation、events、Retention、copy-verify archive 與公司部署 |
 | M10 | 正式完成 | 未知資料包的確定性節點／角色／服務候選、人工確認、fail-closed gate 與公司部署 |
+| M10.1 | 功能分支完成、待驗收 | 舊式 Database Output 內容辨識、來源節點候選、人工 mapping 與 Primary-only 保護 |
 | M11～M15 | 已核准、待實作 | 權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m10` 是目前正式可回復版本；`m9.6` 保留為 M10 前的 application rollback 點，`m9.5` 與 `m9.4` 保留較早期 rollback 點。正式重建應 checkout `m10`，不得部署 floating branch HEAD。
@@ -584,6 +586,8 @@ CLI 直接執行 M1～M8.1，不需要 EDB metadata。
 
 Discovery API 只取文字檔前 512 KiB 作樣本；圖片不解析內容。確認紀錄保存在 `job.yaml.topology_confirmation`，`topology.json` 會標記 `operator_confirmed_discovery`。此功能不新增 migration、package 或環境變數；回復至 `m9.6` 不需 database downgrade。
 
+M10.1 對沒有 hostname 的 `ENGDB_check.txt` 類型文字檔進行 Database Output 內容分類。若不能唯一對應節點，畫面會在「Database Output 來源確認」列出候選並要求使用者選擇；結果保存於 `job.yaml.evidence_mappings`，Scope ledger 記錄 `operator_confirmed_evidence_mapping`。候選不等於自動採用，未確認時保持 pending；映射到 Standby／DR／Witness 也不會繞過 Database logical Primary-only policy。
+
 報告 2.1 的 Database 欄是節點軟體清冊，不是邏輯資料 Scope：Primary／Standby／DR 都顯示案件的 PostgreSQL／EPAS 產品；承載 PEM Server 的 Witness 顯示 `PostgreSQL` backend；只有 EFM 且沒有資料庫服務證據的 Witness 留白。Database／Schema／Table 等後續判斷仍只採 Primary。
 
 ## 13. 驗證與驗收
@@ -596,7 +600,7 @@ cd /data/omnicheck/app/current
 git diff --check
 ```
 
-公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
+公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests；M10.1 候選為 82 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
 
 ### 13.2 V4 bundle 完整性
 
@@ -680,6 +684,15 @@ pdffonts /tmp/report-check/report.pdf
 - 2.1 Database 清冊須顯示 Primary／Standby／DR 的案件產品及 PEM Server 的 PostgreSQL backend，不得用 Primary-only Scope 隱藏節點安裝資訊。
 - 公司基準為 release `6e8ee6e`、78 tests；Job `12c90aa3da354f1c83dbc42e6d57e118` 的 13 inputs／13 outputs、QA、V4 QA、來源 manifest 與重啟持久性均通過。
 - M10 不新增 migration；EDB revision 維持 `0004_m9_6`，application rollback 使用 `m9.6`。
+
+### 13.11 M10.1 舊格式 Database Output 驗收
+
+- 沒有 hostname 的舊式 Database Output 必須依內容列為候選，不得誤分類成一般 misc 後靜默略過。
+- 使用者未選擇來源節點前不得把候選當成正式 Primary evidence。
+- `evidence_mappings` 必須使用安全相對路徑、已配置節點與 database domain；重複路徑或未知節點必須拒絕。
+- 映射至非 Primary 節點時仍要遵守 Database logical Primary-only。
+- 實際 ENGDB 基準為 3 allowed、0 pending、17 項 Primary checks、QA 8/8、V4 QA、19 頁 PDF；來源 hash 不變。
+- M10.1 不新增 migration、套件或環境變數；application rollback 使用 `m10`。
 
 ## 14. Pipeline 產物與判讀
 
