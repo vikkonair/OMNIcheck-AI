@@ -1,7 +1,7 @@
 # M10.1 驗證紀錄
 
 日期：2026-08-10  
-候選 commit：`71173de`  
+候選 commit：`71173de`
 使用者驗收：2026-08-10 通過；公司 App VM 候選 release `be0ca80` 的 Web、Worker、EDB health、案件 API 與介面流程正常。
 
 ## 自動化驗證
