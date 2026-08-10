@@ -25,7 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.10.0-draft.1 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源與 Web gate | 本機 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash 通過；公司環境待驗證 |
+| 0.10.0-draft.1 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate 與 2.1 節點 Database 清冊修正 | 本機 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、2.1 PDF 目視與來源 hash 通過；公司環境待驗證 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
 | 0.9.6-draft.1 | 2026-08-05 | Artifact version、derivation、event、Retention 與 copy-verify archive | 本機 74 tests、offline migration 與實際資料唯讀驗證通過；公司 EDB 待驗證 |
 | 0.9.5 | 2026-08-05 | M9.5 公司 EDB deployment、Scoped Golden Persistence 與正式回復點 | Backup/hash、VM 70 tests、`0003_m9_5`、冪等、restart persistence 與 health 通過 |
@@ -583,6 +583,8 @@ CLI 直接執行 M1～M8.1，不需要 EDB metadata。
 使用者開啟 `http://<APP_VM>:8000/`，選取資料夾後由 M10 確定性 Discovery 提出 hostname、Primary／Standby／DR／Witness、服務、信心與理由。使用者必須核對並勾選確認，系統才建立案件、上傳不可覆寫資料、交由 Worker 執行並提供下載。Discovery 不取代 DBA 決策；Primary 候選不唯一、未知或衝突時必須人工修正。
 
 Discovery API 只取文字檔前 512 KiB 作樣本；圖片不解析內容。確認紀錄保存在 `job.yaml.topology_confirmation`，`topology.json` 會標記 `operator_confirmed_discovery`。此功能不新增 migration、package 或環境變數；回復至 `m9.6` 不需 database downgrade。
+
+報告 2.1 的 Database 欄是節點軟體清冊，不是邏輯資料 Scope：Primary／Standby／DR 都顯示案件的 PostgreSQL／EPAS 產品；承載 PEM Server 的 Witness 顯示 `PostgreSQL` backend；只有 EFM 且沒有資料庫服務證據的 Witness 留白。Database／Schema／Table 等後續判斷仍只採 Primary。
 
 ## 13. 驗證與驗收
 

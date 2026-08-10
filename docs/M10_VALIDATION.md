@@ -23,6 +23,7 @@
 - 產出 13 個 outputs，包含 Canonical、QA、V4 JSON、DOCX 與 PDF。
 - QA 8／8 passed；V4 QA delivery allowed。
 - 正式 `topology.json` Primary 為 `twmpedbp1`，角色來源為 `operator_confirmed_discovery`。
+- 2.1 架構總覽的 Database 是節點安裝清冊，不套用 Primary-only Scope：Primary／Standby／DR 均顯示 `EDB Postgres Advanced Server`，`pemp1` PEM Server 顯示 `PostgreSQL`，純 EFM Witness 留白；PDF 第 4 頁目視通過。
 
 ## 已確認限制
 

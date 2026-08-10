@@ -420,7 +420,7 @@ Rollback：application 可回 `m9.5`。`0004_m9_6 → 0003_m9_5` 會刪除 relat
 
 完成內容：新增 `topology_discovery.py` 與 `/api/topology/discover`；使用檔名／路徑、EFM `bind.address`、`is.witness`、DR hostname、PEM Server 與備份訊號。Web 自動分析資料、顯示信心與理由，未確認時禁止執行；原始建議與確認狀態寫入 `job.yaml.topology_confirmation`。
 
-驗證：78 tests；台灣行動支付 13 檔找出 5 台節點與唯一 Primary，Web 未確認 gate、確認後 13 outputs、QA 8／8、V4 QA、DOCX／PDF 及來源 SHA-256 不變均通過。公司 `.77/.81` 尚未部署。
+驗證：78 tests；台灣行動支付 13 檔找出 5 台節點與唯一 Primary，Web 未確認 gate、確認後 13 outputs、QA 8／8、V4 QA、DOCX／PDF 及來源 SHA-256 不變均通過。2.1 Database 欄已驗證為節點安裝清冊：Primary／Standby／DR 顯示案件資料庫產品，PEM Server 顯示 PostgreSQL backend，純 EFM Witness 留白；此顯示規則不改變邏輯資料 Primary-only Scope。公司 `.77/.81` 尚未部署。
 
 Rollback：application 可直接切回 `m9.6`，不需 Alembic downgrade。詳細文件：`docs/M10_TOPOLOGY_DISCOVERY.md`、`docs/M10_VALIDATION.md`。
 

@@ -35,6 +35,9 @@ def _model() -> ReportModel:
         nodes=[
             {"hostname": "db-primary", "role": "Primary", "services": ["EFM"]},
             {"hostname": "db-standby", "role": "Standby", "services": ["EFM"]},
+            {"hostname": "db-dr", "role": "DR", "services": []},
+            {"hostname": "pem-server", "role": "Witness", "services": ["PEM"]},
+            {"hostname": "efm-witness", "role": "Witness", "services": ["EFM"]},
         ],
         summary={"normal": 1, "attention": 1, "critical": 0, "pending": 0},
         sections=[
@@ -113,6 +116,16 @@ def test_adapter_preserves_primary_database_and_configuration_observation(
     assert "跨節點比較" in item["observation"]
     assert item["controlled_continuation"] is True
     assert report["nodes"][0]["cpu"] == "8 cores"
+    database_by_node = {
+        node["hostname"]: node["database"] for node in report["nodes"]
+    }
+    assert database_by_node == {
+        "db-primary": "EDB Postgres Advanced Server",
+        "db-standby": "EDB Postgres Advanced Server",
+        "db-dr": "EDB Postgres Advanced Server",
+        "pem-server": "PostgreSQL",
+        "efm-witness": "",
+    }
     assert report["product"]["name"] == "EDB Postgres Advanced Server"
     assert report["cover_company_name"] == "Omniwaresoft Tech"
     assert report["show_components"] is False
