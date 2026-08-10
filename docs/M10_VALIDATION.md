@@ -1,8 +1,8 @@
 # M10 Validation Report
 
 日期：2026-08-10  
-分支：`feature/m10-topology-discovery`  
-狀態：Passed；本機、瀏覽器與台灣行動支付實際資料唯讀驗證完成，公司 `.77/.81` 尚未部署
+分支：`feature/m10-topology-discovery`；正式合併後為 `main`／`m10`
+狀態：Passed；本機、使用者驗收、實際資料與公司 `.77/.81` 部署驗證完成
 
 ## 自動化驗證
 
@@ -10,6 +10,18 @@
 - Discovery／Web／Topology targeted tests：19 passed。
 - V4 bundle 29 個必要檔案與 hash：passed。
 - `git diff --check`：passed。
+
+## 公司環境部署驗證
+
+- App VM：CentOS 9 `.77`；EDB：EPAS 17.10 `.81`；release `6e8ee6e`。
+- 部署前 EDB custom-format backup：`omnicheck_app_pre_m10_20260810.dump`，67 KiB，SHA-256 `1f4c09585a7c505fa76f563012f0b428ec9790a0a36c64f13a980cec7da502f3`；`pg_restore --list` passed。
+- Release archive SHA-256：`2e8bf41e5806662e337050258d3ea9480dffe6ad51d1b1b66015353802c06cdf`，上傳前後一致。
+- VM 完整 Pytest：78 passed；V4 bundle 5 項 manifest/hash checks 全數通過。
+- 公司端到端 Job：`12c90aa3da354f1c83dbc42e6d57e118`，13 inputs、13 outputs、1 attempt、status `succeeded`。
+- Discovery：5 nodes、1 Primary candidate、0 unresolved nodes；6 張未標節點監控圖片依既有 Primary 規則處理。
+- `topology.json` confirmation source：`operator_confirmed_discovery`；QA 與 V4 QA 均 passed。
+- 重啟 `omnicheck-web`／`omnicheck-worker` 後兩者均 active，health 為 database metadata／external worker，Job 與 13 outputs 可由 EDB 正常讀回，journal 無 error。
+- EDB revision 維持 `0004_m9_6`；M10 不新增 migration。
 
 ## 實際客戶資料
 
@@ -30,8 +42,8 @@
 - Discovery 是候選產生器，不是無人審核的自動決策器。
 - 非標準檔名、缺少 OS／EFM 訊號或角色衝突時必須人工指定。
 - 圖片不做 OCR；未標節點監控圖片仍依既有政策映射 Primary。
-- 本次沒有新增 EDB migration；公司部署與 Queue／Worker E2E 留待使用者驗收後執行。
+- 本次沒有新增 EDB migration；若需 rollback，可切回 `m9.6` application，不需 database downgrade。
 
 ## 結論
 
-M10 沒有修改 M1～M9.6 Pipeline 或 V4 Renderer。自動探索、人工確認、稽核來源、fail-closed gate 與實際資料端到端驗證均通過；目前仍是功能分支，正式 rollback 基準維持 `m9.6`。
+M10 沒有重做 M1～M9.6 Pipeline，也沒有改變 V4 Renderer 契約。自動探索、人工確認、稽核來源、fail-closed gate、公司 Queue／Worker、報告與重啟持久性均通過；正式版本為 `main`／`m10`，前一個 rollback 基準為 `m9.6`。

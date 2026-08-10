@@ -1,10 +1,10 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.10.0-draft.1
+文件版本：0.10.0
 最後更新：2026-08-10
-適用程式基準：`feature/m10-topology-discovery`；正式基準仍為 `main` / `m9.6`
-正式可回復基準：`m9.6`
+適用程式基準：`main` / `m10`
+正式可回復基準：`m10`；前一個 application rollback 點為 `m9.6`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
 
@@ -25,7 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.10.0-draft.1 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate 與 2.1 節點 Database 清冊修正 | 本機 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、2.1 PDF 目視與來源 hash 通過；公司環境待驗證 |
+| 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
 | 0.9.6-draft.1 | 2026-08-05 | Artifact version、derivation、event、Retention 與 copy-verify archive | 本機 74 tests、offline migration 與實際資料唯讀驗證通過；公司 EDB 待驗證 |
 | 0.9.5 | 2026-08-05 | M9.5 公司 EDB deployment、Scoped Golden Persistence 與正式回復點 | Backup/hash、VM 70 tests、`0003_m9_5`、冪等、restart persistence 與 health 通過 |
@@ -71,10 +71,10 @@
 | M9.4 | 正式完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key、公司部署與 live Queue 驗收 |
 | M9.5 | 正式完成 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等 EDB 投影與公司部署 |
 | M9.6 | 正式完成 | Artifact version、derivation、events、Retention、copy-verify archive 與公司部署 |
-| M10 | 功能分支驗證完成 | 未知資料包的確定性節點／角色／服務候選、人工確認與 fail-closed gate |
+| M10 | 正式完成 | 未知資料包的確定性節點／角色／服務候選、人工確認、fail-closed gate 與公司部署 |
 | M11～M15 | 已核准、待實作 | 權限、歷史、CVE、選配 AI 與生產強化 |
 
-`main`／`m9.6` 是目前正式可回復版本；`m9.5` 保留為 Artifact lifecycle 前的 application rollback 點，`m9.4` 保留為 Persistence 前的 rollback 點。正式重建應 checkout `m9.6`，不得部署 floating branch HEAD。
+`main`／`m10` 是目前正式可回復版本；`m9.6` 保留為 M10 前的 application rollback 點，`m9.5` 與 `m9.4` 保留較早期 rollback 點。正式重建應 checkout `m10`，不得部署 floating branch HEAD。
 
 ## 3. 系統架構
 
@@ -596,7 +596,7 @@ cd /data/omnicheck/app/current
 git diff --check
 ```
 
-公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
+公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
 
 ### 13.2 V4 bundle 完整性
 
@@ -671,6 +671,15 @@ pdffonts /tmp/report-check/report.pdf
 - Archive 預設 dry-run；未到期時 count 必須為 0，archive manifest 不得改變。
 - Apply 必須 copy、驗 hash、保留來源；M9.6 不自動實體刪除。
 - Web／Worker restart 後 Artifact、relations、events 與 Job status 必須仍存在。
+
+### 13.10 M10 拓撲探索驗收
+
+- 未知資料包必須先顯示節點、角色、服務、信心與判斷理由；未人工確認不得建立案件。
+- Primary 候選不唯一、角色衝突或無法解析時必須要求修正，不得由 AI 猜測。
+- `topology.json` 必須記錄 `operator_confirmed_discovery`，並維持邏輯資料 Primary-only 與設定檔跨節點比較規則。
+- 2.1 Database 清冊須顯示 Primary／Standby／DR 的案件產品及 PEM Server 的 PostgreSQL backend，不得用 Primary-only Scope 隱藏節點安裝資訊。
+- 公司基準為 release `6e8ee6e`、78 tests；Job `12c90aa3da354f1c83dbc42e6d57e118` 的 13 inputs／13 outputs、QA、V4 QA、來源 manifest 與重啟持久性均通過。
+- M10 不新增 migration；EDB revision 維持 `0004_m9_6`，application rollback 使用 `m9.6`。
 
 ## 14. Pipeline 產物與判讀
 
@@ -885,7 +894,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M9.4 已正式化並部署公司 `.77/.81`：部署 release `9dc7d76`、Alembic `0002_m9_4`、Web／Worker active、Golden Job `cf384056cf7045878f12341324cb1852` succeeded。完整 restore／downgrade drill 尚待安排。
 - M9.5 已部署公司 `.77/.81`：release `916adff`、Alembic `0003_m9_5`、70 tests、Scoped Golden Persistence、冪等與服務重啟均通過。
 - M9.6 已部署公司 `.77/.81`：release `2fc2ce7`、Alembic `0004_m9_6`、74 tests、Scoped Artifact E2E、Archive dry-run、冪等與服務重啟均通過。
-- M10 功能分支本機通過 78 tests；台灣行動支付 13 檔自動提出 5 節點與唯一 Primary，人工確認 gate、13 outputs、QA 8/8、V4 QA、DOCX/PDF 與來源 hash 通過。公司環境尚未部署。
+- M10 已部署公司 `.77/.81`：release `6e8ee6e`、EDB revision 維持 `0004_m9_6`，本機／VM 78 tests；台灣行動支付 13 檔自動提出 5 節點與唯一 Primary，人工確認 gate、Queue／Worker Job `12c90aa3da354f1c83dbc42e6d57e118`、13 outputs、QA、V4 QA、DOCX/PDF、來源 hash 與重啟持久性均通過。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。

@@ -2,11 +2,11 @@
 
 OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS）的資料庫健檢自動化系統。
 
-目前正式版本已完成至 **M9.6：Artifact Registry／Retention／Archive**。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 `0004_m9_6` migration、Scoped Golden Artifact E2E、冪等、Archive dry-run 與服務重啟驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
+目前正式版本已完成至 **M10：自動探索節點與拓撲確認**。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 Web → EDB Queue → Worker → V4 Report 端到端驗證、服務重啟與 EDB 持久性驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-M10 自動探索與拓撲確認目前已在功能分支完成本機、瀏覽器及台灣行動支付實際資料唯讀驗證：選取資料夾後會提出節點、角色、服務、信心與理由，必須由使用者確認後才執行既有 Pipeline。
+選取未知資料包後，M10 會提出節點、角色、服務、信心與理由，必須由使用者確認後才執行既有 Pipeline；系統不會自行取代 DBA 的最終判斷。
 
-> `main` 與 `m9.6` tag 是目前正式可回復版本；`m9.5` 保留為 Artifact lifecycle 前的 rollback 點，`m9.4` 保留為 Pipeline 結果持久化前的 rollback 點。
+> `main` 與 `m10` tag 是目前正式可回復版本；`m9.6` 保留為自動探索導入前的 rollback 點。M10 沒有新增 migration，回復不需 database downgrade。
 
 ## 目前可以做到什麼
 
@@ -191,7 +191,7 @@ OMNICHECK_DATA_ROOT=./data/jobs \
 - M9.4：EDB Application Data Foundation（正式完成）
 - M9.5：Pipeline 結果持久化（正式完成）
 - M9.6：完整 Artifact Registry／Retention／Archive（正式完成）
-- M10：自動探索節點與拓撲人工確認（功能分支驗證完成）
+- M10：自動探索節點與拓撲人工確認（正式完成）
 - M11～M12：登入／RBAC／隔離／稽核、歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
 - M14～M15：選配 AI Gateway 與正式 HA／VIP／TLS／Backup／Monitoring 強化

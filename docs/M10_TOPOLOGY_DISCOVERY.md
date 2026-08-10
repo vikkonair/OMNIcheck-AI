@@ -1,7 +1,7 @@
 # M10 自動探索與拓撲確認
 
 日期：2026-08-10  
-狀態：功能分支本機與實際客戶資料唯讀驗證通過；公司環境尚未部署
+狀態：正式完成；本機、使用者驗收、實際客戶資料與公司 `.77/.81` 部署驗證通過
 
 ## 目的
 
@@ -39,3 +39,7 @@ M10 位於 Job creation 與 M1 Inventory 之前。確認後仍使用原有 `JobC
 ## Rollback
 
 沒有 migration、套件或環境變數變更。Application 可切回 `m9.6`；既有 M9.6 案件與資料庫 schema 不需 downgrade。M10 建立的 `job.yaml` 多出 optional `topology_confirmation`，舊版本不應重新執行該案件，若要回復應建立新的 M9.6 設定。
+
+## 正式部署證據
+
+公司 App VM 已部署 release `6e8ee6e`，VM 78 tests 與 V4 manifest 通過。台灣行動支付實際資料經 Web、EDB Queue 與獨立 Worker 建立 Job `12c90aa3da354f1c83dbc42e6d57e118`，正確提出 5 個節點、唯一 Primary，完成 13 個 outputs，QA／V4 QA 通過且來源 manifest 不變。Web／Worker 重啟後 Job 與 outputs 仍可由 EDB 讀回；revision 維持 `0004_m9_6`。
