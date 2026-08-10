@@ -103,3 +103,50 @@ def test_topology_records_operator_confirmed_discovery() -> None:
         node["role_source"] == "operator_confirmed_discovery"
         for node in topology["nodes"]
     )
+
+
+def test_operator_mapping_assigns_legacy_database_output_to_primary(tmp_path: Path) -> None:
+    from omni_healthcheck.config import JobConfig
+
+    raw = load_job(FIXTURE / "job.yaml").model_dump(mode="json")
+    raw["evidence_mappings"] = [{
+        "path": "ENGDB_check.txt", "node": "db-primary", "domain": "database",
+    }]
+    job = JobConfig.model_validate(raw)
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "ENGDB_check.txt").write_text(
+        "資料庫訊息查看\ndb_ver | PostgreSQL 16.6\nList of databases\n"
+        "db-primary db-standby db-dr\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(input_dir, job)
+    item = build_scope_ledger(input_dir, inventory, job)["evidence"][0]
+
+    assert item["evidence_domain"] == "database"
+    assert item["node"] == "db-primary"
+    assert item["node_role"] == "Primary"
+    assert item["decision"] == "allowed"
+    assert item["resolution_sources"] == ["operator_confirmed_evidence_mapping"]
+
+
+def test_operator_mapping_cannot_bypass_primary_only_scope(tmp_path: Path) -> None:
+    from omni_healthcheck.config import JobConfig
+
+    raw = load_job(FIXTURE / "job.yaml").model_dump(mode="json")
+    raw["evidence_mappings"] = [{
+        "path": "legacy_check.txt", "node": "db-standby", "domain": "database",
+    }]
+    job = JobConfig.model_validate(raw)
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "legacy_check.txt").write_text(
+        "資料庫訊息查看\ndb_ver | PostgreSQL 16.6\nList of databases\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(input_dir, job)
+    item = build_scope_ledger(input_dir, inventory, job)["evidence"][0]
+
+    assert item["node_role"] == "Standby"
+    assert item["decision"] == "excluded"
+    assert item["reason"] == "database evidence belongs to Standby, not Primary"

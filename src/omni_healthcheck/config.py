@@ -107,6 +107,21 @@ class TopologyConfirmation(StrictModel):
         return self
 
 
+class EvidenceMapping(StrictModel):
+    path: str = Field(min_length=1)
+    node: str = Field(min_length=1)
+    domain: Literal["database"]
+    source: Literal["operator_confirmed"] = "operator_confirmed"
+
+    @field_validator("path")
+    @classmethod
+    def safe_relative_path(cls, value: str) -> str:
+        normalized = value.replace("\\", "/").strip("/")
+        if not normalized or ".." in normalized.split("/"):
+            raise ValueError("evidence mapping path must be a safe relative path")
+        return normalized
+
+
 class JobConfig(StrictModel):
     customer: str = Field(min_length=1)
     system_name: str | None = None
@@ -120,6 +135,7 @@ class JobConfig(StrictModel):
     report: ReportConfig
     ai: AIConfig
     topology_confirmation: TopologyConfirmation | None = None
+    evidence_mappings: list[EvidenceMapping] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def require_unique_nodes_and_primary(self) -> "JobConfig":
@@ -155,6 +171,13 @@ class JobConfig(StrictModel):
         if self.topology_confirmation:
             if not self.topology_confirmation.confirmed:
                 raise ValueError("topology_confirmation.confirmed must be true")
+        mapped_paths = [item.path.casefold() for item in self.evidence_mappings]
+        if len(mapped_paths) != len(set(mapped_paths)):
+            raise ValueError("evidence mapping paths must be unique")
+        configured = {node.hostname.casefold() for node in self.nodes}
+        for mapping in self.evidence_mappings:
+            if mapping.node.casefold() not in configured:
+                raise ValueError("evidence mapping node must reference a configured node")
         return self
 
 

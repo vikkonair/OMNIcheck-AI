@@ -122,6 +122,7 @@ INDEX_HTML = r"""<!doctype html>
         <button type="button" class="secondary" id="discoverTopology">分析節點架構</button>
       </div>
       <div class="topology-review" id="topologyReview">選擇資料後，系統會提出節點與角色候選。</div>
+      <div id="evidenceMappings"></div>
       <div class="actions">
         <label><input type="checkbox" id="topologyConfirmed" disabled>我已核對並確認上述節點架構</label>
       </div>
@@ -151,7 +152,7 @@ INDEX_HTML = r"""<!doctype html>
   </section>
 </main>
 <script>
-const state = { options:null, nodes:[{hostname:'', role:'Primary', services:[]}], files:[], jobId:null, discovery:null };
+const state = { options:null, nodes:[{hostname:'', role:'Primary', services:[]}], files:[], jobId:null, discovery:null, evidenceMappings:[] };
 const el = id => document.getElementById(id);
 
 function setMessage(text, kind='info') {
@@ -180,14 +181,15 @@ function renderNodes() {
     const head = document.createElement('div'); head.className = 'node-head';
     const hostLabel = document.createElement('label'); hostLabel.textContent = `節點主機名稱 ${index + 1} *`;
     const host = document.createElement('input'); host.required = true; host.placeholder = '例如：db-primary'; host.value = node.hostname;
-    host.addEventListener('input', () => node.hostname = host.value); hostLabel.append(host);
+    host.addEventListener('input', () => { const previous=node.hostname; node.hostname=host.value; state.evidenceMappings.filter(item => item.node===previous).forEach(item => item.node=node.hostname); });
+    host.addEventListener('change', () => renderEvidenceMappings()); hostLabel.append(host);
     const roleLabel = document.createElement('label'); roleLabel.textContent = '角色 *';
     const role = document.createElement('select');
     (state.options?.roles || ['Primary','Standby','DR','Witness']).forEach(value => {
       const option = document.createElement('option'); option.value = value; option.textContent = value;
       option.selected = value === node.role; role.append(option);
     });
-    role.addEventListener('change', () => { node.role = role.value; node.services = node.services.filter(service => serviceAllowed(service, node.role)); renderNodes(); });
+    role.addEventListener('change', () => { node.role = role.value; node.services = node.services.filter(service => serviceAllowed(service, node.role)); renderNodes(); renderEvidenceMappings(); });
     roleLabel.append(role);
     const remove = document.createElement('button'); remove.type='button'; remove.className='danger'; remove.textContent='移除';
     remove.disabled = state.nodes.length === 1; remove.addEventListener('click', () => { state.nodes.splice(index,1); renderNodes(); });
@@ -203,6 +205,20 @@ function renderNodes() {
     row.append(services); root.append(row);
   });
 }
+function renderEvidenceMappings() {
+  const root=el('evidenceMappings'); root.replaceChildren();
+  if (!state.evidenceMappings.length) return;
+  const title=document.createElement('h3'); title.textContent='Database Output 來源確認'; root.append(title);
+  const note=document.createElement('p'); note.className='muted'; note.textContent='系統已辨識資料庫輸出格式，但無法只靠內容確認來源主機。請指定實際執行健檢 SQL 的節點。'; root.append(note);
+  state.evidenceMappings.forEach(mapping => {
+    const row=document.createElement('div'); row.className='node-head';
+    const path=document.createElement('div'); path.textContent=mapping.path;
+    const label=document.createElement('label'); label.textContent='來源節點 *';
+    const select=document.createElement('select');
+    state.nodes.forEach(node => { const option=document.createElement('option'); option.value=node.hostname; option.textContent=`${node.hostname}（${node.role}）`; option.selected=node.hostname===mapping.node; select.append(option); });
+    select.addEventListener('change',()=>mapping.node=select.value); label.append(select); row.append(path,label); root.append(row);
+  });
+}
 function serviceAllowed(name, role) {
   const service = state.options?.services.find(item => item.name === name);
   return !service || service.allowed_roles.length === 0 || service.allowed_roles.includes(role);
@@ -214,7 +230,7 @@ function selectedPath(file) {
 }
 function updateFiles(files) {
   state.files = Array.from(files).filter(file => file.size >= 0 && file.name !== '.DS_Store');
-  state.discovery=null; el('topologyConfirmed').checked=false; el('topologyConfirmed').disabled=true;
+  state.discovery=null; state.evidenceMappings=[]; renderEvidenceMappings(); el('topologyConfirmed').checked=false; el('topologyConfirmed').disabled=true;
   if (!state.files.length) { el('fileSummary').textContent='尚未選擇資料'; return; }
   const bytes = state.files.reduce((sum,file) => sum + file.size, 0);
   el('fileSummary').textContent = `已選擇 ${state.files.length} 個檔案，共 ${(bytes/1024/1024).toFixed(2)} MB`;
@@ -242,6 +258,7 @@ function buildConfig() {
       suggested_role:node.suggested_role,confidence:node.confidence,
       role_evidence:node.role_evidence,conflicts:node.conflicts}))};
   if (backupCandidates.length === 1) config.backup=backupCandidates[0];
+  if (state.evidenceMappings.length) config.evidence_mappings=state.evidenceMappings.map(item => ({path:item.path,node:item.node,domain:'database',source:'operator_confirmed'}));
   return config;
 }
 async function discoverTopology() {
@@ -260,7 +277,8 @@ async function discoverTopology() {
     state.nodes=result.nodes.map(node => ({hostname:node.hostname,
       role:node.suggested_role === 'Unknown' ? 'Standby' : node.suggested_role,
       services:node.services.filter(service => serviceAllowed(service,node.suggested_role))}));
-    renderNodes(); el('step2').classList.add('active'); el('topologyConfirmed').disabled=false;
+    state.evidenceMappings=(result.evidence_candidates || []).map(item => ({path:item.path,node:item.suggested_node || state.nodes.find(node => node.role==='Primary')?.hostname || ''}));
+    renderNodes(); renderEvidenceMappings(); el('step2').classList.add('active'); el('topologyConfirmed').disabled=false;
     const details=result.nodes.map(node => `${node.hostname} → ${node.suggested_role}（${node.confidence}）${node.services.length ? `；${node.services.join('、')}` : ''}`).join('\n');
     const warnings=result.warnings.length ? `\n注意：${result.warnings.join('；')}` : '';
     el('topologyReview').textContent=`找到 ${result.summary.node_count} 台節點：\n${details}${warnings}\n請核對上方節點角色後勾選確認。`;

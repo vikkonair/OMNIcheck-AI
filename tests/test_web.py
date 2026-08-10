@@ -121,6 +121,8 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert "id=\"nodes\"" in page.text
     assert "分析節點架構" in page.text
     assert "topologyConfirmed" in page.text
+    assert "Database Output 來源確認" in page.text
+    assert "evidence_mappings" in page.text
     assert "textarea" not in page.text
 
     options = client.get("/api/config-options")
