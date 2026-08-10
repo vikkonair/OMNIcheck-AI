@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.9.6
+文件版本：0.10.0-draft.1
 最後更新：2026-08-10
-適用程式基準：`main` / `m9.6`
+適用程式基準：`feature/m10-topology-discovery`；正式基準仍為 `main` / `m9.6`
 正式可回復基準：`m9.6`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.10.0-draft.1 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源與 Web gate | 本機 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash 通過；公司環境待驗證 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
 | 0.9.6-draft.1 | 2026-08-05 | Artifact version、derivation、event、Retention 與 copy-verify archive | 本機 74 tests、offline migration 與實際資料唯讀驗證通過；公司 EDB 待驗證 |
 | 0.9.5 | 2026-08-05 | M9.5 公司 EDB deployment、Scoped Golden Persistence 與正式回復點 | Backup/hash、VM 70 tests、`0003_m9_5`、冪等、restart persistence 與 health 通過 |
@@ -70,7 +71,8 @@
 | M9.4 | 正式完成 | Customer／System／Node／Topology／Evidence／Artifact、tenant key、公司部署與 live Queue 驗收 |
 | M9.5 | 正式完成 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等 EDB 投影與公司部署 |
 | M9.6 | 正式完成 | Artifact version、derivation、events、Retention、copy-verify archive 與公司部署 |
-| M10～M15 | 已核准、待實作 | 拓撲確認、權限、歷史、CVE、選配 AI 與生產強化 |
+| M10 | 功能分支驗證完成 | 未知資料包的確定性節點／角色／服務候選、人工確認與 fail-closed gate |
+| M11～M15 | 已核准、待實作 | 權限、歷史、CVE、選配 AI 與生產強化 |
 
 `main`／`m9.6` 是目前正式可回復版本；`m9.5` 保留為 Artifact lifecycle 前的 application rollback 點，`m9.4` 保留為 Persistence 前的 rollback 點。正式重建應 checkout `m9.6`，不得部署 floating branch HEAD。
 
@@ -578,7 +580,9 @@ CLI 直接執行 M1～M8.1，不需要 EDB metadata。
 
 ### 12.3 Web + EDB + Worker（M9.3）
 
-使用者開啟 `http://<APP_VM>:8000/`，建立案件、設定節點、上傳資料夾、執行、等待 Worker，再下載輸出。Primary／Standby／DR／Witness 仍由使用者確認；目前不是完全未知資料包的自動角色決策器。
+使用者開啟 `http://<APP_VM>:8000/`，選取資料夾後由 M10 確定性 Discovery 提出 hostname、Primary／Standby／DR／Witness、服務、信心與理由。使用者必須核對並勾選確認，系統才建立案件、上傳不可覆寫資料、交由 Worker 執行並提供下載。Discovery 不取代 DBA 決策；Primary 候選不唯一、未知或衝突時必須人工修正。
+
+Discovery API 只取文字檔前 512 KiB 作樣本；圖片不解析內容。確認紀錄保存在 `job.yaml.topology_confirmation`，`topology.json` 會標記 `operator_confirmed_discovery`。此功能不新增 migration、package 或環境變數；回復至 `m9.6` 不需 database downgrade。
 
 ## 13. 驗證與驗收
 
@@ -879,11 +883,12 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M9.4 已正式化並部署公司 `.77/.81`：部署 release `9dc7d76`、Alembic `0002_m9_4`、Web／Worker active、Golden Job `cf384056cf7045878f12341324cb1852` succeeded。完整 restore／downgrade drill 尚待安排。
 - M9.5 已部署公司 `.77/.81`：release `916adff`、Alembic `0003_m9_5`、70 tests、Scoped Golden Persistence、冪等與服務重啟均通過。
 - M9.6 已部署公司 `.77/.81`：release `2fc2ce7`、Alembic `0004_m9_6`、74 tests、Scoped Artifact E2E、Archive dry-run、冪等與服務重啟均通過。
+- M10 功能分支本機通過 78 tests；台灣行動支付 13 檔自動提出 5 節點與唯一 Primary，人工確認 gate、13 outputs、QA 8/8、V4 QA、DOCX/PDF 與來源 hash 通過。公司環境尚未部署。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
 - 正式 TLS/VIP、EFM failover、reverse proxy、登入／RBAC 尚未完成。
-- 完全未知資料包尚不能自動決定節點角色，仍需使用者確認。
+- M10 可對標準搜集包提出角色候選；非標準檔名、缺少 EFM／OS 訊號或衝突時仍需使用者指定，且所有案件都必須人工確認。
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
 - 歷史比較、CVE cache、可選 AI gateway 尚未實作。
@@ -900,6 +905,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M9.4：`docs/M9_4_APPLICATION_DATA_FOUNDATION.md`、`docs/M9_4_VALIDATION.md`
 - M9.5：`docs/M9_5_PIPELINE_RESULT_PERSISTENCE.md`、`docs/M9_5_VALIDATION.md`
 - M9.6：`docs/M9_6_ARTIFACT_LIFECYCLE.md`、`docs/M9_6_VALIDATION.md`
+- M10：`docs/M10_TOPOLOGY_DISCOVERY.md`、`docs/M10_VALIDATION.md`
 - M9.4～M15 架構決策：`docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md`
 
 ## 附錄 B：交付驗收簽核表

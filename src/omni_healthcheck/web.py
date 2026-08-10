@@ -17,6 +17,7 @@ from omni_healthcheck.job_store import (
     UnsafeUploadPathError,
 )
 from omni_healthcheck.services import SERVICE_REGISTRY
+from omni_healthcheck.topology_discovery import DiscoveryEvidence, discover_topology
 from omni_healthcheck.web_ui import INDEX_HTML
 
 
@@ -107,6 +108,22 @@ def create_app(
     @app.post("/api/jobs", status_code=201)
     def create_job(config: JobConfig) -> dict:
         return store.create(config)
+
+    @app.post("/api/topology/discover")
+    def discover_uploaded_topology(files: list[UploadFile] = File(...)) -> dict:
+        items = []
+        for upload in files:
+            filename = upload.filename or ""
+            try:
+                JobStore.safe_relative_path(filename)
+            except UnsafeUploadPathError as exc:
+                raise HTTPException(status_code=400, detail="unsafe upload path") from exc
+            # Discovery samples text only. The immutable full upload still happens
+            # once, after the operator confirms the proposed topology.
+            items.append(
+                DiscoveryEvidence(path=filename, content=upload.file.read(512 * 1024))
+            )
+        return discover_topology(items)
 
     @app.get("/api/jobs")
     def list_jobs() -> list[dict]:

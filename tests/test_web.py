@@ -119,6 +119,8 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert "建立案件並開始健檢" in page.text
     assert "webkitdirectory" in page.text
     assert "id=\"nodes\"" in page.text
+    assert "分析節點架構" in page.text
+    assert "topologyConfirmed" in page.text
     assert "textarea" not in page.text
 
     options = client.get("/api/config-options")
@@ -129,3 +131,40 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert {"PEM", "EFM", "XDB", "pgBackRest", "Barman"} <= services.keys()
     assert services["PEM"]["allowed_roles"] == ["Witness"]
     assert services["XDB"]["allowed_roles"] == ["Witness"]
+
+
+def test_web_discovers_topology_without_persisting_samples(tmp_path: Path) -> None:
+    jobs = tmp_path / "jobs"
+    client = TestClient(create_app(data_root=jobs))
+
+    response = client.post(
+        "/api/topology/discover",
+        files=[
+            (
+                "files",
+                (
+                    "os/HealthChekOS-LOG-db01-20260616.txt",
+                    b"db.user=efm\nbind.address=efm1-primary:7800",
+                    "text/plain",
+                ),
+            ),
+            (
+                "files",
+                (
+                    "os/HealthChekOS-LOG-db02-20260616.txt",
+                    b"db.user=efm\nbind.address=efm2-standby:7800",
+                    "text/plain",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["confirmation_required"] is True
+    assert body["can_confirm"] is True
+    assert [node["suggested_role"] for node in body["nodes"]] == [
+        "Primary",
+        "Standby",
+    ]
+    assert list(jobs.iterdir()) == []
