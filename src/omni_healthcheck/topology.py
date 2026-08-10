@@ -231,19 +231,24 @@ def scope_decision(domain: str, resolution: NodeResolution) -> tuple[str, str]:
 
 def build_topology(job: JobConfig) -> dict:
     primary = next(node for node in job.nodes if node.role == "Primary")
+    confirmation_source = (
+        "operator_confirmed_discovery"
+        if job.topology_confirmation
+        else "job_config"
+    )
     return {
         "schema_version": "1.0",
         "primary": {
             "hostname": primary.hostname,
             "confirmed": True,
-            "confirmation_source": "job_config",
+            "confirmation_source": confirmation_source,
         },
         "nodes": [
             {
                 "hostname": node.hostname,
                 "role": node.role,
                 "services": node.services,
-                "role_source": "job_config",
+                "role_source": confirmation_source,
                 "os_evidence_allowed": True,
                 "target_database_evidence_allowed": node.role == "Primary",
             }

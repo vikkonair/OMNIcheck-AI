@@ -71,3 +71,35 @@ def test_unresolved_monitoring_image_defaults_to_primary(tmp_path: Path) -> None
         "policy.monitoring_images_default_to_primary"
     ]
     assert item["decision"] == "allowed"
+
+
+def test_topology_records_operator_confirmed_discovery() -> None:
+    job = load_job(FIXTURE / "job.yaml")
+    raw = job.model_dump(mode="json")
+    raw["topology_confirmation"] = {
+        "source": "deterministic_discovery",
+        "confirmed": True,
+        "discovery_schema_version": "1.0",
+        "nodes": [
+            {
+                "hostname": node["hostname"],
+                "suggested_role": node["role"],
+                "confidence": "high",
+                "role_evidence": [],
+                "conflicts": [],
+            }
+            for node in raw["nodes"]
+        ],
+    }
+    raw["topology_confirmation"]["nodes"][0]["suggested_role"] = "Unknown"
+    from omni_healthcheck.config import JobConfig
+
+    topology = build_topology(JobConfig.model_validate(raw))
+
+    assert topology["primary"]["confirmation_source"] == (
+        "operator_confirmed_discovery"
+    )
+    assert all(
+        node["role_source"] == "operator_confirmed_discovery"
+        for node in topology["nodes"]
+    )

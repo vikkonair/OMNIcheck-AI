@@ -49,6 +49,8 @@ INDEX_HTML = r"""<!doctype html>
     .drop:hover { border-color:var(--brand); }
     .drop input { position:absolute; width:1px; height:1px; opacity:0; }
     .summary { margin-top:12px; padding:11px 13px; border-radius:7px; background:#edf5f7; }
+    .topology-review { margin-top:14px; padding:14px; border:1px solid var(--line);
+      border-radius:8px; background:#f9fbfc; white-space:pre-line; line-height:1.55; }
     .message { display:none; margin-top:14px; padding:11px 13px; border-radius:7px; white-space:pre-wrap; }
     .message.show { display:block; }
     .message.info { background:#edf5f7; }
@@ -117,6 +119,13 @@ INDEX_HTML = r"""<!doctype html>
       </label>
       <div class="summary" id="fileSummary">尚未選擇資料</div>
       <div class="actions">
+        <button type="button" class="secondary" id="discoverTopology">分析節點架構</button>
+      </div>
+      <div class="topology-review" id="topologyReview">選擇資料後，系統會提出節點與角色候選。</div>
+      <div class="actions">
+        <label><input type="checkbox" id="topologyConfirmed" disabled>我已核對並確認上述節點架構</label>
+      </div>
+      <div class="actions">
         <label><input type="checkbox" id="docx" checked>產生 DOCX</label>
         <label><input type="checkbox" id="pdf" checked>產生 PDF</label>
       </div>
@@ -142,7 +151,7 @@ INDEX_HTML = r"""<!doctype html>
   </section>
 </main>
 <script>
-const state = { options:null, nodes:[{hostname:'', role:'Primary', services:[]}], files:[], jobId:null };
+const state = { options:null, nodes:[{hostname:'', role:'Primary', services:[]}], files:[], jobId:null, discovery:null };
 const el = id => document.getElementById(id);
 
 function setMessage(text, kind='info') {
@@ -205,12 +214,15 @@ function selectedPath(file) {
 }
 function updateFiles(files) {
   state.files = Array.from(files).filter(file => file.size >= 0 && file.name !== '.DS_Store');
+  state.discovery=null; el('topologyConfirmed').checked=false; el('topologyConfirmed').disabled=true;
   if (!state.files.length) { el('fileSummary').textContent='尚未選擇資料'; return; }
   const bytes = state.files.reduce((sum,file) => sum + file.size, 0);
   el('fileSummary').textContent = `已選擇 ${state.files.length} 個檔案，共 ${(bytes/1024/1024).toFixed(2)} MB`;
   el('step3').classList.add('active');
+  discoverTopology();
 }
 function buildConfig() {
+  if (!state.discovery || !el('topologyConfirmed').checked) throw new Error('請先分析資料並確認節點架構。');
   const nodes=state.nodes.map(node => ({...node, hostname:node.hostname.trim()}));
   const backupCandidates=nodes.flatMap(node => node.services
     .filter(service => service === 'pgBackRest' || service === 'Barman')
@@ -224,8 +236,36 @@ function buildConfig() {
     report:{template:'omni-v4', output_docx:el('docx').checked, output_pdf:el('pdf').checked},
     ai:{enabled:false, provider:'disabled'}
   };
+  config.topology_confirmation={source:'deterministic_discovery',confirmed:true,
+    discovery_schema_version:state.discovery.schema_version,
+    nodes:state.discovery.nodes.map(node => ({hostname:node.hostname,
+      suggested_role:node.suggested_role,confidence:node.confidence,
+      role_evidence:node.role_evidence,conflicts:node.conflicts}))};
   if (backupCandidates.length === 1) config.backup=backupCandidates[0];
   return config;
+}
+async function discoverTopology() {
+  if (!state.files.length) { setMessage('請先選擇整包健檢資料。','error'); return; }
+  const button=el('discoverTopology'); button.disabled=true;
+  el('topologyReview').textContent='正在分析檔名、OS、EFM、PEM 與備份服務訊號…';
+  el('topologyConfirmed').checked=false; el('topologyConfirmed').disabled=true;
+  try {
+    const form=new FormData(); const textExtensions=new Set(['txt','log','out','sql','csv','tsv','conf']);
+    state.files.forEach(file => {
+      const extension=file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+      const sample=textExtensions.has(extension) ? file.slice(0,512*1024) : new Blob([]);
+      form.append('files',sample,selectedPath(file));
+    });
+    const result=await api('/api/topology/discover',{method:'POST',body:form}); state.discovery=result;
+    state.nodes=result.nodes.map(node => ({hostname:node.hostname,
+      role:node.suggested_role === 'Unknown' ? 'Standby' : node.suggested_role,
+      services:node.services.filter(service => serviceAllowed(service,node.suggested_role))}));
+    renderNodes(); el('step2').classList.add('active'); el('topologyConfirmed').disabled=false;
+    const details=result.nodes.map(node => `${node.hostname} → ${node.suggested_role}（${node.confidence}）${node.services.length ? `；${node.services.join('、')}` : ''}`).join('\n');
+    const warnings=result.warnings.length ? `\n注意：${result.warnings.join('；')}` : '';
+    el('topologyReview').textContent=`找到 ${result.summary.node_count} 台節點：\n${details}${warnings}\n請核對上方節點角色後勾選確認。`;
+  } catch(error) { state.discovery=null; el('topologyReview').textContent=`分析失敗：${error.message}`; setMessage(error.message,'error'); }
+  finally { button.disabled=false; }
 }
 async function uploadFiles(jobId) {
   const chunkSize = 50;
@@ -286,6 +326,7 @@ async function refreshJobs() {
 }
 
 el('addNode').addEventListener('click', () => { state.nodes.push({hostname:'',role:'Standby',services:[]}); renderNodes(); el('step2').classList.add('active'); });
+el('discoverTopology').addEventListener('click', discoverTopology);
 el('folderInput').addEventListener('change', event => updateFiles(event.target.files));
 el('dropZone').addEventListener('dragover', event => event.preventDefault());
 el('dropZone').addEventListener('drop', event => { event.preventDefault(); if (event.dataTransfer.files.length) updateFiles(event.dataTransfer.files); });

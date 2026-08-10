@@ -80,6 +80,33 @@ class AIConfig(StrictModel):
         return self
 
 
+class TopologyRoleEvidence(StrictModel):
+    role: Literal["Primary", "Standby", "DR", "Witness"]
+    reason: str = Field(min_length=1)
+
+
+class TopologyDiscoveryNode(StrictModel):
+    hostname: str = Field(min_length=1)
+    suggested_role: Literal["Primary", "Standby", "DR", "Witness", "Unknown"]
+    confidence: Literal["high", "medium", "low", "conflict"]
+    role_evidence: list[TopologyRoleEvidence] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
+
+
+class TopologyConfirmation(StrictModel):
+    source: Literal["deterministic_discovery"]
+    confirmed: bool
+    discovery_schema_version: str = Field(min_length=1)
+    nodes: list[TopologyDiscoveryNode] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def discovered_hostnames_are_unique(self) -> "TopologyConfirmation":
+        hostnames = [node.hostname.casefold() for node in self.nodes]
+        if len(hostnames) != len(set(hostnames)):
+            raise ValueError("topology discovery hostnames must be unique")
+        return self
+
+
 class JobConfig(StrictModel):
     customer: str = Field(min_length=1)
     system_name: str | None = None
@@ -92,6 +119,7 @@ class JobConfig(StrictModel):
     scope: ScopeConfig
     report: ReportConfig
     ai: AIConfig
+    topology_confirmation: TopologyConfirmation | None = None
 
     @model_validator(mode="after")
     def require_unique_nodes_and_primary(self) -> "JobConfig":
@@ -124,6 +152,9 @@ class JobConfig(StrictModel):
             raise ValueError("scope.include_os_from_all_nodes must be true")
         if not self.scope.database_primary_only:
             raise ValueError("scope.database_primary_only must be true")
+        if self.topology_confirmation:
+            if not self.topology_confirmation.confirmed:
+                raise ValueError("topology_confirmation.confirmed must be true")
         return self
 
 

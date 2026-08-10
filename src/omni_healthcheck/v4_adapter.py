@@ -179,16 +179,21 @@ def _environment_nodes(model: ReportModel) -> list[dict[str, Any]]:
     result = []
     for node in model.nodes:
         host_values = values.get(node["hostname"], {})
+        services = list(node.get("services") or [])
+        if node["role"] in {"Primary", "Standby", "DR"}:
+            database = PRODUCT_NAMES.get(model.product, model.product)
+        elif any(service.casefold() == "pem" for service in services):
+            # PEM Server requires its own backend database. It is infrastructure
+            # inventory only and must never enter the target Primary-only scope.
+            database = "PostgreSQL"
+        else:
+            database = ""
         result.append(
             {
                 "hostname": node["hostname"],
                 "role": node["role"],
                 "os": host_values.get("作業系統", ""),
-                "database": (
-                    PRODUCT_NAMES.get(model.product, model.product)
-                    if node["role"] == "Primary"
-                    else ""
-                ),
+                "database": database,
                 "cpu": (
                     f"{host_values['CPU Core 數']} cores"
                     if host_values.get("CPU Core 數")
@@ -196,7 +201,7 @@ def _environment_nodes(model: ReportModel) -> list[dict[str, Any]]:
                 ),
                 "ram": host_values.get("記憶體", ""),
                 "service_ip": "",
-                "components": list(node.get("services") or []),
+                "components": services,
             }
         )
     return result
