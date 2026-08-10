@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10
-目前開發進度：M11 登入／RBAC／客戶隔離／Audit 功能分支實作中；本機基礎驗證通過，公司環境待驗證
+目前開發進度：M11 功能分支已部署公司 VM 並升至 `0005_m11`；待建立管理員、啟用 Auth、逐角色與實際資料驗收
 
 ## 1. 文件目的
 
@@ -433,7 +433,7 @@ Rollback：application 可直接切回 `m9.6`，不需 Alembic downgrade。詳�
 
 目前內容：`0005_m11` additive migration 新增 User、Customer membership、Session 與 Audit；PBKDF2 password hash、HttpOnly Session、platform admin／engineer／reviewer／viewer、跨 Customer API enforcement、legacy Job admin-only、登入／登出／建案／上傳／執行／下載 Audit，以及互動式帳號 CLI。Web 正式模式會先登入並選取授權 Customer／System。
 
-目前驗證：Auth/Web targeted tests、完整回歸、PostgreSQL offline upgrade/downgrade SQL 與安全 header 通過。公司 EDB migration、帳號 bootstrap、各角色瀏覽器驗收及實際客戶資料 E2E 尚未執行。
+目前驗證：Auth/Web targeted 14 tests、完整回歸 87 tests、V4 manifest、PostgreSQL offline SQL 與安全 header 通過。公司 release `d93da78` 已部署、備份 hash 已確認、EDB 升至 `0005_m11`，四張 M11 tables、Web／Worker 與 health 通過；帳號 bootstrap、各角色瀏覽器驗收及實際客戶資料 E2E 尚未執行。
 
 Rollback：application 可切回 `m10` 並保留 additive schema；`0005_m11 → 0004_m9_6` 會刪除身份與 Audit 資料，必須備份並另行核准。詳細文件：`docs/M11_AUTH_RBAC_AUDIT.md`、`docs/M11_VALIDATION.md`。
 
