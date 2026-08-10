@@ -1,6 +1,6 @@
 # OMNIcheck AI：EDB 中心化與 CVE 自動化架構決策
 
-狀態：已核准；M9.5 正式完成，M9.6 功能分支本機與實際資料驗證完成，M10～M15 待分階段實作
+狀態：已核准；M9.6 正式完成並通過公司 EPAS deployment，M10～M15 待分階段實作
 決策日期：2026-08-05  
 適用範圍：M9.4～M15  
 前置基準：M1～M8.1 Pipeline 與 M9.3 Web／EDB Queue／Worker
@@ -120,7 +120,7 @@ Pipeline 完成
 
 ## 6. EDB 資料領域
 
-M9.4 foundation 已確認實體 table；M9.5 Pipeline result tables 已由 `0003_m9_5` 完成公司 EDB 驗收，M9.6 的完整 Artifact lifecycle table／constraint／index 仍待設計確認。
+M9.4 foundation、M9.5 Pipeline result tables 與 M9.6 Artifact lifecycle tables 已分別由 `0002_m9_4`、`0003_m9_5`、`0004_m9_6` 完成公司 EDB 驗收。
 
 ### 6.1 M9.4 Application Data Foundation
 
@@ -131,7 +131,7 @@ M9.4 foundation 已確認實體 table；M9.5 Pipeline result tables 已由 `0003
 - Evidence File：storage key、SHA-256、大小、media type、來源與節點映射。
 - Artifact：Canonical JSON、QA JSON、DOCX、PDF 等輸出索引。
 
-M9.4 已實作 `customers`、`systems`、`nodes`、`topology_relations`、`evidence_files`、`artifacts`，並為 `jobs` 增加 nullable tenant scope。Evidence／Artifact 目前是安全 storage metadata 基礎；衍生關係、Retention／Archive workflow 仍屬 M9.6。
+M9.4 已實作 `customers`、`systems`、`nodes`、`topology_relations`、`evidence_files`、`artifacts`，並為 `jobs` 增加 nullable tenant scope。M9.6 已補齊 Artifact 版本、衍生關係、事件、Retention 與 Archive workflow。
 
 `customer_id`／tenant key 必須從 M9.4 就存在於所有核心資料，不能等到 M11 才補；M11 再加入登入、政策與 Row-Level／application-level access control。
 
