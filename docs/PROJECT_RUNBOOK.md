@@ -2,8 +2,8 @@
 
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
-目前正式版本：M10
-目前開發進度：M10.1 舊格式 Database Output 分類與來源確認已完成程式及實際 ENGDB 驗證，待公司 Web 驗收；正式 rollback 基準仍為 M10
+目前正式版本：M10.1
+目前開發進度：M10.1 已通過公司 Web 使用者驗收；下一步為 M10.2 既有前端 App 的 API 整合
 
 ## 1. 文件目的
 
@@ -65,7 +65,9 @@ M9.5 Pipeline 結果 Persistence Adapter（正式完成）；M9.6 Artifact Regis
         ↓
 M10 Deterministic Discovery + Operator Confirmation（正式完成）
         ↓
-M11～M15 權限隔離、歷史、CVE、選配 AI、生產強化（已排定／待實作）
+M10.1 Legacy Database Output Classification（正式完成）
+        ↓
+M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama、生產強化
 ```
 
 正式 M8.1 可以完全使用 CLI。M9 未設定 `OMNICHECK_DATABASE_URL` 時使用 filesystem metadata 與 Web 同程序背景工作；設定後使用 EDB metadata 與獨立 Worker。
@@ -94,10 +96,10 @@ M11～M15 權限隔離、歷史、CVE、選配 AI、生產強化（已排定／�
 | M9.4 | 正式完成 | `m9.4` | 是；DB downgrade 需另行核准 | Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
 | M9.5 | 正式完成 | `m9.5` | 可回到 `m9.4` application；DB downgrade 需另行核准 | Scope／Normalized／Config／Assessment／Coverage／QA 冪等投影與公司部署 |
 | M9.6 | 正式完成 | `m9.6` | 可回到 `m9.5` application；DB downgrade 需另行核准 | Artifact 版本、衍生關係、事件、Retention、Archive 與公司部署 |
-| M10 | 正式完成、目前 main | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
-| M10.1 | 功能分支完成、待驗收 | `71173de` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
+| M10 | 正式完成 | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
+| M10.1 | 正式完成、目前 main | `m10.1` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
 
-目前 `main` 與 `m10` 是正式可回復基準；`m9.6` 保留為 M10 自動探索前的 application rollback 點，`m9.5` 與 `m9.4` 繼續保留較早期 rollback 點。
+目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
 ## 5. 各 Milestone 手順與成果
 
@@ -522,21 +524,18 @@ git switch feature/m9-web-job-management
 
 ## 10. 後續方向
 
-後續架構已由 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；下列項目尚未實作或建立正式 tag：
+後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |
 |---|---|---|
-| M9.3 正式化 | 完成目前公司部署 | SCRAM／pgpass、實際客戶資料唯讀 E2E、測試、merge `main`、`m9.3` tag |
-| M9.4 | EDB Application Data Foundation | Additive migration；Customer／System／Node／Topology／Evidence／Artifact 與 tenant key |
-| M9.5 | Pipeline Result Persistence | Pipeline 後加冪等 Persistence Adapter；保存 Scope／Normalized／Assessment／Coverage／QA，可由 Canonical JSON 重建 |
-| M9.6 | Artifact Registry／Retention／Archive | `storage_backend + storage_key`、hash、版本關係、保留與封存 Worker |
-| M10 | 自動探索與拓撲確認 | Parser evidence 產生角色建議與信心，使用者確認後才進正式 Pipeline |
-| M11 | Login／RBAC／客戶隔離／Audit | 身份提供者、角色政策、tenant enforcement、稽核事件 |
+| M10.2 | 前端整合 API | REST／OpenAPI、統一狀態與錯誤、CORS、分批上傳、polling、下載及整合測試 |
+| M10.3 | Section API 與審核 | 規則原文、固定模板、AI 草稿、人工修改／核准、版本與稽核紀錄 |
+| M11 | 選配 Login／RBAC／客戶隔離／Audit | 現階段維持內網單一模式；需要時再加入 token、身份提供者、tenant enforcement 與稽核事件 |
 | M12 | 歷史比較 | 依 customer／system／period 比較 normalized checks 與 assessment，產生趨勢 |
 | M13.1 | CVE／Release Sync 與 Cache | 固定官方來源、排程 Worker、來源快照、freshness policy |
 | M13.2 | Version Parser／Matcher | 確定性 product/version range、EDB backport、component 條件與 match reason |
 | M13.3 | CVE V4 Section／Quality Gate | 環球晶圓方向版面、stale data 警告／阻擋、逐頁 QA |
-| M14 | 選配 AI Gateway | 遮蔽後翻譯、摘要、觀察建議初稿與問答；完整 prompt/model/approval audit |
+| M14 | Ollama AI Gateway | 遮蔽後翻譯、摘要、觀察建議初稿與問答；完整 prompt/model/approval audit；AI 失敗時固定模板 fallback |
 | M15 | 生產強化 | EFM／VIP、TLS `verify-full`、backup/restore、監控與故障演練 |
 
-實際 Barman wrapper fixtures 仍待提供，但不阻擋 M9.3 正式化與 M9.4。未來每一階段都必須記錄範圍、migration、驗證、commit、tag、資料 rollback／forward-fix 與已知限制。
+實際 Barman wrapper fixtures 仍待提供，但不阻擋 M10.2。未來每一階段都必須記錄範圍、migration、驗證、commit、tag、資料 rollback／forward-fix 與已知限制。
