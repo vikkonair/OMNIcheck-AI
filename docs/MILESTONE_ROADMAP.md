@@ -2,7 +2,7 @@
 
 最後更新：2026-08-11
 
-目前執行：M10.3.2 EDB Section persistence 與審核 API。M10.2 已完成使用者驗收並合併主線；既有 Pipeline 不更換。
+目前狀態：M10.3.2 已完成公司 EDB／Web／Worker E2E；下一階段可開始 Ollama Gateway Adapter，但尚未啟用 AI。既有 Pipeline 不更換。
 
 ## 固定基礎
 
@@ -14,7 +14,7 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 |---|---|---|
 | M10.2 | 完成、已合併主線 | 同仁整合式 UI 接上既有 API；保留 `/classic` fallback；Login、Knowledge/CVE、GPDB 隔離 |
 | M10.3.1 | 完成 | 版本化 Section JSON、規則原文、AI 草稿、人工審查／核准狀態與 fail-closed 選文 |
-| M10.3.2 | 程式完成、待公司 E2E | 相容 0005～0007 migration chain；EDB current state＋append-only revisions；Section review／approval API；approved-only Renderer |
+| M10.3.2 | 完成、公司 E2E 通過 | 相容 0005～0007 migration chain；EDB current state＋append-only revisions；Section review／approval API；approved-only Renderer |
 | M11 | 選配身份與權限 | 預設內網單一使用模式；需要時再加入 API token、登入、RBAC、客戶隔離與 Audit |
 | M12 | 歷史健檢比較 | 同客戶／系統跨期差異、改善／惡化、拓撲與設定變化、歷史摘要資料 |
 | M13.1 | 官方 CVE／Release Sync | 固定官方來源、排程同步、EDB Cache、來源快照與 stale policy |

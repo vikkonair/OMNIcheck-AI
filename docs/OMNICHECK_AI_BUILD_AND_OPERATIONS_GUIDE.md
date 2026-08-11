@@ -29,7 +29,7 @@
 | 0.10.3-draft.3 | 2026-08-11 | 修正無 Primary 時 Database Output 誤顯示 DR、人工修正後重新開放確認 | 本機 88 tests、公司 VM targeted 11 tests、health／UI marker／per-release process 通過；rollback `a0582a0` |
 | 0.10.3-draft.2 | 2026-08-11 | 同仁 UI Adapter 公司候選部署、per-release venv、systemd release isolation、deploy lock／owner | 公司 release `a0582a0` 87 tests；Golden Web → EDB Queue → Worker → V4、QA、重啟持久性通過；待使用者驗收 |
 | 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 本機／公司 VM 85 tests；台灣行動支付 14 檔／19 sections、公司 ENGDB 3 檔／9 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待使用者驗收 |
-| 0.10.3-draft.2 | 2026-08-11 | 0007 schema reconciliation、EDB Section current/revision persistence、review/approval API、approved-only Renderer | 本機 97 tests；Alembic 單一 head `0008_m10_3_sections`；Golden approved overlay、QA/V4 QA 通過；待公司 migration/E2E |
+| 0.10.3-draft.2 | 2026-08-11 | 0007 schema reconciliation、EDB Section current/revision persistence、review/approval API、approved-only Renderer | 本機／公司 97 tests；公司 0008 migration、Job `774499b66693455eb16d14f04a5fd687` approved-only E2E 通過 |
 | 0.10.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping、Scope 稽核與使用者驗收 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF、來源 hash 與公司 Web 驗收通過 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
@@ -81,7 +81,7 @@
 | M10.1 | 正式完成 | 舊式 Database Output 內容辨識、來源節點候選、人工 mapping 與 Primary-only 保護 |
 | M10.2 | 完成、已合併主線 | 同仁新版 UI 接既有 API 與後端；保留 `/classic` fallback；per-release venv／deploy lock |
 | M10.3.1 | 完成 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
-| M10.3.2 | 程式完成、待公司 E2E | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
+| M10.3.2 | 完成、公司 E2E 通過 | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。

@@ -4,7 +4,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 
 目前正式版本已完成至 **M10.1：舊式 Database Output 分類與來源確認**，並已通過公司環境使用者驗收。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 Web → EDB Queue → Worker → V4 Report 端到端驗證、服務重啟與 EDB 持久性驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-目前 **M10.3.2** 已完成 Ollama Gateway 前置後端：Section Workflow 寫入 EDB、append-only revision history、AI draft／工程師 review／approved 分離、optimistic concurrency API，以及 approved-only Renderer 閘門。Ollama 尚未啟用；沒有 AI 時可由 deterministic 內容直接送工程師審核並正常產報。M10.2 同仁 UI Adapter 已合併主線；登入、Knowledge/CVE 與 GPDB UI 仍不啟用，`/classic` 保留原介面。
+目前 **M10.3.2** 已完成並通過公司 EDB／Web／Worker E2E：Section Workflow 寫入 EDB、append-only revision history、AI draft／工程師 review／approved 分離、optimistic concurrency API，以及 approved-only Renderer 閘門。Ollama 尚未啟用；沒有 AI 時可由 deterministic 內容直接送工程師審核並正常產報。M10.2 同仁 UI Adapter 已合併主線；登入、Knowledge/CVE 與 GPDB UI 仍不啟用，`/classic` 保留原介面。
 
 選取未知資料包後，M10 會提出節點、角色、服務、信心與理由，必須由使用者確認後才執行既有 Pipeline；系統不會自行取代 DBA 的最終判斷。
 
@@ -212,7 +212,7 @@ Section Workflow API（目前供前端 Adapter 串接）：
 - M10.1：舊格式 Database Output 分類與來源節點確認（正式完成）
 - M10.2：同仁整合式 UI 接上既有 API 與後端；`/classic` 保留 fallback（已合併主線）
 - M10.3.1：Section Workflow JSON 與 fail-closed 審核契約（完成）
-- M10.3.2：EDB Section persistence、revision audit、review／approval API 與 approved-only Renderer（程式完成，待公司 migration／E2E）
+- M10.3.2：EDB Section persistence、revision audit、review／approval API 與 approved-only Renderer（完成；公司 0008／E2E 通過）
 - M11：登入／RBAC／隔離／稽核（選配、延後）
 - M12：歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
