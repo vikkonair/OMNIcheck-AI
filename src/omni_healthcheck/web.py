@@ -19,6 +19,7 @@ from omni_healthcheck.job_store import (
 from omni_healthcheck.services import SERVICE_REGISTRY
 from omni_healthcheck.topology_discovery import DiscoveryEvidence, discover_topology
 from omni_healthcheck.web_ui import INDEX_HTML
+from omni_healthcheck.web_ui_integrated import INTEGRATED_INDEX_HTML
 
 
 def _default_data_root() -> Path:
@@ -72,6 +73,14 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
+        return INTEGRATED_INDEX_HTML
+
+    @app.get("/integrated", response_class=HTMLResponse)
+    def integrated_index() -> str:
+        return INTEGRATED_INDEX_HTML
+
+    @app.get("/classic", response_class=HTMLResponse)
+    def classic_index() -> str:
         return INDEX_HTML
 
     @app.get("/api/health")

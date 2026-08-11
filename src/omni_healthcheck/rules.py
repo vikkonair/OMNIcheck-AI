@@ -198,6 +198,21 @@ def _replication_assessment(check: CheckResult, version: str) -> Assessment | No
     )
 
 
+def _database_locks_assessment(check: CheckResult, version: str) -> Assessment | None:
+    zero_rows = check.evidence.rows == [["0 rows（未發現項目）"]]
+    if not zero_rows:
+        return None
+    return _assessment(
+        check,
+        status="normal",
+        rule_id="database.locks.v1",
+        ruleset_version=version,
+        explanation="健檢當下 Lock 查詢結果為 0 rows。",
+        conclusion="未發現資料庫 Lock 阻塞項目。",
+        recommendation="持續監控長交易、blocking session 與 lock wait。",
+    )
+
+
 def _idle_transaction_assessment(
     check: CheckResult, version: str
 ) -> Assessment | None:
@@ -455,6 +470,8 @@ def evaluate_rules(
             )
         elif check.check_id == "replication_state":
             assessment = _replication_assessment(check, version)
+        elif check.check_id == "database_locks":
+            assessment = _database_locks_assessment(check, version)
         elif check.check_id == "connections":
             assessment = _idle_transaction_assessment(check, version)
         elif check.check_id in candidate_config:

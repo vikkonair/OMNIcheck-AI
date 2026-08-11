@@ -330,6 +330,7 @@ def build_report_model(
                     (primary, "transaction_id_age", "Transaction ID 年齡"),
                     (primary, "checkpoint_activity", "Checkpoint 狀態"),
                     (primary, "slru_status", "SLRU 狀態"),
+                    (primary, "database_locks", "Lock 狀態"),
                     (primary, "largest_tables", "資料量與大型資料表"),
                     (primary, "dead_tuples", "Dead Tuple"),
                     (primary, "table_bloat", "Table Bloat"),
@@ -355,7 +356,7 @@ def build_report_model(
                         else "PEM / EFM 服務摘要"
                     ),
                     "headers": ["節點", "服務", "摘要"],
-                    "rows": pem_rows,
+                    "rows": pem_rows or [["-", "未提供", "本次資料未包含 PEM／EFM 服務證據"]],
                     "omitted_rows": 0,
                     "assessment": None,
                 }]},

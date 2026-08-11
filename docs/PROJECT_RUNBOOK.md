@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M10.1 已通過公司 Web 使用者驗收；下一步為 M10.2 既有前端 App 的 API 整合
+目前開發進度：M10.3.1 Section Workflow Foundation 已完成程式與實際資料驗證；M10.2 等待前端需求
 
 ## 1. 文件目的
 
@@ -98,6 +98,8 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M9.6 | 正式完成 | `m9.6` | 可回到 `m9.5` application；DB downgrade 需另行核准 | Artifact 版本、衍生關係、事件、Retention、Archive 與公司部署 |
 | M10 | 正式完成 | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成、目前 main | `m10.1` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
+| M10.3.1 | 公司候選完成、待使用者驗收 | `e56f043` | 可回到 `m10.1`；無 DB downgrade | Section JSON、AI draft／review／approval 分離與 Artifact 登錄 |
+| M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `327748d` | 可回到 `0a6dccd`；無 DB downgrade | 同仁 UI Adapter、聯詠拓撲／格式、明確 Database Output 來源 |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -439,6 +441,32 @@ Rollback：不含 migration、套件或環境變數變更，可直接切回正�
 
 詳細文件：`docs/M10_1_LEGACY_DATABASE_EVIDENCE.md`、`docs/M10_1_VALIDATION.md`。
 
+### M10.3.1：Backend Section Workflow Foundation
+
+目的：在接 Ollama 前先建立安全且版本化的 Section 文字工作流，不讓 AI 草稿改變規則事實或直接進入正式報告。
+
+完成內容：新增 `section-workflow.json`、`generated／ai_drafted／reviewed／approved` 狀態、確定性／AI／工程師文字分離、工程師核准前維持 deterministic selected source，以及 Artifact 登錄與衍生關係。V4 Renderer 維持不變。
+
+驗證：本機與公司 VM 完整 85 tests；台灣行動支付 14 檔唯讀流程建立 19 個 deterministic section items；公司 ENGDB 三檔建立 9 個 items。兩者 QA 8/8、V4 QA、DOCX/PDF 與來源 manifest 均通過。公司候選 release 為 `e56f043`，Web／Worker／EDB health 正常。
+
+限制：為避免與公司 EDB 暫停 M11 additive revision 形成 Alembic 分支衝突，本階段不新增 migration；EDB tables／API 留到 M10.3.2 schema reconciliation 後。
+
+Rollback：application 可直接回 `m10.1`，不需 database downgrade。
+
+詳細文件：`docs/M10_3_SECTION_FOUNDATION.md`、`docs/M10_3_VALIDATION.md`。
+
+### M10.2：同仁 UI Adapter 整合候選
+
+目的：採用同仁 `0.13.2.dev2` 的整合式健檢 UI，但繼續使用我們 M10.3.1 的 Pipeline、Canonical JSON、Section Workflow、EDB Queue/Persistence 與 V4 Renderer。
+
+整合方式：`/`、`/integrated` 使用新版 UI，`/classic` 保留原介面。第一階段不帶入 Login/RBAC、Knowledge/CVE、GPDB、同仁 migration 或同仁後端。Topology discovery 無法確認時改為 fail closed，保留人工節點且禁止勾選確認。
+
+驗證：同仁 Bundle 與 77 上保存的 `0.13.2.dev2` 185 個檔案逐檔 SHA-256 完全一致；同仁 Source 107 tests 通過；整合分支與公司候選 release `a0582a0` 各 87 tests 通過；Browser DOM／視覺驗證無 overflow，未出現 Knowledge／GPDB，傳統介面可切回。台灣行動支付既有 immutable 13 檔候選執行產生 14 outputs，QA/V4 QA、Section Workflow、DOCX/PDF 通過，來源 digest 前後相同。正式切換後 Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 完成 Web → EDB Queue → Worker → 12 個 Canonical/V4 產物，QA 與 V4 QA 均允許交付；Web／Worker 重啟後案件與產物仍可讀取。
+
+Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
+
+部署狀態：公司 `current` 已切至 `327748d`；聯詠三檔正式 Discovery API 自動提出 `OADB15N → Primary`、`OADB15-DR → DR` 與 Database Output 來源 `OADB15N`。本機 93 tests、公司相關 28 tests、health、Web／Worker per-release process、coverage 92.5%、QA/V4 QA、29 頁 PDF 與來源 hash 通過。rollback 為 `0a6dccd`，無 migration。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+
 ## 6. 標準開發手順
 
 後續每一個 milestone 都依下列順序進行：
@@ -528,7 +556,7 @@ git switch feature/m9-web-job-management
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |
 |---|---|---|
-| M10.2 | 前端整合 API | REST／OpenAPI、統一狀態與錯誤、CORS、分批上傳、polling、下載及整合測試 |
+| M10.2 | 同仁 UI Adapter | 新版 UI 接既有 API、`/classic` fallback、登入／Knowledge／GPDB 隔離、公司 E2E 與使用者驗收 |
 | M10.3 | Section API 與審核 | 規則原文、固定模板、AI 草稿、人工修改／核准、版本與稽核紀錄 |
 | M11 | 選配 Login／RBAC／客戶隔離／Audit | 現階段維持內網單一模式；需要時再加入 token、身份提供者、tenant enforcement 與稽核事件 |
 | M12 | 歷史比較 | 依 customer／system／period 比較 normalized checks 與 assessment，產生趨勢 |

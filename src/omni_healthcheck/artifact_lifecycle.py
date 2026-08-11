@@ -99,6 +99,7 @@ OUTPUT_TYPES = {
     "normalized.json": "canonical-json",
     "configuration-comparison.json": "configuration-json",
     "assessment.json": "assessment-json",
+    "section-workflow.json": "section-workflow-json",
     "coverage-ledger.json": "coverage-json",
     "qa-result.json": "qa-json",
     "report-model.json": "report-model-json",
@@ -109,6 +110,7 @@ OUTPUT_TYPES = {
 }
 
 DERIVATIONS = (
+    ("assessment-json", "section-workflow-json"),
     ("canonical-json", "report-model-json"),
     ("report-model-json", "v4-report-json"),
     ("v4-report-json", "report-docx"),

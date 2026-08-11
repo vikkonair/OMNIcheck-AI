@@ -116,6 +116,12 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
 
     page = client.get("/")
     assert page.status_code == 200
+    assert 'content="integrated-v1"' in page.text
+    assert "OMNIcheck HealthCheck Studio" in page.text
+    assert "M10.3.1 Pipeline" in page.text
+    assert 'href="/classic"' in page.text
+    assert "/knowledge" not in page.text
+    assert "GPDB" not in page.text
     assert "建立案件並開始健檢" in page.text
     assert "webkitdirectory" in page.text
     assert "id=\"nodes\"" in page.text
@@ -123,6 +129,10 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert "topologyConfirmed" in page.text
     assert "Database Output 來源確認" in page.text
     assert "evidence_mappings" in page.text
+    assert "if (discoveredNodes.length) state.nodes=discoveredNodes" in page.text
+    assert "請選擇來源節點" in page.text
+    assert "updateConfirmationAvailability" in page.text
+    assert "exactlyOnePrimary" in page.text
     assert "textarea" not in page.text
 
     options = client.get("/api/config-options")
@@ -133,6 +143,14 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert {"PEM", "EFM", "XDB", "pgBackRest", "Barman"} <= services.keys()
     assert services["PEM"]["allowed_roles"] == ["Witness"]
     assert services["XDB"]["allowed_roles"] == ["Witness"]
+
+    integrated = client.get("/integrated")
+    classic = client.get("/classic")
+    assert integrated.status_code == 200
+    assert integrated.text == page.text
+    assert classic.status_code == 200
+    assert 'content="integrated-v1"' not in classic.text
+    assert "OMNIcheck AI" in classic.text
 
 
 def test_web_discovers_topology_without_persisting_samples(tmp_path: Path) -> None:

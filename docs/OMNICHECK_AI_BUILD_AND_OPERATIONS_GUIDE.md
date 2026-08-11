@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.10.1
+文件版本：0.10.3-draft.1
 最後更新：2026-08-10
-適用程式基準：`main` / `m10.1`
+適用程式基準：`feature/m10-3-section-foundation`；正式基準仍為 `main` / `m10.1`
 正式可回復基準：`m10.1`；前一個 application rollback 點為 `m10`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,10 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.10.3-draft.4 | 2026-08-11 | 聯詠 walsender／walreceiver topology、OS／DB 標題相容、zero-row 與 coverage ID | release `327748d`；本機 93 tests、公司相關 28 tests、Discovery API、health、PDF 與來源 hash 通過 |
+| 0.10.3-draft.3 | 2026-08-11 | 修正無 Primary 時 Database Output 誤顯示 DR、人工修正後重新開放確認 | 本機 88 tests、公司 VM targeted 11 tests、health／UI marker／per-release process 通過；rollback `a0582a0` |
+| 0.10.3-draft.2 | 2026-08-11 | 同仁 UI Adapter 公司候選部署、per-release venv、systemd release isolation、deploy lock／owner | 公司 release `a0582a0` 87 tests；Golden Web → EDB Queue → Worker → V4、QA、重啟持久性通過；待使用者驗收 |
+| 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 本機／公司 VM 85 tests；台灣行動支付 14 檔／19 sections、公司 ENGDB 3 檔／9 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待使用者驗收 |
 | 0.10.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping、Scope 稽核與使用者驗收 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF、來源 hash 與公司 Web 驗收通過 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
@@ -74,7 +78,9 @@
 | M9.6 | 正式完成 | Artifact version、derivation、events、Retention、copy-verify archive 與公司部署 |
 | M10 | 正式完成 | 未知資料包的確定性節點／角色／服務候選、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成 | 舊式 Database Output 內容辨識、來源節點候選、人工 mapping 與 Primary-only 保護 |
-| M10.2～M10.3 | 已核准、待實作 | 既有前端 REST／OpenAPI 整合、Section API、AI 草稿與人工審核 |
+| M10.2 | 公司候選已部署、待使用者驗收 | 同仁新版 UI 接既有 API 與 M10.3.1 後端；保留 `/classic` fallback；per-release venv／deploy lock |
+| M10.3.1 | 公司候選完成、待使用者驗收 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
+| M10.3.2 | 待 schema reconciliation | EDB Section persistence、版本、稽核與 API |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。
@@ -601,7 +607,9 @@ cd /data/omnicheck/app/current
 git diff --check
 ```
 
-公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests；M10.1 候選為 82 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
+公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests、M10.1 為 82 tests；M10.3.1 候選為 85 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
+
+M10.2 UI Adapter 公司候選為 88 tests，新增 UI Adapter、路由、fail-closed 畫面行為與 deployment contract tests，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。Database Output 沒有 Primary suggestion 時，UI 必須顯示「請選擇來源節點」，不得預選排序第一台 DR；人工修正為唯一 Primary 並完成全部來源映射後，確認 checkbox 才可啟用。公司 release `a0582a0` 使用獨立 `.venv`，Web／Worker systemd 已改用 `current/.venv`；切換時持有 `/data/omnicheck/app/deploy.lock` 並保存 owner／commit／previous／rollback metadata。Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 已完成 Web → EDB Queue → Worker → 12 個 Canonical/V4 產物，QA/V4 QA 均允許交付，服務重啟後案件仍可由 EDB 讀回。公司 EDB revision `0007_m13_catalog` 並非本分支 migration head，本次未執行 migration 或 downgrade；待 schema reconciliation 後才進行 Section persistence/API。
 
 ### 13.2 V4 bundle 完整性
 
@@ -695,6 +703,16 @@ pdffonts /tmp/report-check/report.pdf
 - 實際 ENGDB 基準為 3 allowed、0 pending、17 項 Primary checks、QA 8/8、V4 QA、19 頁 PDF；來源 hash 不變。
 - M10.1 不新增 migration、套件或環境變數；application rollback 使用 `m10`。
 
+### 13.12 M10.3.1 Section Workflow 驗收
+
+- `section-workflow.json` 必須使用 `omnicheck.section-workflow`／schema `1.0`。
+- 初始 item 必須全部為 `generated`，selected source 為 deterministic template。
+- 加入 AI draft 不得改變 status、evidence、rule trace 或 selected source。
+- 未經 engineer review 不得 approve；未 approve 不得選用 AI／人工文字。
+- `renderer_uses_ai=false`，既有 V4 report 與版面不得改變。
+- 實際資料來源 manifest、QA、V4 QA、DOCX／PDF 必須通過。
+- 本階段無 migration；application rollback 使用 `m10.1`。
+
 ## 14. Pipeline 產物與判讀
 
 | 檔案 | 代表意義 |
@@ -705,6 +723,7 @@ pdffonts /tmp/report-check/report.pdf
 | `normalized.json` | Parser 標準化結果 |
 | `configuration-comparison.json` | Primary／Standby／DR 設定差異 |
 | `assessment.json` | 規則狀態、證據、觀察、結論、建議 |
+| `section-workflow.json` | 固定模板、AI 草稿、工程師審查／核准、版本及 selected source |
 | `coverage-ledger.json` | 預期檢查、缺漏與覆蓋率 |
 | `qa-result.json` | M6 交付 gate |
 | `report-model.json` | 報告組裝中介模型 |
@@ -910,6 +929,9 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M9.6 已部署公司 `.77/.81`：release `2fc2ce7`、Alembic `0004_m9_6`、74 tests、Scoped Artifact E2E、Archive dry-run、冪等與服務重啟均通過。
 - M10 已部署公司 `.77/.81`：release `6e8ee6e`、EDB revision 維持 `0004_m9_6`，本機／VM 78 tests；台灣行動支付 13 檔自動提出 5 節點與唯一 Primary，人工確認 gate、Queue／Worker Job `12c90aa3da354f1c83dbc42e6d57e118`、13 outputs、QA、V4 QA、DOCX/PDF、來源 hash 與重啟持久性均通過。
 - M10.1 已通過公司 Web 使用者驗收：候選 release `be0ca80`、本機／VM 82 tests；實際 ENGDB 來源確認後得到 17 項 Primary checks、QA/V4 QA、19 頁 PDF 與來源 hash 不變。正式 application 可回到 `m10`，不需 database downgrade。
+- M10.3.1 公司候選 release `e56f043`：Web／Worker／EDB health 正常，公司 VM 85 tests；ENGDB 三檔產生 9 個 deterministic Section items、QA/V4 QA、DOCX/PDF 與來源 hash 通過。切換前曾偵測另一個開發套件使用同一 shared venv，後續多人部署必須採 deploy lock／release owner。
+- M10.2 同仁 UI Adapter 公司候選已部署：目前 release `0a6dccd`；無 Primary 時 Database Output 顯示空白來源並強制人工選擇，節點修正為唯一 Primary 且全部映射完成後才可確認。本機 88 tests、公司 VM 相關 11 tests、health、UI marker 與 per-release process 通過；完整 Golden E2E 基準沿用前版 Job `2a8d40b0727c41119236fd6642cd2ec2`。rollback 為 `/classic` 或 application release `a0582a0`，無 database downgrade；EDB `0007_m13_catalog` schema reconciliation 仍待處理。
+- 聯詠三檔唯讀回歸與公司部署：release `327748d`；walsender／walreceiver 自動提出 `OADB15N → Primary`、`OADB15-DR → DR`，Database Output 建議來源 `OADB15N`。normalized checks 29 → 49、coverage 50% → 92.5%；剩餘 missing 為來源未提供的兩台 Kernel version 與 Primary `pg_hba.conf`。本機 93 tests、公司相關 28 tests、Discovery API、health、Web／Worker process、QA/V4 QA、29 頁 PDF 與來源 SHA-256 不變均通過。rollback `0a6dccd`。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。
@@ -917,7 +939,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M10 可對標準搜集包提出角色候選；非標準檔名、缺少 EFM／OS 訊號或衝突時仍需使用者指定，且所有案件都必須人工確認。
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
-- 前端整合、Section 審核、歷史比較、CVE cache 與 Ollama AI Gateway 尚未實作；順序與責任邊界見 `docs/MILESTONE_ROADMAP.md`。
+- 同仁 UI Adapter 已進入候選驗證；Section persistence/API、歷史比較、CVE cache 與 Ollama AI Gateway 尚未完成，順序與責任邊界見 `docs/MILESTONE_ROADMAP.md`。
 - EDB 中心化與 CVE 自動化方向已核准；Application Data foundation、M9.5 Persistence Adapter 與 M9.6 Artifact lifecycle 已實作，CVE tables 尚未實作。
 
 ## 附錄 A：官方與專案依據
