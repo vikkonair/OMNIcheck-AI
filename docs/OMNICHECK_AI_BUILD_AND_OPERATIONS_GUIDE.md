@@ -84,6 +84,7 @@
 | M10.3.1 | 完成 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
 | M10.3.2 | 完成、公司 E2E 通過 | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
 | M14.1 | 完成、公司真實模型 E2E 通過 | Ollama Section draft、遮蔽、audit、fallback；feature flag 可立即停用 |
+| M14.2 | 本機候選完成、公司待驗證 | Section 審核工作台、EDB durable batch、逐筆限流、進度與人工核准 |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。
@@ -764,6 +765,8 @@ OMNICHECK_AI_ENDPOINT=http://192.168.68.39:11434/v1/chat/completions
 OMNICHECK_AI_MODEL=gpt-oss:20b
 OMNICHECK_AI_TIMEOUT_SECONDS=120
 OMNICHECK_AI_MAX_ATTEMPTS=2
+OMNICHECK_AI_BATCH_MAX_ITEMS=5
+OMNICHECK_AI_MIN_INTERVAL_SECONDS=1
 ```
 
 先保持 disabled，建立 0008 schema-only backup 並記錄 SHA-256，再執行 additive migration：
@@ -790,6 +793,41 @@ AI E2E 驗收：
 8. 暫時使用無效 endpoint 或測試 transport 驗證 fallback；Section revision 與 deterministic 產報不得改變。
 
 緊急停用只需設定 `OMNICHECK_AI_ENABLED=false` 並重啟 Web。Application 可切回 M10.3.2；0009 audit table 保留。正式 EDB 不 downgrade。
+
+### 13.15 M14.2 Section 審核工作台與受控批次部署
+
+0010 migration 只新增 `omnicheck.ai_draft_batches` 與 `omnicheck.ai_draft_batch_items`。先備份 0009 schema 並記錄 SHA-256，再執行：
+
+```bash
+cd /data/omnicheck/app/current
+set -a
+. /etc/omnicheck-ai/omnicheck.env
+set +a
+.venv/bin/alembic upgrade 0010_m14_2_batches
+```
+
+環境檔加入：
+
+```bash
+OMNICHECK_AI_BATCH_MAX_ITEMS=5
+OMNICHECK_AI_MIN_INTERVAL_SECONDS=1
+```
+
+`OMNICHECK_AI_BATCH_MAX_ITEMS` 合法範圍為 1～20，建議公司單一 Ollama 先維持 5。`OMNICHECK_AI_MIN_INTERVAL_SECONDS` 是同一批各請求之間的最小秒數，Worker 會限制最高 sleep 30 秒。Web 和 Worker 必須讀到相同 AI endpoint／model；只重啟 Web 不會讓 Worker 套用新批次參數。
+
+部署後重啟 Web 與 Worker，依序驗收：
+
+1. 完成一個測試 Job，在 Section 審核工作台載入 Job ID。
+2. 勾選 2～3 個 generated Section 建立 AI batch，確認 API 回傳 202／queued。
+3. 確認 Worker 逐筆執行，畫面顯示 completed／partial／failed 與成功、fallback、conflict 數量。
+4. 確認成功項目只進入 ai_drafted 且 selected source 仍為 deterministic。
+5. 修改一項文字並儲存 review，再核准；未 reviewed 的項目不得直接核准。
+6. 重新產報，確認只有 approved 內容取代 deterministic。
+7. 批次執行前先變更一個 revision，確認該項記錄 conflict，其他項目繼續。
+8. 暫時停用 AI，確認不能建立新 batch，既有 deterministic 報告仍可產生。
+9. Worker 執行中重啟時，超過 `OMNICHECK_WORKER_STALE_SECONDS` 的 running batch 應回復 queued；重試時 revision gate 防止重複覆寫。
+
+Rollback：先設定 `OMNICHECK_AI_ENABLED=false`，再將 Application symlink 切回 `m14.1` 並重啟 Web／Worker；0010 tables 保留，採 forward-fix，不在正式 EDB downgrade。
 
 ## 14. Pipeline 產物與判讀
 

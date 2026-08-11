@@ -139,7 +139,10 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert "請選擇來源節點" in page.text
     assert "updateConfirmationAvailability" in page.text
     assert "exactlyOnePrimary" in page.text
-    assert "textarea" not in page.text
+    assert "Section 審核工作台" in page.text
+    assert "review-observation" in page.text
+    assert "/ai-draft-batches" in page.text
+    assert "依核准內容重新產報" in page.text
 
     options = client.get("/api/config-options")
     assert options.status_code == 200
@@ -292,3 +295,75 @@ def test_ai_gateway_api_saves_untrusted_draft_but_does_not_select_it(
     audit_rows = client.get(f"/api/jobs/{job_id}/ai-audit").json()
     assert audit_rows[0]["status"] == "succeeded"
     assert audit_rows[0]["model"] == "gpt-oss:20b"
+
+
+def test_ai_batch_api_queues_and_worker_generates_sequential_drafts(tmp_path: Path) -> None:
+    from omni_healthcheck.ai_batch import AIDraftBatchStore
+    from omni_healthcheck.worker import run_ai_batch_once
+
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'ai-batch.db'}")
+    metadata.create_schema_for_test()
+    audit = AIGatewayAuditStore(engine=metadata.engine)
+    calls = []
+
+    def transport(_endpoint, payload, _headers, _timeout):
+        calls.append(payload)
+        return {
+            "model": "gpt-oss:20b",
+            "choices": [{"message": {"content": json.dumps({
+                "observation": "受控批次草稿。\n結論：仍須工程師審核。",
+                "recommendation": "確認證據後再核准。",
+            }, ensure_ascii=False)}, "finish_reason": "stop"}],
+        }
+
+    gateway = OllamaGateway(AIGatewaySettings(
+        enabled=True, endpoint="http://ollama.internal:11434/v1/chat/completions",
+        model="gpt-oss:20b", timeout_seconds=10, max_attempts=1,
+    ), audit, transport=transport)
+    client = TestClient(create_app(
+        data_root=tmp_path / "jobs", metadata_store=metadata, ai_gateway=gateway,
+    ))
+    job_id = client.post("/api/jobs", json=_config()).json()["job_id"]
+    sections = SectionWorkflowStore(engine=metadata.engine)
+    workflow = build_section_workflow(assessment_document())
+    second = workflow.items[0].model_copy(update={
+        "section_key": "4.2:primary:second-check", "section_id": "4.2",
+        "check_id": "second-check",
+    }, deep=True)
+    workflow = workflow.model_copy(update={"items": [*workflow.items, second]}, deep=True)
+    sections.persist_baseline(job_id, workflow)
+    candidates = client.get(f"/api/jobs/{job_id}/sections").json()[:2]
+    response = client.post(f"/api/jobs/{job_id}/ai-draft-batches", json={
+        "actor": "engineer-a",
+        "items": [{"item_id": item["item_id"], "expected_revision": item["revision"]} for item in candidates],
+    })
+    assert response.status_code == 202
+    batch_id = response.json()["batch_id"]
+    assert response.json()["status"] == "queued"
+
+    batch_store = AIDraftBatchStore(engine=metadata.engine, max_items=5)
+    assert run_ai_batch_once(
+        batch_store, sections, gateway, "test-ai-worker", min_interval_seconds=0,
+    ) is True
+    completed = client.get(f"/api/jobs/{job_id}/ai-draft-batches/{batch_id}").json()
+    assert completed["status"] == "completed"
+    assert completed["succeeded_items"] == 2
+    assert len(calls) == 2
+    updated = client.get(f"/api/jobs/{job_id}/sections").json()[:2]
+    assert all(item["workflow_status"] == "ai_drafted" for item in updated)
+    assert all(item["selected_source"] == "deterministic_template" for item in updated)
+
+
+def test_ai_batch_rejects_disabled_gateway_and_stale_revision(tmp_path: Path) -> None:
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'ai-disabled.db'}")
+    metadata.create_schema_for_test()
+    job_client = TestClient(create_app(data_root=tmp_path / "jobs", metadata_store=metadata))
+    job_id = job_client.post("/api/jobs", json=_config()).json()["job_id"]
+    sections = SectionWorkflowStore(engine=metadata.engine)
+    sections.persist_baseline(job_id, build_section_workflow(assessment_document()))
+    item = job_client.get(f"/api/jobs/{job_id}/sections").json()[0]
+    response = job_client.post(f"/api/jobs/{job_id}/ai-draft-batches", json={
+        "actor": "engineer", "items": [{"item_id": item["item_id"], "expected_revision": 1}],
+    })
+    assert response.status_code == 409
+    assert response.json()["detail"] == "AI Gateway is disabled"

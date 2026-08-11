@@ -4,7 +4,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 
 目前正式版本已完成至 **M10.1：舊式 Database Output 分類與來源確認**，並已通過公司環境使用者驗收。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 Web → EDB Queue → Worker → V4 Report 端到端驗證、服務重啟與 EDB 持久性驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-目前 **M14.1 Ollama Gateway** 已完成公司 EDB／Web／真實模型 E2E：公司內網 `gpt-oss:20b` 可產生單一 Section 草稿，Gateway 具備資料遮蔽、JSON schema、timeout／retry、EDB audit 與 deterministic fallback。AI 草稿必須經工程師 review／approval 才能進入報告。M10.3.2 的 Section persistence 與 approved-only Renderer 維持不變。
+目前 **M14.1 Ollama Gateway** 已完成公司 EDB／Web／真實模型 E2E；**M14.2 Section 審核工作台與受控 AI 批次佇列**已完成本機候選版。使用者可勾選少量 Section 排入 EDB durable queue，由既有 Worker 依序呼叫 `gpt-oss:20b`，並在同一介面完成工程師修改、核准及重新產報。AI 停用、失敗或 revision 衝突時仍保留 deterministic 內容。
 
 選取未知資料包後，M10 會提出節點、角色、服務、信心與理由，必須由使用者確認後才執行既有 Pipeline；系統不會自行取代 DBA 的最終判斷。
 
@@ -30,6 +30,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 使用去識別 Golden Dataset 防止 Parser、Scope、規則與報告版面回歸。
 - 透過 M9 Web API 建立案件、上傳不可覆寫的原始證據、執行既有 Pipeline、查詢狀態及下載輸出。
 - 可選用 EDB／PostgreSQL 保存案件 metadata，透過獨立 Worker 與資料庫佇列可靠執行、重試及保留事件紀錄。
+- 透過 Section 審核工作台載入案件、選取受控批次 AI 草稿、查看逐項進度、人工修改、核准及依核准內容重新產報；Renderer 不直接讀取未核准 AI 草稿。
 - 後續已核准採用 EDB 中心化架構：EDB 保存結構化應用資料與歷史、`/data` 保存大型檔案、Canonical JSON 繼續作為 Pipeline 契約與 rollback 保護層。M9.4 已建立 tenant-scoped foundation，M9.5 已完成 Pipeline 結果持久化，M9.6 Artifact lifecycle 已正式完成。
 - M9.4 使用安全相對 storage key、SHA-256、大小與 media type 登錄 Evidence／Artifact，不把大型檔案以 `BYTEA` 存入 EDB；既有 M9.3 Job 可維持未關聯 tenant，避免破壞現有 Queue。
 
@@ -216,9 +217,10 @@ Section Workflow API（目前供前端 Adapter 串接）：
 - M10.3.1：Section Workflow JSON 與 fail-closed 審核契約（完成）
 - M10.3.2：EDB Section persistence、revision audit、review／approval API 與 approved-only Renderer（完成；公司 0008／E2E 通過）
 - M14.1：Ollama Section draft Gateway、遮蔽、EDB audit 與 fallback（完成；公司 0009／真實模型 E2E 通過）
+- M14.2：Section 審核工作台、EDB durable AI batch、逐筆 rate limit、進度／fallback／conflict（本機候選完成；公司 0010 待驗證）
 - M11：登入／RBAC／隔離／稽核（選配、延後）
 - M12：歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
-- M14～M15：選配 AI Gateway 與正式 HA／VIP／TLS／Backup／Monitoring 強化
+- M14.3～M15：主管／歷史摘要、選配問答與正式 HA／VIP／TLS／Backup／Monitoring 強化
 
 報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。

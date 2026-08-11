@@ -3,7 +3,7 @@
 from omni_healthcheck.web_ui import INDEX_HTML as CLASSIC_INDEX_HTML
 
 
-PUBLIC_UI_VERSION = "M10.3.1 candidate"
+PUBLIC_UI_VERSION = "M14.2 candidate"
 
 
 _OMNIWARESOFT_LOGO_DATA_URI = (
@@ -52,6 +52,17 @@ _INTEGRATED_STYLE = r"""
     input:focus, select:focus, button:focus { outline-color:#1677ff44; }
     .product-note { display:block; margin-top:7px; color:var(--muted); font-size:12px;
       font-weight:400; line-height:1.45; }
+    .review-toolbar { display:grid; grid-template-columns:2fr 1fr auto auto; gap:10px; align-items:end; }
+    .review-progress { margin:14px 0; padding:12px; border-radius:5px; background:#eef6ff; white-space:pre-wrap; }
+    .section-card { margin:12px 0; padding:16px; border:1px solid var(--line); border-radius:7px; background:#fbfdff; }
+    .section-card-head { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .section-card h3 { margin:0; }
+    .section-meta { color:var(--muted); font-size:12px; }
+    .narrative-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+    .narrative-grid textarea { width:100%; min-height:150px; margin-top:6px; padding:10px;
+      border:1px solid #bfcdd3; border-radius:5px; resize:vertical; font:inherit; line-height:1.5; }
+    .deterministic-box { margin-top:10px; padding:10px; border-left:3px solid #8ba9bf;
+      background:#f1f5f8; color:#43566b; font-size:13px; white-space:pre-wrap; }
     @media (max-width:760px) {
       .brand-row { min-height:0; padding:16px 0; align-items:flex-start; }
       .brand-copy { gap:14px; flex-direction:column; align-items:flex-start; }
@@ -60,6 +71,7 @@ _INTEGRATED_STYLE = r"""
       .product-name h1 { font-size:18px; }
       .classic-link { padding:7px 9px; font-size:12px; }
       .header-actions { flex-direction:column; align-items:stretch; }
+      .review-toolbar, .narrative-grid { grid-template-columns:1fr; }
     }
 """
 
@@ -115,5 +127,101 @@ INTEGRATED_INDEX_HTML = (
           </select>
           <span class="product-note">資料庫邏輯層採 Primary-only；節點設定檔仍會比較 Primary、Standby 與 DR。</span>
         </label>""",
+    )
+    .replace(
+        "</main>",
+        r"""  <section id="sectionReviewWorkbench">
+    <h2>Section 審核工作台</h2>
+    <p class="muted">AI 只提供文字草稿；規則狀態、證據與 Scope 不會被改動。只有工程師核准的文字才會進入正式報告。</p>
+    <div class="review-toolbar">
+      <label>Job ID<input id="reviewJobId" placeholder="完成案件後會自動帶入，也可貼上 Job ID"></label>
+      <label>工程師／審核者<input id="reviewActor" value="engineer"></label>
+      <button type="button" class="secondary" id="loadSections">載入 Sections</button>
+      <button type="button" class="primary" id="batchAIDrafts">產生已勾選 AI 草稿</button>
+    </div>
+    <div id="reviewProgress" class="review-progress hidden"></div>
+    <div id="sectionCards"><p class="muted">尚未載入 Section。</p></div>
+    <div class="actions">
+      <button type="button" class="primary" id="renderApproved">依核准內容重新產報</button>
+    </div>
+  </section>
+</main>""",
+    )
+    .replace(
+        "</script>",
+        r"""
+const reviewState = { sections:[], batchId:null };
+function reviewMessage(text, kind='info') {
+  const box=el('reviewProgress'); box.textContent=text; box.className=`review-progress ${kind}`;
+}
+function currentNarrative(item) {
+  return item.reviewed || item.ai_draft || item.deterministic;
+}
+function renderSectionCards() {
+  const root=el('sectionCards'); root.replaceChildren();
+  if (!reviewState.sections.length) { const p=document.createElement('p'); p.className='muted'; p.textContent='此案件沒有可審核的 Section。'; root.append(p); return; }
+  reviewState.sections.forEach(item => {
+    const card=document.createElement('article'); card.className='section-card'; card.dataset.itemId=item.item_id;
+    const head=document.createElement('div'); head.className='section-card-head';
+    const title=document.createElement('h3'); title.textContent=`${item.section_id}｜${item.check_id}`;
+    const controls=document.createElement('div');
+    const select=document.createElement('input'); select.type='checkbox'; select.className='ai-select';
+    select.disabled=!['generated','ai_drafted'].includes(item.workflow_status);
+    const badge=document.createElement('span'); badge.className=`status ${item.workflow_status}`;
+    badge.textContent=`${item.workflow_status} · rev ${item.revision}`;
+    controls.append(select,badge); head.append(title,controls); card.append(head);
+    const meta=document.createElement('div'); meta.className='section-meta'; meta.textContent=`節點：${item.node}｜規則狀態：${item.status}｜Renderer：${item.selected_source}`; card.append(meta);
+    const deterministic=document.createElement('details'); const summary=document.createElement('summary'); summary.textContent='查看 deterministic 原文';
+    const fixed=document.createElement('div'); fixed.className='deterministic-box'; fixed.textContent=`觀察：${item.deterministic.observation}\n\n建議：${item.deterministic.recommendation}`;
+    deterministic.append(summary,fixed); card.append(deterministic);
+    const narrative=currentNarrative(item); const grid=document.createElement('div'); grid.className='narrative-grid';
+    const observationLabel=document.createElement('label'); observationLabel.textContent='觀察／結論';
+    const observation=document.createElement('textarea'); observation.className='review-observation'; observation.value=narrative.observation; observationLabel.append(observation);
+    const recommendationLabel=document.createElement('label'); recommendationLabel.textContent='建議';
+    const recommendation=document.createElement('textarea'); recommendation.className='review-recommendation'; recommendation.value=narrative.recommendation; recommendationLabel.append(recommendation);
+    grid.append(observationLabel,recommendationLabel); card.append(grid);
+    const actions=document.createElement('div'); actions.className='actions';
+    const save=document.createElement('button'); save.type='button'; save.className='secondary'; save.textContent='儲存工程師修改';
+    save.addEventListener('click',()=>saveReview(item,observation.value,recommendation.value));
+    const approve=document.createElement('button'); approve.type='button'; approve.className='primary'; approve.textContent='核准'; approve.disabled=item.workflow_status!=='reviewed';
+    approve.addEventListener('click',()=>approveSection(item)); actions.append(save,approve); card.append(actions); root.append(card);
+  });
+}
+async function loadSections() {
+  const jobId=el('reviewJobId').value.trim(); if (!jobId) { reviewMessage('請輸入 Job ID。','error'); return; }
+  try { reviewState.sections=await api(`/api/jobs/${jobId}/sections`); renderSectionCards(); reviewMessage(`已載入 ${reviewState.sections.length} 個 Section。`,'ok'); }
+  catch(error) { reviewMessage(error.message,'error'); }
+}
+async function saveReview(item,observation,recommendation) {
+  try { await api(`/api/jobs/${el('reviewJobId').value.trim()}/sections/${item.item_id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_revision:item.revision,actor:el('reviewActor').value.trim(),observation,recommendation})}); await loadSections(); }
+  catch(error) { reviewMessage(error.message,'error'); }
+}
+async function approveSection(item) {
+  try { await api(`/api/jobs/${el('reviewJobId').value.trim()}/sections/${item.item_id}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_revision:item.revision,actor:el('reviewActor').value.trim()})}); await loadSections(); }
+  catch(error) { reviewMessage(error.message,'error'); }
+}
+async function pollAIBatch(jobId,batchId) {
+  for (;;) { const batch=await api(`/api/jobs/${jobId}/ai-draft-batches/${batchId}`); reviewMessage(`AI 批次：${batch.status}\n進度：${batch.completed_items}/${batch.total_items}｜成功 ${batch.succeeded_items}｜fallback ${batch.fallback_items}｜衝突 ${batch.conflict_items}`); if (['completed','partial','failed'].includes(batch.status)) return batch; await new Promise(resolve=>setTimeout(resolve,1500)); }
+}
+async function createAIBatch() {
+  const jobId=el('reviewJobId').value.trim(); const actor=el('reviewActor').value.trim();
+  const selected=[...document.querySelectorAll('.section-card')].filter(card=>card.querySelector('.ai-select').checked).map(card=>{ const item=reviewState.sections.find(value=>value.item_id===card.dataset.itemId); return {item_id:item.item_id,expected_revision:item.revision}; });
+  if (!selected.length) { reviewMessage('請先勾選至少一個尚未核准的 Section。','error'); return; }
+  try { const batch=await api(`/api/jobs/${jobId}/ai-draft-batches`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actor,items:selected})}); reviewState.batchId=batch.batch_id; await pollAIBatch(jobId,batch.batch_id); await loadSections(); }
+  catch(error) { reviewMessage(error.message,'error'); }
+}
+async function renderApproved() {
+  const jobId=el('reviewJobId').value.trim();
+  try { const result=await api(`/api/jobs/${jobId}/sections/render`,{method:'POST'}); reviewMessage(`重新產報完成：${result.policy}`,'ok'); showResult(await api(`/api/jobs/${jobId}`)); }
+  catch(error) { reviewMessage(error.message,'error'); }
+}
+el('loadSections').addEventListener('click',loadSections);
+el('batchAIDrafts').addEventListener('click',createAIBatch);
+el('renderApproved').addEventListener('click',renderApproved);
+</script>""",
+    )
+    .replace(
+        "el('resultSection').scrollIntoView({behavior:'smooth'});",
+        "el('reviewJobId').value=job.job_id; el('resultSection').scrollIntoView({behavior:'smooth'});",
     )
 )

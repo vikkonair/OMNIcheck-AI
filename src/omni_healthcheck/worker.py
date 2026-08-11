@@ -11,12 +11,80 @@ import time
 from pathlib import Path
 
 from omni_healthcheck.artifact_lifecycle import ArtifactRegistry
+from omni_healthcheck.ai_batch import AIDraftBatchStore
+from omni_healthcheck.ai_gateway import AIGatewaySettings, OllamaGateway
+from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.job_store import JobStore
 from omni_healthcheck.pipeline_persistence import PipelineResultStore
 from omni_healthcheck.section_persistence import SectionWorkflowStore
 from omni_healthcheck.section_workflow import SectionWorkflowDocument
+
+
+def run_ai_batch_once(
+    batch_store: AIDraftBatchStore,
+    section_store: SectionWorkflowStore,
+    gateway: OllamaGateway,
+    worker_id: str,
+    *,
+    min_interval_seconds: float = 1.0,
+) -> bool:
+    """Process one durable batch sequentially; failures retain deterministic text."""
+
+    batch = batch_store.claim_next(worker_id)
+    if batch is None:
+        return False
+    for index, queued in enumerate(batch["items"]):
+        if queued["status"] in {"ai_drafted", "fallback", "conflict"}:
+            continue
+        try:
+            item = section_store.get_item(batch["job_id"], queued["item_id"])
+            if item.revision != queued["expected_revision"]:
+                batch_store.finish_item(
+                    batch["batch_id"], queued["batch_item_id"], status="conflict",
+                    error=f"revision changed from {queued['expected_revision']} to {item.revision}",
+                )
+                continue
+            result = gateway.generate(
+                job_id=batch["job_id"], item_id=queued["item_id"], item=item,
+                requested_by=batch["actor"],
+            )
+            if result.draft is None:
+                batch_store.finish_item(
+                    batch["batch_id"], queued["batch_item_id"], status="fallback",
+                    request_id=result.request_id, error=result.error,
+                )
+            else:
+                try:
+                    section_store.transition(
+                        batch["job_id"], queued["item_id"],
+                        expected_revision=queued["expected_revision"], action="ai_drafted",
+                        actor=f"ai:ollama:{gateway.settings.model}",
+                        observation=result.draft.observation,
+                        recommendation=result.draft.recommendation,
+                    )
+                except Exception as exc:
+                    if result.request_id:
+                        gateway.discard_stale(result.request_id)
+                    batch_store.finish_item(
+                        batch["batch_id"], queued["batch_item_id"], status="conflict",
+                        request_id=result.request_id, error=str(exc),
+                    )
+                else:
+                    batch_store.finish_item(
+                        batch["batch_id"], queued["batch_item_id"], status="ai_drafted",
+                        request_id=result.request_id,
+                    )
+        except Exception as exc:
+            batch_store.finish_item(
+                batch["batch_id"], queued["batch_item_id"], status="fallback",
+                error=f"{type(exc).__name__}: {exc}",
+            )
+        if index + 1 < len(batch["items"]) and min_interval_seconds > 0:
+            time.sleep(min(min_interval_seconds, 30.0))
+    batch_store.finalize(batch["job_id"], batch["batch_id"])
+    return True
 
 
 def run_once(
@@ -128,6 +196,19 @@ def main() -> None:
     metadata_store = DatabaseMetadataStore(database_url)
     store = JobStore(data_root, metadata_store=metadata_store)
     metadata_store.recover_stale(stale_seconds)
+    ai_settings = AIGatewaySettings.from_env()
+    ai_gateway = OllamaGateway(
+        ai_settings, AIGatewayAuditStore(engine=metadata_store.engine)
+    )
+    ai_batches = AIDraftBatchStore(
+        engine=metadata_store.engine,
+        max_items=int(os.environ.get("OMNICHECK_AI_BATCH_MAX_ITEMS", "5")),
+    )
+    ai_batches.recover_stale(stale_seconds)
+    section_store = SectionWorkflowStore(engine=metadata_store.engine)
+    ai_min_interval = float(
+        os.environ.get("OMNICHECK_AI_MIN_INTERVAL_SECONDS", "1")
+    )
 
     stopping = False
 
@@ -149,5 +230,10 @@ def main() -> None:
             register_artifacts=register_artifacts,
             artifact_retention_days=artifact_retention_days,
         )
+        if not processed:
+            processed = run_ai_batch_once(
+                ai_batches, section_store, ai_gateway, worker_id,
+                min_interval_seconds=ai_min_interval,
+            )
         if not processed:
             time.sleep(poll_seconds)

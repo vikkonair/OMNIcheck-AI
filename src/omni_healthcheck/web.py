@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from omni_healthcheck.ai_gateway import AIGatewaySettings, OllamaGateway
+from omni_healthcheck.ai_batch import AIDraftBatchStore
 from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.config import JobConfig
@@ -47,6 +48,18 @@ class SectionAIDraftRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_revision: int = Field(ge=1)
     actor: str = Field(min_length=1, max_length=128)
+
+
+class SectionAIBatchItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    item_id: str = Field(min_length=1, max_length=32)
+    expected_revision: int = Field(ge=1)
+
+
+class SectionAIBatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: str = Field(min_length=1, max_length=128)
+    items: list[SectionAIBatchItem]
 
 
 def _default_data_root() -> Path:
@@ -104,6 +117,15 @@ def create_app(
         and getattr(selected_metadata_store, "engine", None) is not None
         else None
     )
+    ai_batch_store = (
+        AIDraftBatchStore(
+            engine=selected_metadata_store.engine,
+            max_items=int(os.environ.get("OMNICHECK_AI_BATCH_MAX_ITEMS", "5")),
+        )
+        if selected_metadata_store is not None
+        and getattr(selected_metadata_store, "engine", None) is not None
+        else None
+    )
     selected_ai_gateway = ai_gateway
     if selected_ai_gateway is None and ai_audit_store is not None:
         selected_ai_gateway = OllamaGateway(
@@ -117,6 +139,11 @@ def create_app(
                 detail="Section Workflow persistence requires EDB metadata",
             )
         return section_store
+
+    def ai_batches_or_503() -> AIDraftBatchStore:
+        if ai_batch_store is None:
+            raise HTTPException(status_code=503, detail="AI batch queue requires EDB metadata")
+        return ai_batch_store
 
     def job_or_404(job_id: str) -> dict:
         try:
@@ -360,6 +387,30 @@ def create_app(
                 status_code=503, detail="AI audit requires EDB metadata"
             )
         return ai_audit_store.list_for_job(job_id)
+
+    @app.post("/api/jobs/{job_id}/ai-draft-batches", status_code=202)
+    def create_ai_draft_batch(job_id: str, body: SectionAIBatchRequest) -> dict:
+        job_or_404(job_id)
+        if selected_ai_gateway is None or not selected_ai_gateway.settings.enabled:
+            raise HTTPException(status_code=409, detail="AI Gateway is disabled")
+        try:
+            return ai_batches_or_503().create(
+                job_id, body.actor, [item.model_dump() for item in body.items]
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except SectionRevisionConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/jobs/{job_id}/ai-draft-batches/{batch_id}")
+    def get_ai_draft_batch(job_id: str, batch_id: str) -> dict:
+        job_or_404(job_id)
+        try:
+            return ai_batches_or_503().get(job_id, batch_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="AI batch not found") from exc
 
     @app.post("/api/jobs/{job_id}/sections/{item_id}/review")
     def review_section(job_id: str, item_id: str, body: SectionTextRequest) -> dict:
