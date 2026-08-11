@@ -72,6 +72,20 @@ def test_unassigned_database_output_has_no_source_suggestion_without_primary() -
     assert result["evidence_candidates"][0]["suggested_node"] is None
 
 
+def test_discovery_correlates_streaming_sender_and_dr_receiver() -> None:
+    result = discover_topology([
+        _item("HealthChekOS-LOG-OADB15N-20260715.txt", "主機名稱\nOADB15N\npostgres 3418012 0.2 postgres: walsender repuser 10.0.0.2 streaming"),
+        _item("HealthChekOS-LOG-OADB15-DR-20260715.txt", "主機名稱\nOADB15-DR\npostgres 1378510 1.3 postgres: walreceiver streaming"),
+        _item("ENGDB_check.txt", "資料庫訊息查看\ndb_ver | PostgreSQL 16.6\n資料庫同步狀況\npid | state\n3418012 | streaming"),
+    ])
+
+    by_host = {node["hostname"]: node for node in result["nodes"]}
+    assert by_host["OADB15N"]["suggested_role"] == "Primary"
+    assert by_host["OADB15-DR"]["suggested_role"] == "DR"
+    assert result["evidence_candidates"][0]["suggested_node"] == "OADB15N"
+    assert result["can_confirm"] is True
+
+
 def test_discovery_proposes_mapping_for_legacy_database_output() -> None:
     result = discover_topology([
         _item("HealthChekOS-LOG-db01-20260715.txt", "bind.address=efm-primary:7800\ndb.user=efm"),

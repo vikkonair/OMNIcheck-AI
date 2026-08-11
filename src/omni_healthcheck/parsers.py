@@ -174,6 +174,15 @@ class HealthCheckOSLogParser:
         match = pattern.search(text)
         return match.group(1).strip() if match else None
 
+    @classmethod
+    def _first_section(cls, text: str, *titles: str) -> str | None:
+        return next((body for title in titles if (body := cls._section(text, title))), None)
+
+    @staticmethod
+    def _size_to_kb(value: str, unit: str) -> str:
+        factors = {"ki": 1, "kib": 1, "kb": 1, "mi": 1024, "mib": 1024, "mb": 1024, "gi": 1048576, "gib": 1048576, "gb": 1048576, "ti": 1073741824, "tib": 1073741824, "tb": 1073741824}
+        return str(round(float(value) * factors[unit.casefold()]))
+
     def parse(self, context: ParserContext) -> list[CheckResult]:
         if context.scope_item["evidence_domain"] != "os":
             return []
@@ -195,17 +204,30 @@ class HealthCheckOSLogParser:
             if value:
                 extracted.append(("hostname", "3.1", "Hostname", value))
 
-        os_section = self._section(text, "OS 版本")
+        os_section = self._first_section(text, "OS 版本", "OS版本")
         if os_section:
             value = next((line.strip() for line in os_section.splitlines() if line.strip()), None)
             if value:
                 extracted.append(("os_version", "3.1", "OS Version", value))
 
-        cpu_section = self._section(text, "CPU Core 數")
+        cpu_section = self._first_section(text, "CPU Core 數", "CPU資訊2")
         if cpu_section:
-            match = re.search(r"(?m)^\s*(\d+)\s*$", cpu_section)
+            match = re.search(r"(?m)^\s*(?:CPU\(s\):\s*)?(\d+)\s*$", cpu_section)
             if match:
                 extracted.append(("cpu_count", "3.2", "CPU Count", match.group(1)))
+            model = re.search(r"(?m)^Model name:\s*(.+?)\s*$", cpu_section)
+            if model:
+                extracted.append(("cpu_model", "3.2", "CPU Model", model.group(1)))
+
+        memory_section = self._first_section(text, "記憶體使用量")
+        if memory_section:
+            for label, check_id, metric in (
+                ("Mem", "memory_total_kb", "Memory Total (kB)"),
+                ("Swap", "swap_total_kb", "Swap Total (kB)"),
+            ):
+                match = re.search(rf"(?m)^{label}:\s+([0-9.]+)([KMGT]i?B?)\b", memory_section, re.IGNORECASE)
+                if match:
+                    extracted.append((check_id, "3.3", metric, self._size_to_kb(*match.groups())))
 
         return [
             _table_check(
@@ -227,6 +249,7 @@ class OSSectionParser:
         "CPU 型號": ("cpu_model", "3.2", "OS"),
         "OS 磁碟設備類型": ("disk_devices", "3.4", "OS"),
         "資料磁碟總空間": ("filesystem_usage", "3.4", "OS"),
+        "硬碟空間": ("filesystem_usage", "3.4", "OS"),
         "檔案系統的掛載點": ("filesystem_mounts", "3.4", "OS"),
         "掛載點": ("mount_points", "3.4", "OS"),
         "查看ps aux": ("process_state", "3.5", "OS"),
@@ -236,6 +259,7 @@ class OSSectionParser:
         "HugePage 設定檢查": ("hugepage_settings", "3.7", "OS"),
         "檢查SELINUX": ("selinux_status", "3.7", "OS"),
         "防火牆設定": ("firewall_status", "3.7", "OS"),
+        "防火牆設定狀態檢查": ("firewall_status", "3.7", "OS"),
         "postgresql": (
             "postgresql_conf",
             "4.13",
@@ -262,6 +286,7 @@ class OSSectionParser:
             "Backup",
         ),
         "Cronjob 設定檢查": ("cron_configuration", "3.9", "OS"),
+        "檢查 crontab": ("cron_configuration", "3.9", "OS"),
     }
 
     @staticmethod
@@ -428,6 +453,7 @@ class PsqlReportParser:
     parser_id = "postgresql.psql_report.v1"
     mappings = {
         "資料庫訊息查看": ("database_information", "4.1"),
+        "資料庫重要參數": ("postgresql_auto_conf", "4.14"),
         "List of databases": ("database_inventory", "4.2"),
         "List of installed extensions": ("extensions", "4.3"),
         "資料庫帳號權限": ("roles_privileges", "4.4"),
@@ -542,7 +568,12 @@ class PsqlReportParser:
                 if position_index + 1 < len(positions)
                 else len(lines)
             )
-            parsed = self._parse_block(lines[start + 1 : end])
+            block = lines[start + 1 : end]
+            parsed = self._parse_block(block)
+            if parsed is None and any(
+                re.fullmatch(r"\(0 rows?\)", line.strip()) for line in block
+            ):
+                parsed = (["結果"], [["0 rows（未發現項目）"]])
             if parsed is None:
                 continue
             headers, rows = parsed
@@ -551,7 +582,9 @@ class PsqlReportParser:
             if not rows:
                 continue
             if check_id in grouped and grouped[check_id][1] == headers:
-                grouped[check_id][2].extend(rows)
+                grouped[check_id][2].extend(
+                    row for row in rows if row not in grouped[check_id][2]
+                )
             else:
                 grouped[check_id] = (section_id, headers, rows)
 

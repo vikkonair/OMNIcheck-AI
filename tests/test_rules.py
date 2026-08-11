@@ -181,3 +181,27 @@ def test_barman_failure_is_assessed_without_primary_database_scope() -> None:
     assert assessment.status == "attention"
     assert "Barman" in assessment.observation
     assert assessment.node == "backup-witness"
+
+
+def test_zero_row_database_locks_are_assessed_as_normal() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "database_locks",
+                ["結果"],
+                [["0 rows（未發現項目）"]],
+                product="PostgreSQL",
+            )
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+        load_rules(ROOT / "config/rules.default.yaml"),
+    )
+
+    assert result.assessments[0].trace.rule_id == "database.locks.v1"
+    assert result.assessments[0].status == "normal"

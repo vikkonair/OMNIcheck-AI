@@ -80,6 +80,21 @@ def _discover_node(hostname: str, texts: list[str], file_count: int) -> dict:
         _add_signal(signals, "Witness", "EFM is.witness=true")
     if re.search(r"dr\d*(?:$|[-_.])", host_folded):
         _add_signal(signals, "DR", "主機名稱含 DR 標記")
+    has_walsender = bool(re.search(
+        r"(?im)^\S+\s+\d+.*\bpostgres:\s+walsender\b.*\bstreaming\b",
+        combined,
+    ))
+    has_walreceiver = bool(re.search(
+        r"(?im)^\S+\s+\d+.*\bpostgres:\s+walreceiver\b.*\bstreaming\b",
+        combined,
+    ))
+    if has_walsender and not has_walreceiver:
+        _add_signal(signals, "Primary", "PostgreSQL walsender 正在 streaming")
+    if has_walreceiver:
+        if signals.get("DR"):
+            _add_signal(signals, "DR", "PostgreSQL walreceiver 證實此節點為串流複本")
+        elif not has_walsender:
+            _add_signal(signals, "Standby", "PostgreSQL walreceiver 正在 streaming")
     if "primary_conninfo" in folded and not signals:
         _add_signal(signals, "Standby", "偵測到 primary_conninfo；需人工確認 Standby／DR")
 
@@ -114,7 +129,7 @@ def _discover_node(hostname: str, texts: list[str], file_count: int) -> dict:
         suggested_role = role_candidates[0]
         strong = any(
             marker in " ".join(signals[suggested_role])
-            for marker in ("bind.address", "is.witness=true", "PEM Server")
+            for marker in ("bind.address", "is.witness=true", "PEM Server", "walsender", "walreceiver")
         )
         confidence = "high" if strong else "medium"
     else:

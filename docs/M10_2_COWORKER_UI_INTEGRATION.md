@@ -65,3 +65,7 @@ Topology discovery 回傳 `can_confirm=false` 時，確認 checkbox 必須停用
 - 台灣行動支付既有 immutable 13 檔資料已在隔離輸出目錄完成候選 Pipeline：14 outputs、QA/V4 QA delivery allowed、Section Workflow、DOCX/PDF 皆通過，來源整包 SHA-256 執行前後相同。
 - 使用者核准後才合併 `main` 或建立正式 tag。
 - Knowledge、CVE、GPDB 與登入功能後續各自建立 milestone／feature flag，不在本候選版偷渡啟用。
+
+## 聯詠實際資料回歸
+
+`2026聯詠健檢資料 2` 三檔以唯讀方式驗證。OS process 證據中的 `walsender streaming` 與 `walreceiver streaming` 可提出 `OADB15N → Primary`、`OADB15-DR → DR`，Database Output 自動建議來源 `OADB15N`。聯詠標題相容、zero-row 語意與 coverage check ID 修正後，normalized checks 由 29 增至 49，coverage 由 50% 升至 92.5%；剩餘缺項僅為來源未提供的兩台 Kernel version 與 Primary `pg_hba.conf`。QA／V4 QA、29 頁 PDF 逐頁檢查與來源 SHA-256 不變均通過。

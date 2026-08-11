@@ -465,7 +465,7 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 
 Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
 
-部署狀態：公司 `current` 已切至 `0a6dccd`；聯詠資料揭露的「無 Primary 時瀏覽器誤顯示 DR 為 Database Output 來源」已修正為強制明確選擇，人工調整成唯一 Primary 並完成來源映射後才可確認。Web／Worker systemd 使用 `current/.venv`，部署由 non-blocking lock 保護。rollback 為 `a0582a0`。公司 EDB 既有 revision 為 `0007_m13_catalog`，本次未執行 migration 或 downgrade。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+部署狀態：公司 `current` 已切至 `0a6dccd`；聯詠資料揭露的空來源誤顯示已修正。後續使用聯詠三檔實測補齊 walsender／walreceiver 角色訊號、聯詠 OS／DB 標題、zero-row 與 coverage ID；自動提出唯一 Primary，coverage 50% → 92.5%，QA/V4 QA、29 頁 PDF 與來源 hash 通過，待部署下一候選。rollback 為 `a0582a0`，無 migration。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
 
 ## 6. 標準開發手順
 

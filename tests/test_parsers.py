@@ -4,6 +4,7 @@ from omni_healthcheck.config import BackupConfig, load_job
 from omni_healthcheck.inventory import build_inventory
 from omni_healthcheck.parsers import (
     BarmanParser,
+    HealthCheckOSLogParser,
     OSSectionParser,
     ParserContext,
     PsqlReportParser,
@@ -110,6 +111,80 @@ java -Dwrapper.key=connector-secret -DuseExtendedMasterSecret=false
     assert "db.password.encrypted=***MASKED***" in rendered
     assert "wrapper.key=***MASKED***" in rendered
     assert "MasterSecret=***MASKED***" in rendered
+
+
+def test_novatek_os_headings_populate_report_fields(tmp_path: Path) -> None:
+    path = tmp_path / "HealthChekOS-LOG-OADB15N.txt"
+    path.write_text(
+        """================ OS版本 ================
+Red Hat Enterprise Linux release 9.5
+================ 主機名稱 ================
+OADB15N
+================ CPU資訊2 ================
+CPU(s): 96
+Model name: Intel(R) Xeon(R) Gold 6442Y
+================ 硬碟空間 ================
+Filesystem Size Used Avail Use% Mounted on
+/dev/sda3 250G 16G 234G 7% /
+================ 記憶體使用量 ================
+Mem: 375Gi 107Gi 4.3Gi 767Mi 267Gi 268Gi
+Swap: 249Gi 3.4Gi 246Gi
+================ 防火牆設定狀態檢查 ================
+Active: inactive (dead)
+""",
+        encoding="utf-8",
+    )
+
+    checks = HealthCheckOSLogParser().parse(parser_context(path, "os"))
+    checks += OSSectionParser().parse(parser_context(path, "os"))
+    by_id = {check.check_id: check for check in checks}
+
+    assert by_id["os_version"].evidence.rows[0][1].startswith("Red Hat")
+    assert by_id["cpu_count"].evidence.rows == [["CPU Count", "96"]]
+    assert "Gold 6442Y" in by_id["cpu_model"].evidence.rows[0][1]
+    assert by_id["memory_total_kb"].evidence.rows == [["Memory Total (kB)", "393216000"]]
+    assert by_id["swap_total_kb"].evidence.rows == [["Swap Total (kB)", "261095424"]]
+    assert "filesystem_usage" in by_id
+    assert "firewall_status" in by_id
+
+
+def test_psql_report_parses_database_important_parameters(tmp_path: Path) -> None:
+    path = tmp_path / "ENGDB_check.txt"
+    path.write_text(
+        """資料庫重要參數
+ sourcefile | sourceline | name | setting | applied
+------------+------------+------+---------+--------
+ /data/postgresql.auto.conf | 1 | shared_buffers | 16GB | t
+(1 row)
+
+pg_stat_activity 查看
+ pid | usename | state
+-----+---------+------
+ 10 | app | active
+(1 row)
+""",
+        encoding="utf-8",
+    )
+
+    by_id = {check.check_id: check for check in PsqlReportParser().parse(parser_context(path))}
+
+    assert by_id["postgresql_auto_conf"].evidence.rows[0][2:] == ["shared_buffers", "16GB", "t"]
+
+
+def test_psql_report_preserves_zero_row_check_as_completed(tmp_path: Path) -> None:
+    path = tmp_path / "ENGDB_check.txt"
+    path.write_text(
+        """資料庫 Lock 狀況
+ blocking_pid | blocked_pid
+--------------+------------
+(0 rows)
+""",
+        encoding="utf-8",
+    )
+
+    by_id = {check.check_id: check for check in PsqlReportParser().parse(parser_context(path))}
+
+    assert by_id["database_locks"].evidence.rows == [["0 rows（未發現項目）"]]
 
 
 def test_os_sections_parse_node_local_db_config_from_standby(

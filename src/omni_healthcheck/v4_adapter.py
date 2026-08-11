@@ -305,17 +305,20 @@ def build_v4_report(
                         "PEM Server": "PEM",
                         "PEM Agent": "PEM",
                     }
-                    rows = [
-                        row for row in rows
-                        if len(row) >= 2
-                        and (
-                            (
+                    relevant_configured = {
+                        pair for pair in configured if pair[1] in {"PEM", "EFM", "XDB"}
+                    }
+                    if relevant_configured:
+                        rows = [
+                            row for row in rows
+                            if len(row) >= 2
+                            and (
                                 row[0],
                                 service_name.get(row[1], row[1]),
-                            )
-                            in configured
-                        )
-                    ][:10]
+                            ) in relevant_configured
+                        ][:10]
+                    else:
+                        rows = rows[:10]
                     unit = {**unit, "rows": rows}
                 assessment_value = unit.get("assessment")
                 if unit["title"] == "罕用索引" and assessment_value:
