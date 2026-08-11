@@ -99,7 +99,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M10 | 正式完成 | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成、目前 main | `m10.1` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
 | M10.3.1 | 公司候選完成、待使用者驗收 | `e56f043` | 可回到 `m10.1`；無 DB downgrade | Section JSON、AI draft／review／approval 分離與 Artifact 登錄 |
-| M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `0a6dccd` | 可回到 `a0582a0`；無 DB downgrade | 同仁 UI Adapter、明確 Database Output 來源、per-release venv、deploy lock／owner |
+| M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `327748d` | 可回到 `0a6dccd`；無 DB downgrade | 同仁 UI Adapter、聯詠拓撲／格式、明確 Database Output 來源 |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -465,7 +465,7 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 
 Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
 
-部署狀態：公司 `current` 已切至 `0a6dccd`；聯詠資料揭露的空來源誤顯示已修正。後續使用聯詠三檔實測補齊 walsender／walreceiver 角色訊號、聯詠 OS／DB 標題、zero-row 與 coverage ID；自動提出唯一 Primary，coverage 50% → 92.5%，QA/V4 QA、29 頁 PDF 與來源 hash 通過，待部署下一候選。rollback 為 `a0582a0`，無 migration。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+部署狀態：公司 `current` 已切至 `327748d`；聯詠三檔正式 Discovery API 自動提出 `OADB15N → Primary`、`OADB15-DR → DR` 與 Database Output 來源 `OADB15N`。本機 93 tests、公司相關 28 tests、health、Web／Worker per-release process、coverage 92.5%、QA/V4 QA、29 頁 PDF 與來源 hash 通過。rollback 為 `0a6dccd`，無 migration。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
 
 ## 6. 標準開發手順
 
