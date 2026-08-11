@@ -2,7 +2,7 @@
 
 最後更新：2026-08-11
 
-目前執行：M10.3.1 Section Workflow Foundation。M10.2 等待組員前端需求，不構成 Ollama 前置條件。
+目前執行：M10.2 同仁 UI Adapter 整合候選。M10.3.1 Section Workflow Foundation 已完成公司候選驗證，兩者以 UI／API 邊界結合，不更換既有 Pipeline。
 
 ## 固定基礎
 
@@ -12,7 +12,7 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 
 | Milestone | 目標 | 主要交付物 |
 |---|---|---|
-| M10.2 | 等待前端需求 | REST/OpenAPI、統一錯誤與狀態、CORS、分批上傳、Job progress、下載介面、前端整合測試 |
+| M10.2 | UI Adapter 候選版 | 同仁整合式 UI 接上既有 API；保留 `/classic` fallback；Login、Knowledge/CVE、GPDB 隔離；公司 E2E 與使用者驗收後正式化 |
 | M10.3.1 | 功能分支完成 | 版本化 Section JSON、規則原文、AI 草稿、人工審查／核准狀態與 fail-closed 選文 |
 | M10.3.2 | 待 schema reconciliation | EDB Section persistence、版本、稽核與 Section API |
 | M11 | 選配身份與權限 | 預設內網單一使用模式；需要時再加入 API token、登入、RBAC、客戶隔離與 Audit |

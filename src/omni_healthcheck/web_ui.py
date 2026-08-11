@@ -274,11 +274,12 @@ async function discoverTopology() {
       form.append('files',sample,selectedPath(file));
     });
     const result=await api('/api/topology/discover',{method:'POST',body:form}); state.discovery=result;
-    state.nodes=result.nodes.map(node => ({hostname:node.hostname,
+    const discoveredNodes=result.nodes.map(node => ({hostname:node.hostname,
       role:node.suggested_role === 'Unknown' ? 'Standby' : node.suggested_role,
       services:node.services.filter(service => serviceAllowed(service,node.suggested_role))}));
+    if (discoveredNodes.length) state.nodes=discoveredNodes;
     state.evidenceMappings=(result.evidence_candidates || []).map(item => ({path:item.path,node:item.suggested_node || state.nodes.find(node => node.role==='Primary')?.hostname || ''}));
-    renderNodes(); renderEvidenceMappings(); el('step2').classList.add('active'); el('topologyConfirmed').disabled=false;
+    renderNodes(); renderEvidenceMappings(); el('step2').classList.add('active'); el('topologyConfirmed').disabled=!result.can_confirm;
     const details=result.nodes.map(node => `${node.hostname} → ${node.suggested_role}（${node.confidence}）${node.services.length ? `；${node.services.join('、')}` : ''}`).join('\n');
     const warnings=result.warnings.length ? `\n注意：${result.warnings.join('；')}` : '';
     el('topologyReview').textContent=`找到 ${result.summary.node_count} 台節點：\n${details}${warnings}\n請核對上方節點角色後勾選確認。`;

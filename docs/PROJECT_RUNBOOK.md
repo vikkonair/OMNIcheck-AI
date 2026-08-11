@@ -454,6 +454,18 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 
 詳細文件：`docs/M10_3_SECTION_FOUNDATION.md`、`docs/M10_3_VALIDATION.md`。
 
+### M10.2：同仁 UI Adapter 整合候選
+
+目的：採用同仁 `0.13.2.dev2` 的整合式健檢 UI，但繼續使用我們 M10.3.1 的 Pipeline、Canonical JSON、Section Workflow、EDB Queue/Persistence 與 V4 Renderer。
+
+整合方式：`/`、`/integrated` 使用新版 UI，`/classic` 保留原介面。第一階段不帶入 Login/RBAC、Knowledge/CVE、GPDB、同仁 migration 或同仁後端。Topology discovery 無法確認時改為 fail closed，保留人工節點且禁止勾選確認。
+
+驗證：同仁 Bundle 與 77 上保存的 `0.13.2.dev2` 185 個檔案逐檔 SHA-256 完全一致；同仁 Source 107 tests 通過；整合分支完整 85 tests 通過；Browser DOM／視覺驗證無 overflow，未出現 Knowledge／GPDB，傳統介面可切回。
+
+Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
+
+待辦：公司 VM 候選部署、真實資料 Web → EDB Queue → Worker → V4 Report 與使用者驗收。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+
 ## 6. 標準開發手順
 
 後續每一個 milestone 都依下列順序進行：
@@ -543,7 +555,7 @@ git switch feature/m9-web-job-management
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |
 |---|---|---|
-| M10.2 | 前端整合 API | REST／OpenAPI、統一狀態與錯誤、CORS、分批上傳、polling、下載及整合測試 |
+| M10.2 | 同仁 UI Adapter | 新版 UI 接既有 API、`/classic` fallback、登入／Knowledge／GPDB 隔離、公司 E2E 與使用者驗收 |
 | M10.3 | Section API 與審核 | 規則原文、固定模板、AI 草稿、人工修改／核准、版本與稽核紀錄 |
 | M11 | 選配 Login／RBAC／客戶隔離／Audit | 現階段維持內網單一模式；需要時再加入 token、身份提供者、tenant enforcement 與稽核事件 |
 | M12 | 歷史比較 | 依 customer／system／period 比較 normalized checks 與 assessment，產生趨勢 |
