@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.10.3-draft.3 | 2026-08-11 | 修正無 Primary 時 Database Output 誤顯示 DR、人工修正後重新開放確認 | 本機 88 tests、公司 VM targeted 11 tests、health／UI marker／per-release process 通過；rollback `a0582a0` |
 | 0.10.3-draft.2 | 2026-08-11 | 同仁 UI Adapter 公司候選部署、per-release venv、systemd release isolation、deploy lock／owner | 公司 release `a0582a0` 87 tests；Golden Web → EDB Queue → Worker → V4、QA、重啟持久性通過；待使用者驗收 |
 | 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 本機／公司 VM 85 tests；台灣行動支付 14 檔／19 sections、公司 ENGDB 3 檔／9 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待使用者驗收 |
 | 0.10.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping、Scope 稽核與使用者驗收 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF、來源 hash 與公司 Web 驗收通過 |
@@ -928,7 +929,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M10 已部署公司 `.77/.81`：release `6e8ee6e`、EDB revision 維持 `0004_m9_6`，本機／VM 78 tests；台灣行動支付 13 檔自動提出 5 節點與唯一 Primary，人工確認 gate、Queue／Worker Job `12c90aa3da354f1c83dbc42e6d57e118`、13 outputs、QA、V4 QA、DOCX/PDF、來源 hash 與重啟持久性均通過。
 - M10.1 已通過公司 Web 使用者驗收：候選 release `be0ca80`、本機／VM 82 tests；實際 ENGDB 來源確認後得到 17 項 Primary checks、QA/V4 QA、19 頁 PDF 與來源 hash 不變。正式 application 可回到 `m10`，不需 database downgrade。
 - M10.3.1 公司候選 release `e56f043`：Web／Worker／EDB health 正常，公司 VM 85 tests；ENGDB 三檔產生 9 個 deterministic Section items、QA/V4 QA、DOCX/PDF 與來源 hash 通過。切換前曾偵測另一個開發套件使用同一 shared venv，後續多人部署必須採 deploy lock／release owner。
-- M10.2 同仁 UI Adapter 公司候選已部署：同仁 Bundle 與公司 VM 保存版 185 個檔案逐檔 SHA-256 相同；release `a0582a0` 以 per-release venv 執行並通過 87 tests，systemd、deploy lock／owner、Browser layout、台灣行動支付 immutable 資料與 Golden E2E 均通過。Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 產生 12 個 Canonical/V4 產物，QA/V4 QA 允許交付，服務重啟後 EDB persistence 正常。rollback 為 `/classic` 或 application release `e56f043`，無 database downgrade；EDB `0007_m13_catalog` schema reconciliation 仍待處理。
+- M10.2 同仁 UI Adapter 公司候選已部署：目前 release `0a6dccd`；無 Primary 時 Database Output 顯示空白來源並強制人工選擇，節點修正為唯一 Primary 且全部映射完成後才可確認。本機 88 tests、公司 VM 相關 11 tests、health、UI marker 與 per-release process 通過；完整 Golden E2E 基準沿用前版 Job `2a8d40b0727c41119236fd6642cd2ec2`。rollback 為 `/classic` 或 application release `a0582a0`，無 database downgrade；EDB `0007_m13_catalog` schema reconciliation 仍待處理。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。

@@ -61,7 +61,7 @@ Topology discovery 回傳 `can_confirm=false` 時，確認 checkbox 必須停用
 
 ## 公司候選部署
 
-- 公司 VM 已切換 release `a0582a0`，per-release venv、systemd、deploy lock／owner、health、UI markers 與 `/classic` 均通過；後續聯詠資料測試揭露的空來源誤顯示問題由下一個候選修正。
+- 公司 VM 已切換 release `0a6dccd`，per-release venv、systemd、deploy lock／owner、health、UI markers 與 `/classic` 均通過；聯詠資料測試揭露的空來源誤顯示問題已修正，rollback release 為 `a0582a0`。
 - 台灣行動支付既有 immutable 13 檔資料已在隔離輸出目錄完成候選 Pipeline：14 outputs、QA/V4 QA delivery allowed、Section Workflow、DOCX/PDF 皆通過，來源整包 SHA-256 執行前後相同。
 - 使用者核准後才合併 `main` 或建立正式 tag。
 - Knowledge、CVE、GPDB 與登入功能後續各自建立 milestone／feature flag，不在本候選版偷渡啟用。

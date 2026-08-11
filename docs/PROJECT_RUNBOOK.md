@@ -99,7 +99,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M10 | 正式完成 | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成、目前 main | `m10.1` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
 | M10.3.1 | 公司候選完成、待使用者驗收 | `e56f043` | 可回到 `m10.1`；無 DB downgrade | Section JSON、AI draft／review／approval 分離與 Artifact 登錄 |
-| M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `a0582a0` | 可回到 `e56f043`；無 DB downgrade | 同仁 UI Adapter、`/classic` fallback、per-release venv、deploy lock／owner |
+| M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `0a6dccd` | 可回到 `a0582a0`；無 DB downgrade | 同仁 UI Adapter、明確 Database Output 來源、per-release venv、deploy lock／owner |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -465,7 +465,7 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 
 Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
 
-部署狀態：公司 `current` 已切至 `a0582a0`；Web／Worker systemd 使用 `current/.venv`，部署以 `/data/omnicheck/app/deploy.lock` 的 non-blocking lock 保護，並保存 deployment owner／previous release／rollback metadata。`e56f043` 已建立 rollback-local venv。公司 EDB 既有 revision 為 `0007_m13_catalog`，本次未執行 migration 或 downgrade，schema reconciliation 仍待後續處理。下一步為使用者驗收。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+部署狀態：公司 `current` 已切至 `0a6dccd`；聯詠資料揭露的「無 Primary 時瀏覽器誤顯示 DR 為 Database Output 來源」已修正為強制明確選擇，人工調整成唯一 Primary 並完成來源映射後才可確認。Web／Worker systemd 使用 `current/.venv`，部署由 non-blocking lock 保護。rollback 為 `a0582a0`。公司 EDB 既有 revision 為 `0007_m13_catalog`，本次未執行 migration 或 downgrade。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
 
 ## 6. 標準開發手順
 
