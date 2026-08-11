@@ -25,7 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 85 tests、V4 manifest、台灣行動支付 14 檔／19 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待公司候選驗收 |
+| 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 本機／公司 VM 85 tests；台灣行動支付 14 檔／19 sections、公司 ENGDB 3 檔／9 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待使用者驗收 |
 | 0.10.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping、Scope 稽核與使用者驗收 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF、來源 hash 與公司 Web 驗收通過 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
@@ -76,7 +76,7 @@
 | M10 | 正式完成 | 未知資料包的確定性節點／角色／服務候選、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成 | 舊式 Database Output 內容辨識、來源節點候選、人工 mapping 與 Primary-only 保護 |
 | M10.2 | 等待前端需求 | 既有前端 REST／OpenAPI 整合 |
-| M10.3.1 | 功能分支完成、待公司驗收 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
+| M10.3.1 | 公司候選完成、待使用者驗收 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
 | M10.3.2 | 待 schema reconciliation | EDB Section persistence、版本、稽核與 API |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
@@ -924,6 +924,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M9.6 已部署公司 `.77/.81`：release `2fc2ce7`、Alembic `0004_m9_6`、74 tests、Scoped Artifact E2E、Archive dry-run、冪等與服務重啟均通過。
 - M10 已部署公司 `.77/.81`：release `6e8ee6e`、EDB revision 維持 `0004_m9_6`，本機／VM 78 tests；台灣行動支付 13 檔自動提出 5 節點與唯一 Primary，人工確認 gate、Queue／Worker Job `12c90aa3da354f1c83dbc42e6d57e118`、13 outputs、QA、V4 QA、DOCX/PDF、來源 hash 與重啟持久性均通過。
 - M10.1 已通過公司 Web 使用者驗收：候選 release `be0ca80`、本機／VM 82 tests；實際 ENGDB 來源確認後得到 17 項 Primary checks、QA/V4 QA、19 頁 PDF 與來源 hash 不變。正式 application 可回到 `m10`，不需 database downgrade。
+- M10.3.1 公司候選 release `e56f043`：Web／Worker／EDB health 正常，公司 VM 85 tests；ENGDB 三檔產生 9 個 deterministic Section items、QA/V4 QA、DOCX/PDF 與來源 hash 通過。切換前曾偵測另一個開發套件使用同一 shared venv，後續多人部署必須採 deploy lock／release owner。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。

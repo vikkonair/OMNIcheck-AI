@@ -1,7 +1,7 @@
 # M10.3.1 Backend Section Workflow Foundation
 
 日期：2026-08-11  
-狀態：功能分支完成，待公司候選部署與使用者驗收
+狀態：功能分支與公司候選部署完成，待使用者驗收
 
 ## 目的
 
@@ -33,4 +33,3 @@ Pipeline 新增 `section-workflow.json`，契約名稱為 `omnicheck.section-wor
 本階段不新增 migration。公司 EDB 保留一個由暫停 M11 留下的 additive revision，而正式 main 尚未包含該 migration；為避免建立衝突的 Alembic branch，Section EDB tables 與 API 延後到 schema reconciliation 後實作。
 
 Rollback 可直接切回 `m10.1` application；不需 database downgrade。舊版本會忽略新增的 JSON Artifact。
-
