@@ -61,6 +61,17 @@ def test_discovery_fails_closed_when_primary_is_unknown() -> None:
     assert "必須確認" in result["warnings"][0]
 
 
+def test_unassigned_database_output_has_no_source_suggestion_without_primary() -> None:
+    result = discover_topology([
+        _item("os/HealthChekOS-LOG-OADB15-DR.txt", "hostname OADB15-DR"),
+        _item("os/HealthChekOS-LOG-OADB15N.txt", "hostname OADB15N"),
+        _item("ENGDB_check.txt", "資料庫訊息查看\ndb_ver | EPAS 17.10\nList of databases\npg_stat_activity 查看"),
+    ])
+
+    assert result["summary"]["primary_candidates"] == 0
+    assert result["evidence_candidates"][0]["suggested_node"] is None
+
+
 def test_discovery_proposes_mapping_for_legacy_database_output() -> None:
     result = discover_topology([
         _item("HealthChekOS-LOG-db01-20260715.txt", "bind.address=efm-primary:7800\ndb.user=efm"),

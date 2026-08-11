@@ -130,7 +130,9 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert "Database Output 來源確認" in page.text
     assert "evidence_mappings" in page.text
     assert "if (discoveredNodes.length) state.nodes=discoveredNodes" in page.text
-    assert "disabled=!result.can_confirm" in page.text
+    assert "請選擇來源節點" in page.text
+    assert "updateConfirmationAvailability" in page.text
+    assert "exactlyOnePrimary" in page.text
     assert "textarea" not in page.text
 
     options = client.get("/api/config-options")

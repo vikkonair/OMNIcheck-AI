@@ -181,15 +181,15 @@ function renderNodes() {
     const head = document.createElement('div'); head.className = 'node-head';
     const hostLabel = document.createElement('label'); hostLabel.textContent = `節點主機名稱 ${index + 1} *`;
     const host = document.createElement('input'); host.required = true; host.placeholder = '例如：db-primary'; host.value = node.hostname;
-    host.addEventListener('input', () => { const previous=node.hostname; node.hostname=host.value; state.evidenceMappings.filter(item => item.node===previous).forEach(item => item.node=node.hostname); });
-    host.addEventListener('change', () => renderEvidenceMappings()); hostLabel.append(host);
+    host.addEventListener('input', () => { const previous=node.hostname; node.hostname=host.value; state.evidenceMappings.filter(item => item.node===previous).forEach(item => item.node=node.hostname); updateConfirmationAvailability(); });
+    host.addEventListener('change', () => { renderEvidenceMappings(); updateConfirmationAvailability(); }); hostLabel.append(host);
     const roleLabel = document.createElement('label'); roleLabel.textContent = '角色 *';
     const role = document.createElement('select');
     (state.options?.roles || ['Primary','Standby','DR','Witness']).forEach(value => {
       const option = document.createElement('option'); option.value = value; option.textContent = value;
       option.selected = value === node.role; role.append(option);
     });
-    role.addEventListener('change', () => { node.role = role.value; node.services = node.services.filter(service => serviceAllowed(service, node.role)); renderNodes(); renderEvidenceMappings(); });
+    role.addEventListener('change', () => { node.role = role.value; node.services = node.services.filter(service => serviceAllowed(service, node.role)); renderNodes(); renderEvidenceMappings(); updateConfirmationAvailability(); });
     roleLabel.append(role);
     const remove = document.createElement('button'); remove.type='button'; remove.className='danger'; remove.textContent='移除';
     remove.disabled = state.nodes.length === 1; remove.addEventListener('click', () => { state.nodes.splice(index,1); renderNodes(); });
@@ -215,9 +215,19 @@ function renderEvidenceMappings() {
     const path=document.createElement('div'); path.textContent=mapping.path;
     const label=document.createElement('label'); label.textContent='來源節點 *';
     const select=document.createElement('select');
+    const placeholder=document.createElement('option'); placeholder.value=''; placeholder.textContent='請選擇來源節點'; placeholder.selected=!mapping.node; select.append(placeholder);
     state.nodes.forEach(node => { const option=document.createElement('option'); option.value=node.hostname; option.textContent=`${node.hostname}（${node.role}）`; option.selected=node.hostname===mapping.node; select.append(option); });
-    select.addEventListener('change',()=>mapping.node=select.value); label.append(select); row.append(path,label); root.append(row);
+    select.addEventListener('change',()=>{ mapping.node=select.value; updateConfirmationAvailability(); }); label.append(select); row.append(path,label); root.append(row);
   });
+}
+function updateConfirmationAvailability() {
+  const checkbox=el('topologyConfirmed');
+  if (!state.discovery) { checkbox.disabled=true; checkbox.checked=false; return; }
+  const hostnames=new Set(state.nodes.map(node => node.hostname.trim()).filter(Boolean));
+  const exactlyOnePrimary=state.nodes.filter(node => node.role==='Primary').length===1;
+  const mappingsComplete=state.evidenceMappings.every(item => item.node && hostnames.has(item.node));
+  checkbox.disabled=!(state.nodes.length && hostnames.size===state.nodes.length && exactlyOnePrimary && mappingsComplete);
+  if (checkbox.disabled) checkbox.checked=false;
 }
 function serviceAllowed(name, role) {
   const service = state.options?.services.find(item => item.name === name);
@@ -239,6 +249,7 @@ function updateFiles(files) {
 }
 function buildConfig() {
   if (!state.discovery || !el('topologyConfirmed').checked) throw new Error('請先分析資料並確認節點架構。');
+  if (state.evidenceMappings.some(item => !item.node)) throw new Error('請為所有 Database Output 選擇來源節點。');
   const nodes=state.nodes.map(node => ({...node, hostname:node.hostname.trim()}));
   const backupCandidates=nodes.flatMap(node => node.services
     .filter(service => service === 'pgBackRest' || service === 'Barman')
@@ -279,7 +290,7 @@ async function discoverTopology() {
       services:node.services.filter(service => serviceAllowed(service,node.suggested_role))}));
     if (discoveredNodes.length) state.nodes=discoveredNodes;
     state.evidenceMappings=(result.evidence_candidates || []).map(item => ({path:item.path,node:item.suggested_node || state.nodes.find(node => node.role==='Primary')?.hostname || ''}));
-    renderNodes(); renderEvidenceMappings(); el('step2').classList.add('active'); el('topologyConfirmed').disabled=!result.can_confirm;
+    renderNodes(); renderEvidenceMappings(); el('step2').classList.add('active'); updateConfirmationAvailability();
     const details=result.nodes.map(node => `${node.hostname} → ${node.suggested_role}（${node.confidence}）${node.services.length ? `；${node.services.join('、')}` : ''}`).join('\n');
     const warnings=result.warnings.length ? `\n注意：${result.warnings.join('；')}` : '';
     el('topologyReview').textContent=`找到 ${result.summary.node_count} 台節點：\n${details}${warnings}\n請核對上方節點角色後勾選確認。`;

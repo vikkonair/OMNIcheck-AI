@@ -47,20 +47,21 @@
 
 Topology discovery 回傳 `can_confirm=false` 時，確認 checkbox 必須停用；若沒有提出任何節點，不得清空使用者已填寫的人工節點。這能避免 0 Primary／未解析 evidence 被誤認為已確認。
 
+若 discovery 沒有唯一 Primary，Database Output 的 `suggested_node` 為空值。UI 必須顯示「請選擇來源節點」，不得讓瀏覽器把排序第一台（例如 DR）顯示成預設來源。使用者將節點角色修正為唯一 Primary，且所有 Database Output 都完成來源映射後，系統才重新開放確認 checkbox；未選來源時建立案件必須 fail closed。
+
 ## 驗證
 
 - 專案 Python 3.12 syntax check：通過。
-- 完整 pytest：85 passed。
+- 完整 pytest：88 passed（包含無 Primary 時不得預選 DR 的 regression test）。
 - Browser DOM／視覺檢查：品牌、路由、產品選項與操作元件正常；無水平 overflow。
 - `/knowledge` link：0。
 - GPDB UI：未出現。
 - 無節點探索：保留人工 Primary，確認 checkbox 維持 disabled。
 - 既有 Golden／V4 tests：通過，Pipeline 與 Renderer 未變更。
 
-## 尚待完成
+## 公司候選部署
 
-- 公司 VM 已建立隔離 release `59eff13`，以 `PYTHONPATH` 執行 85 tests 全數通過；loopback 候選 Web 的 health 為 `metadata=database／worker=external`，UI markers 與 `/classic` 均通過。
+- 公司 VM 已切換 release `a0582a0`，per-release venv、systemd、deploy lock／owner、health、UI markers 與 `/classic` 均通過；後續聯詠資料測試揭露的空來源誤顯示問題由下一個候選修正。
 - 台灣行動支付既有 immutable 13 檔資料已在隔離輸出目錄完成候選 Pipeline：14 outputs、QA/V4 QA delivery allowed、Section Workflow、DOCX/PDF 皆通過，來源整包 SHA-256 執行前後相同。
-- 正式 `current` 與 shared venv 仍維持 `e56f043`。不得直接重裝 shared editable package；正式切換前需完成 per-release venv／systemd release owner 設計，避免 Web、Worker、Knowledge process 互相覆蓋。
 - 使用者核准後才合併 `main` 或建立正式 tag。
 - Knowledge、CVE、GPDB 與登入功能後續各自建立 milestone／feature flag，不在本候選版偷渡啟用。

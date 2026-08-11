@@ -607,7 +607,7 @@ git diff --check
 
 公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests、M10.1 為 82 tests；M10.3.1 候選為 85 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
 
-M10.2 UI Adapter 公司候選為 87 tests，新增 UI Adapter、路由、fail-closed 畫面行為與 deployment contract tests，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。公司 release `a0582a0` 使用獨立 `.venv`，Web／Worker systemd 已改用 `current/.venv`；切換時持有 `/data/omnicheck/app/deploy.lock` 並保存 owner／commit／previous／rollback metadata。Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 已完成 Web → EDB Queue → Worker → 12 個 Canonical/V4 產物，QA/V4 QA 均允許交付，服務重啟後案件仍可由 EDB 讀回。公司 EDB revision `0007_m13_catalog` 並非本分支 migration head，本次未執行 migration 或 downgrade；待 schema reconciliation 後才進行 Section persistence/API。
+M10.2 UI Adapter 公司候選為 88 tests，新增 UI Adapter、路由、fail-closed 畫面行為與 deployment contract tests，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。Database Output 沒有 Primary suggestion 時，UI 必須顯示「請選擇來源節點」，不得預選排序第一台 DR；人工修正為唯一 Primary 並完成全部來源映射後，確認 checkbox 才可啟用。公司 release `a0582a0` 使用獨立 `.venv`，Web／Worker systemd 已改用 `current/.venv`；切換時持有 `/data/omnicheck/app/deploy.lock` 並保存 owner／commit／previous／rollback metadata。Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 已完成 Web → EDB Queue → Worker → 12 個 Canonical/V4 產物，QA/V4 QA 均允許交付，服務重啟後案件仍可由 EDB 讀回。公司 EDB revision `0007_m13_catalog` 並非本分支 migration head，本次未執行 migration 或 downgrade；待 schema reconciliation 後才進行 Section persistence/API。
 
 ### 13.2 V4 bundle 完整性
 
