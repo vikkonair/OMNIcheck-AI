@@ -4,7 +4,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 
 目前正式版本已完成至 **M10.1：舊式 Database Output 分類與來源確認**，並已通過公司環境使用者驗收。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 Web → EDB Queue → Worker → V4 Report 端到端驗證、服務重啟與 EDB 持久性驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-目前 **M10.3.1** 已建立 AI-optional Section Workflow：確定性文字、AI 草稿、工程師審查與核准版本彼此分離；Ollama 尚未啟用，既有 Renderer 不讀 AI 草稿。M10.2 已取得同仁 `0.13.2.dev2` UI Bundle，現以獨立分支整合同仁新版介面與我們的 M10.3.1 後端；登入、Knowledge/CVE 與 GPDB 暫不啟用。
+目前 **M10.3.1** 已建立 AI-optional Section Workflow：確定性文字、AI 草稿、工程師審查與核准版本彼此分離；Ollama 尚未啟用，既有 Renderer 不讀 AI 草稿。M10.2 已將同仁 `0.13.2.dev2` 的新版介面透過 Adapter 接上我們的 M10.3.1 後端，並部署公司候選 release `a0582a0`；登入、Knowledge/CVE 與 GPDB 暫不啟用，`/classic` 保留原介面。
 
 選取未知資料包後，M10 會提出節點、角色、服務、信心與理由，必須由使用者確認後才執行既有 Pipeline；系統不會自行取代 DBA 的最終判斷。
 

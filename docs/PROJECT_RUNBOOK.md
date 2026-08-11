@@ -99,6 +99,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M10 | 正式完成 | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成、目前 main | `m10.1` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
 | M10.3.1 | 公司候選完成、待使用者驗收 | `e56f043` | 可回到 `m10.1`；無 DB downgrade | Section JSON、AI draft／review／approval 分離與 Artifact 登錄 |
+| M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `a0582a0` | 可回到 `e56f043`；無 DB downgrade | 同仁 UI Adapter、`/classic` fallback、per-release venv、deploy lock／owner |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -460,11 +461,11 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 
 整合方式：`/`、`/integrated` 使用新版 UI，`/classic` 保留原介面。第一階段不帶入 Login/RBAC、Knowledge/CVE、GPDB、同仁 migration 或同仁後端。Topology discovery 無法確認時改為 fail closed，保留人工節點且禁止勾選確認。
 
-驗證：同仁 Bundle 與 77 上保存的 `0.13.2.dev2` 185 個檔案逐檔 SHA-256 完全一致；同仁 Source 107 tests 通過；整合分支與 77 隔離 release `59eff13` 各 85 tests 通過；Browser DOM／視覺驗證無 overflow，未出現 Knowledge／GPDB，傳統介面可切回。台灣行動支付既有 immutable 13 檔候選執行產生 14 outputs，QA/V4 QA、Section Workflow、DOCX/PDF 通過，來源 digest 前後相同。
+驗證：同仁 Bundle 與 77 上保存的 `0.13.2.dev2` 185 個檔案逐檔 SHA-256 完全一致；同仁 Source 107 tests 通過；整合分支與公司候選 release `a0582a0` 各 87 tests 通過；Browser DOM／視覺驗證無 overflow，未出現 Knowledge／GPDB，傳統介面可切回。台灣行動支付既有 immutable 13 檔候選執行產生 14 outputs，QA/V4 QA、Section Workflow、DOCX/PDF 通過，來源 digest 前後相同。正式切換後 Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 完成 Web → EDB Queue → Worker → 12 個 Canonical/V4 產物，QA 與 V4 QA 均允許交付；Web／Worker 重啟後案件與產物仍可讀取。
 
 Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
 
-待辦：`59eff13/.venv` 已建立並通過 85 tests；正式切換前將 systemd 改為 `current/.venv`，以 `/data/omnicheck/app/deploy.lock` 取得 non-blocking lock，保存 deployment owner／previous release／rollback metadata，並先為 `e56f043` 建立 rollback-local venv；之後進行使用者驗收。`current` 目前仍維持 `e56f043`。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+部署狀態：公司 `current` 已切至 `a0582a0`；Web／Worker systemd 使用 `current/.venv`，部署以 `/data/omnicheck/app/deploy.lock` 的 non-blocking lock 保護，並保存 deployment owner／previous release／rollback metadata。`e56f043` 已建立 rollback-local venv。公司 EDB 既有 revision 為 `0007_m13_catalog`，本次未執行 migration 或 downgrade，schema reconciliation 仍待後續處理。下一步為使用者驗收。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
 
 ## 6. 標準開發手順
 
