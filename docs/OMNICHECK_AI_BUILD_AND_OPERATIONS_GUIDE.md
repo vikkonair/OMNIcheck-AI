@@ -606,7 +606,7 @@ git diff --check
 
 公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests、M10.1 為 82 tests；M10.3.1 候選為 85 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
 
-M10.2 UI Adapter 候選仍為 85 tests，因只新增 UI Adapter、路由與 fail-closed 畫面行為，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。
+M10.2 UI Adapter 候選仍為 85 tests，因只新增 UI Adapter、路由與 fail-closed 畫面行為，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。公司 VM 隔離 release `59eff13` 已通過 85 tests、EDB/external-worker health 與台灣行動支付 13 inputs／14 outputs、QA/V4 QA、Section Workflow、DOCX/PDF；來源 SHA-256 前後一致。
 
 ### 13.2 V4 bundle 完整性
 
@@ -927,7 +927,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M10 已部署公司 `.77/.81`：release `6e8ee6e`、EDB revision 維持 `0004_m9_6`，本機／VM 78 tests；台灣行動支付 13 檔自動提出 5 節點與唯一 Primary，人工確認 gate、Queue／Worker Job `12c90aa3da354f1c83dbc42e6d57e118`、13 outputs、QA、V4 QA、DOCX/PDF、來源 hash 與重啟持久性均通過。
 - M10.1 已通過公司 Web 使用者驗收：候選 release `be0ca80`、本機／VM 82 tests；實際 ENGDB 來源確認後得到 17 項 Primary checks、QA/V4 QA、19 頁 PDF 與來源 hash 不變。正式 application 可回到 `m10`，不需 database downgrade。
 - M10.3.1 公司候選 release `e56f043`：Web／Worker／EDB health 正常，公司 VM 85 tests；ENGDB 三檔產生 9 個 deterministic Section items、QA/V4 QA、DOCX/PDF 與來源 hash 通過。切換前曾偵測另一個開發套件使用同一 shared venv，後續多人部署必須採 deploy lock／release owner。
-- M10.2 同仁 UI Adapter 候選：同仁 Bundle 與公司 VM 保存版 185 個檔案逐檔 SHA-256 相同；整合分支 85 tests 與 Browser layout 通過。尚未切換公司 `current`，公司 E2E 與使用者驗收待執行；rollback 為 `/classic` 或 application release `e56f043`，無 database downgrade。
+- M10.2 同仁 UI Adapter 候選：同仁 Bundle 與公司 VM 保存版 185 個檔案逐檔 SHA-256 相同；整合分支與 VM 隔離 release `59eff13` 各 85 tests，Browser layout、EDB/external-worker health 與台灣行動支付 13 inputs／14 outputs、QA/V4 QA、Section Workflow、DOCX/PDF 均通過，來源 hash 前後相同。尚未切換公司 `current`；shared editable venv 不得直接重裝，正式切換前需 per-release venv／systemd release owner。rollback 為 `/classic` 或 application release `e56f043`，無 database downgrade。
 - 台灣行動支付實際資料在 SCRAM 重啟後通過 13 inputs／13 outputs、QA 8/8、V4 QA、29 頁 PDF 與來源 SHA-256 不變。
 - `.81` 的 OMNIcheck 精確規則已要求 SCRAM；cluster-wide `host all all 0.0.0.0/0 trust` 仍是其他連線的安全風險，需另案收斂。
 - 兩次修正前 API 500 留下兩筆空的 draft Golden 測試案件；尚未執行破壞性清除。

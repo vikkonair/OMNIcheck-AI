@@ -51,6 +51,8 @@ Topology discovery 回傳 `can_confirm=false` 時，確認 checkbox 必須停用
 
 ## 尚待完成
 
-- 以真實資料在公司候選 release 完成 Web → EDB Queue → Worker → V4 Report 驗收。
+- 公司 VM 已建立隔離 release `59eff13`，以 `PYTHONPATH` 執行 85 tests 全數通過；loopback 候選 Web 的 health 為 `metadata=database／worker=external`，UI markers 與 `/classic` 均通過。
+- 台灣行動支付既有 immutable 13 檔資料已在隔離輸出目錄完成候選 Pipeline：14 outputs、QA/V4 QA delivery allowed、Section Workflow、DOCX/PDF 皆通過，來源整包 SHA-256 執行前後相同。
+- 正式 `current` 與 shared venv 仍維持 `e56f043`。不得直接重裝 shared editable package；正式切換前需完成 per-release venv／systemd release owner 設計，避免 Web、Worker、Knowledge process 互相覆蓋。
 - 使用者核准後才合併 `main` 或建立正式 tag。
 - Knowledge、CVE、GPDB 與登入功能後續各自建立 milestone／feature flag，不在本候選版偷渡啟用。

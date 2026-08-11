@@ -460,11 +460,11 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 
 整合方式：`/`、`/integrated` 使用新版 UI，`/classic` 保留原介面。第一階段不帶入 Login/RBAC、Knowledge/CVE、GPDB、同仁 migration 或同仁後端。Topology discovery 無法確認時改為 fail closed，保留人工節點且禁止勾選確認。
 
-驗證：同仁 Bundle 與 77 上保存的 `0.13.2.dev2` 185 個檔案逐檔 SHA-256 完全一致；同仁 Source 107 tests 通過；整合分支完整 85 tests 通過；Browser DOM／視覺驗證無 overflow，未出現 Knowledge／GPDB，傳統介面可切回。
+驗證：同仁 Bundle 與 77 上保存的 `0.13.2.dev2` 185 個檔案逐檔 SHA-256 完全一致；同仁 Source 107 tests 通過；整合分支與 77 隔離 release `59eff13` 各 85 tests 通過；Browser DOM／視覺驗證無 overflow，未出現 Knowledge／GPDB，傳統介面可切回。台灣行動支付既有 immutable 13 檔候選執行產生 14 outputs，QA/V4 QA、Section Workflow、DOCX/PDF 通過，來源 digest 前後相同。
 
 Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
 
-待辦：公司 VM 候選部署、真實資料 Web → EDB Queue → Worker → V4 Report 與使用者驗收。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+待辦：正式切換前建立 per-release venv／systemd release owner，避免 shared editable venv 影響 Web、Worker 與 Knowledge process；之後進行使用者驗收。`current` 與 shared venv 目前仍維持 `e56f043`。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
 
 ## 6. 標準開發手順
 
