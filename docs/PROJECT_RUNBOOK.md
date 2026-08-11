@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M10.2 已完成驗收並合併主線；M10.3.2 Section persistence／審核 API、公司 0008 migration 與 E2E 已完成
+目前開發進度：M10.3.2 已完成；M14.1 Ollama Gateway 程式完成，待公司 0009／AI draft E2E
 
 ## 1. 文件目的
 
@@ -101,6 +101,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M10.3.1 | 公司候選完成、待使用者驗收 | `e56f043` | 可回到 `m10.1`；無 DB downgrade | Section JSON、AI draft／review／approval 分離與 Artifact 登錄 |
 | M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `327748d` | 可回到 `0a6dccd`；無 DB downgrade | 同仁 UI Adapter、聯詠拓撲／格式、明確 Database Output 來源 |
 | M10.3.2 | 完成、公司 E2E 通過 | `48eac67` 候選 | App 可回 `327748d`；0008 保留、forward-fix | EDB current＋revision history、review／approval API、approved-only Renderer |
+| M14.1 | 程式完成、待公司 E2E | 待正式 commit | 關閉 AI／App 回 m10.3.2；0009 保留 | Ollama draft、遮蔽、audit、timeout/retry、deterministic fallback |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -475,6 +476,10 @@ Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `
 Worker 在 PipelineResult persistence 後將 `section-workflow.json` 寫入 EDB。current projection 與 append-only revisions 分開保存，所有人工／AI 寫入要求 actor 與 expected revision。AI 關閉時 deterministic 可直接 review；Renderer 僅選 approved，其他狀態一律 deterministic。API、schema、rollback 與驗收方式詳見 `docs/M10_3_2_SECTION_PERSISTENCE.md`。
 
 公司驗證：migration 前 schema-only backup SHA-256 為 `18601b514507cf952616a152a0b91f602cf177a3e4c65e73d74dc2283863c2c6`；EDB 已由 0007 升至 0008。Job `774499b66693455eb16d14f04a5fd687` 完成 AI-disabled direct review、stale revision 409、approval、approved-only render 與 revision audit。詳細證據見 `docs/M10_3_2_VALIDATION.md`。
+
+### M14.1：Ollama Section Draft Gateway
+
+App VM `192.168.118.77` 已以不含客戶資料的 prompt 成功呼叫 `http://192.168.68.39:11434/v1/chat/completions`，模型 `gpt-oss:20b` 回覆正常。程式新增預設關閉的 Gateway、最小化 prompt、node／IP／email／credential 遮蔽、固定 JSON schema、timeout／retry、EDB request/response audit，以及失敗時不修改 Section 的 deterministic fallback。Migration `0009_m14_ai_gateway` 只新增 audit table。完整規格見 `docs/M14_1_OLLAMA_GATEWAY.md`。
 
 ## 6. 標準開發手順
 

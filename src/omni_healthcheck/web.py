@@ -9,6 +9,8 @@ from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from omni_healthcheck.ai_gateway import AIGatewaySettings, OllamaGateway
+from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.config import JobConfig
 from omni_healthcheck.database import DatabaseMetadataStore
@@ -36,6 +38,12 @@ class SectionTextRequest(BaseModel):
 
 
 class SectionApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    actor: str = Field(min_length=1, max_length=128)
+
+
+class SectionAIDraftRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_revision: int = Field(ge=1)
     actor: str = Field(min_length=1, max_length=128)
@@ -71,6 +79,7 @@ def create_app(
     rules_path: Path | None = None,
     database_url: str | None = None,
     metadata_store: object | None = None,
+    ai_gateway: object | None = None,
 ) -> FastAPI:
     selected_database_url = database_url or os.environ.get("OMNICHECK_DATABASE_URL")
     selected_metadata_store = metadata_store
@@ -89,6 +98,17 @@ def create_app(
         and getattr(selected_metadata_store, "engine", None) is not None
         else None
     )
+    ai_audit_store = (
+        AIGatewayAuditStore(engine=selected_metadata_store.engine)
+        if selected_metadata_store is not None
+        and getattr(selected_metadata_store, "engine", None) is not None
+        else None
+    )
+    selected_ai_gateway = ai_gateway
+    if selected_ai_gateway is None and ai_audit_store is not None:
+        selected_ai_gateway = OllamaGateway(
+            AIGatewaySettings.from_env(), ai_audit_store
+        )
 
     def sections_or_503() -> SectionWorkflowStore:
         if section_store is None:
@@ -130,6 +150,15 @@ def create_app(
             "service": "OMNIcheck AI",
             "metadata": "database" if store.database_backed else "filesystem",
             "worker": "external" if store.database_backed else "in_process",
+            "ai_gateway": (
+                "enabled"
+                if selected_ai_gateway is not None
+                and getattr(
+                    getattr(selected_ai_gateway, "settings", None),
+                    "enabled", False,
+                )
+                else "disabled"
+            ),
         }
 
     @app.get("/api/config-options")
@@ -266,6 +295,71 @@ def create_app(
     def save_ai_draft(job_id: str, item_id: str, body: SectionTextRequest) -> dict:
         """Store an externally supplied draft; this endpoint never invokes AI."""
         return transition_section(job_id, item_id, "ai_drafted", body)
+
+    @app.post("/api/jobs/{job_id}/sections/{item_id}/generate-ai-draft")
+    def generate_ai_draft(
+        job_id: str, item_id: str, body: SectionAIDraftRequest
+    ) -> dict:
+        job_or_404(job_id)
+        if selected_ai_gateway is None:
+            return {
+                "status": "disabled",
+                "fallback": "deterministic_template",
+                "detail": "AI Gateway requires EDB metadata",
+            }
+        try:
+            item = sections_or_503().get_item(job_id, item_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="section item not found") from exc
+        if item.revision != body.expected_revision:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"expected revision {body.expected_revision}, "
+                    f"current revision is {item.revision}"
+                ),
+            )
+        if item.workflow_status not in {"generated", "ai_drafted"}:
+            raise HTTPException(
+                status_code=409,
+                detail="AI draft cannot replace reviewed or approved content",
+            )
+        result = selected_ai_gateway.generate(
+            job_id=job_id, item_id=item_id, item=item,
+            requested_by=body.actor,
+        )
+        if result.draft is None:
+            return {
+                "status": result.status,
+                "request_id": result.request_id,
+                "fallback": "deterministic_template",
+                "detail": result.error,
+            }
+        try:
+            saved = sections_or_503().transition(
+                job_id, item_id, expected_revision=body.expected_revision,
+                action="ai_drafted", actor=f"ai:ollama:{selected_ai_gateway.settings.model}",
+                observation=result.draft.observation,
+                recommendation=result.draft.recommendation,
+            )
+        except SectionRevisionConflictError as exc:
+            if result.request_id:
+                selected_ai_gateway.discard_stale(result.request_id)
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            "status": "ai_drafted",
+            "request_id": result.request_id,
+            "item": saved,
+        }
+
+    @app.get("/api/jobs/{job_id}/ai-audit")
+    def list_ai_audit(job_id: str) -> list[dict]:
+        job_or_404(job_id)
+        if ai_audit_store is None:
+            raise HTTPException(
+                status_code=503, detail="AI audit requires EDB metadata"
+            )
+        return ai_audit_store.list_for_job(job_id)
 
     @app.post("/api/jobs/{job_id}/sections/{item_id}/review")
     def review_section(job_id: str, item_id: str, body: SectionTextRequest) -> dict:

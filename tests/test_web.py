@@ -7,6 +7,8 @@ from omni_healthcheck.web import create_app
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.section_persistence import SectionWorkflowStore
 from omni_healthcheck.section_workflow import build_section_workflow
+from omni_healthcheck.ai_gateway import AIGatewaySettings, OllamaGateway
+from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from test_section_workflow import assessment_document
 
 
@@ -233,3 +235,60 @@ def test_section_review_api_requires_revision_and_approval(tmp_path: Path) -> No
     assert [entry["action"] for entry in revisions.json()] == [
         "generated", "reviewed", "approved"
     ]
+
+
+def test_ai_gateway_api_saves_untrusted_draft_but_does_not_select_it(
+    tmp_path: Path,
+) -> None:
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'ai-api.db'}")
+    metadata.create_schema_for_test()
+    audit = AIGatewayAuditStore(engine=metadata.engine)
+
+    def transport(*_args):
+        return {
+            "model": "gpt-oss:20b",
+            "choices": [{
+                "message": {"content": json.dumps({
+                    "observation": "AI 草稿觀察。\n結論：仍需人工確認。",
+                    "recommendation": "請由工程師檢視證據後核准。",
+                }, ensure_ascii=False)},
+                "finish_reason": "stop",
+            }],
+            "usage": {"total_tokens": 42},
+        }
+
+    gateway = OllamaGateway(
+        AIGatewaySettings(
+            enabled=True,
+            endpoint="http://ollama.internal:11434/v1/chat/completions",
+            model="gpt-oss:20b",
+            timeout_seconds=10,
+            max_attempts=1,
+        ),
+        audit,
+        transport=transport,
+    )
+    app = create_app(
+        data_root=tmp_path / "jobs", metadata_store=metadata,
+        ai_gateway=gateway,
+    )
+    client = TestClient(app)
+    job_id = client.post("/api/jobs", json=_config()).json()["job_id"]
+    sections = SectionWorkflowStore(engine=metadata.engine)
+    sections.persist_baseline(job_id, build_section_workflow(assessment_document()))
+    item = client.get(f"/api/jobs/{job_id}/sections").json()[0]
+
+    response = client.post(
+        f"/api/jobs/{job_id}/sections/{item['item_id']}/generate-ai-draft",
+        json={"expected_revision": 1, "actor": "engineer-a"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ai_drafted"
+    assert body["item"]["revision"] == 2
+    assert body["item"]["selected_source"] == "deterministic_template"
+    assert body["item"]["ai_draft"]["observation"].startswith("AI 草稿")
+    assert client.get("/api/health").json()["ai_gateway"] == "enabled"
+    audit_rows = client.get(f"/api/jobs/{job_id}/ai-audit").json()
+    assert audit_rows[0]["status"] == "succeeded"
+    assert audit_rows[0]["model"] == "gpt-oss:20b"

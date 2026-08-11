@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from omni_healthcheck.ai_gateway import (
+    AIGatewaySettings,
+    OllamaGateway,
+    build_sanitized_prompt,
+)
+from omni_healthcheck.ai_persistence import AIGatewayAuditStore
+from omni_healthcheck.database import DatabaseMetadataStore
+from omni_healthcheck.section_persistence import SectionWorkflowStore
+from omni_healthcheck.section_workflow import Narrative, build_section_workflow
+from test_section_workflow import assessment_document
+
+
+def setup_stores(tmp_path: Path):
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'ai.db'}")
+    metadata.create_schema_for_test()
+    job_id = "b" * 32
+    metadata.create({
+        "job_id": job_id, "customer": "客戶", "system_name": "系統",
+        "period": "2026-H2", "product": "EPAS", "status": "succeeded",
+        "error": None, "input_files": 1,
+    })
+    sections = SectionWorkflowStore(engine=metadata.engine)
+    document = build_section_workflow(assessment_document())
+    original = document.items[0]
+    sensitive = original.model_copy(update={
+        "deterministic": Narrative(
+            source="deterministic_template",
+            observation=(
+                "db-primary 192.168.1.50 password=secret 使用率正常。\n"
+                "結論：目前無容量風險。"
+            ),
+            recommendation="請通知 dba@example.com 並持續監控。",
+        )
+    })
+    sections.persist_baseline(
+        job_id, document.model_copy(update={"items": [sensitive]})
+    )
+    item = sections.list_items(job_id)[0]
+    audit = AIGatewayAuditStore(engine=metadata.engine)
+    return metadata, sections, audit, job_id, item
+
+
+def settings() -> AIGatewaySettings:
+    return AIGatewaySettings(
+        enabled=True,
+        endpoint="http://ollama.internal:11434/v1/chat/completions",
+        model="gpt-oss:20b",
+        timeout_seconds=10,
+        max_attempts=1,
+    )
+
+
+def test_prompt_minimizes_and_redacts_infrastructure_data(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    captured = {}
+
+    def transport(endpoint, payload, headers, timeout):
+        captured.update({
+            "endpoint": endpoint, "payload": payload,
+            "headers": headers, "timeout": timeout,
+        })
+        return {
+            "model": "gpt-oss:20b",
+            "choices": [{
+                "message": {"content": (
+                    '{"observation":"證據顯示使用率正常。\\n結論：目前無容量風險。",'
+                    '"recommendation":"維持定期容量監控。"}'
+                ), "reasoning": "must never persist"},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20},
+        }
+
+    gateway = OllamaGateway(settings(), audit, transport=transport)
+    item = sections.get_item(job_id, row["item_id"])
+    prompt = build_sanitized_prompt(item)
+    encoded = str(prompt)
+    assert "db-primary" not in encoded
+    assert "192.168.1.50" not in encoded
+    assert "password=secret" not in encoded
+    assert "dba@example.com" not in encoded
+
+    result = gateway.generate(
+        job_id=job_id, item_id=row["item_id"], item=item,
+        requested_by="engineer-a",
+    )
+    assert result.status == "succeeded"
+    assert result.draft is not None
+    assert captured["payload"]["response_format"] == {"type": "json_object"}
+    record = audit.list_for_job(job_id)[0]
+    assert record["status"] == "succeeded"
+    assert record["requested_by"] == "engineer-a"
+    assert "reasoning" not in str(record["sanitized_response"])
+    assert record["usage"]["completion_tokens"] == 20
+
+
+def test_invalid_ai_response_falls_back_without_section_mutation(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+
+    def invalid_transport(*_args):
+        return {"choices": [{"message": {"content": "not-json"}}]}
+
+    gateway = OllamaGateway(settings(), audit, transport=invalid_transport)
+    before = sections.get_item(job_id, row["item_id"])
+    result = gateway.generate(
+        job_id=job_id, item_id=row["item_id"], item=before,
+        requested_by="engineer-a",
+    )
+    after = sections.get_item(job_id, row["item_id"])
+    assert result.status == "fallback"
+    assert result.draft is None
+    assert before == after
+    assert audit.list_for_job(job_id)[0]["status"] == "failed"
+
+
+def test_disabled_gateway_does_not_require_a_valid_endpoint(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    gateway = OllamaGateway(
+        AIGatewaySettings(enabled=False, endpoint="not-a-url"), audit
+    )
+    result = gateway.generate(
+        job_id=job_id, item_id=row["item_id"],
+        item=sections.get_item(job_id, row["item_id"]),
+        requested_by="engineer-a",
+    )
+    assert result.status == "disabled"
+    assert audit.list_for_job(job_id) == []

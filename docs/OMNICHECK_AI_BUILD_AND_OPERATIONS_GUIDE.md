@@ -30,6 +30,7 @@
 | 0.10.3-draft.2 | 2026-08-11 | 同仁 UI Adapter 公司候選部署、per-release venv、systemd release isolation、deploy lock／owner | 公司 release `a0582a0` 87 tests；Golden Web → EDB Queue → Worker → V4、QA、重啟持久性通過；待使用者驗收 |
 | 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 本機／公司 VM 85 tests；台灣行動支付 14 檔／19 sections、公司 ENGDB 3 檔／9 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待使用者驗收 |
 | 0.10.3-draft.2 | 2026-08-11 | 0007 schema reconciliation、EDB Section current/revision persistence、review/approval API、approved-only Renderer | 本機／公司 97 tests；公司 0008 migration、Job `774499b66693455eb16d14f04a5fd687` approved-only E2E 通過 |
+| 0.14.1-rc.1 | 2026-08-11 | Ollama Section draft Gateway、資料最小化／遮蔽、JSON schema、timeout/retry、EDB AI audit 與 deterministic fallback | 本機 100 tests、Alembic head 0009；App VM 至 gpt-oss:20b 最小連線通過；待公司 migration/E2E |
 | 0.10.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping、Scope 稽核與使用者驗收 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF、來源 hash 與公司 Web 驗收通過 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
@@ -82,6 +83,7 @@
 | M10.2 | 完成、已合併主線 | 同仁新版 UI 接既有 API 與後端；保留 `/classic` fallback；per-release venv／deploy lock |
 | M10.3.1 | 完成 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
 | M10.3.2 | 完成、公司 E2E 通過 | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
+| M14.1 | 程式完成、待公司 E2E | Ollama Section draft、遮蔽、audit、fallback；預設 disabled |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。
@@ -749,6 +751,45 @@ API 驗收順序：
 8. 查 revisions，確認 generated/reviewed/approved、actor、timestamp、content SHA-256 均存在。
 
 Rollback 原則：Application 可切回上一 release；0008 tables留在 EDB 不影響舊程式。正式環境採 forward-fix，不執行 Alembic downgrade。誤核准內容以新 revision 修正並重新核准，不刪除歷史。
+
+### 13.14 M14.1 Ollama Gateway 部署與驗收
+
+網路需求：App VM 必須能連到 `192.168.68.39:11434`。先使用不含客戶資料的最小請求確認 `/v1/chat/completions` 與 `gpt-oss:20b`，不可用正式 evidence 當 connectivity test。
+
+環境檔加入：
+
+```bash
+OMNICHECK_AI_ENABLED=false
+OMNICHECK_AI_ENDPOINT=http://192.168.68.39:11434/v1/chat/completions
+OMNICHECK_AI_MODEL=gpt-oss:20b
+OMNICHECK_AI_TIMEOUT_SECONDS=120
+OMNICHECK_AI_MAX_ATTEMPTS=2
+```
+
+先保持 disabled，建立 0008 schema-only backup 並記錄 SHA-256，再執行 additive migration：
+
+```bash
+cd /data/omnicheck/app/current
+set -a
+. /etc/omnicheck-ai/omnicheck.env
+set +a
+.venv/bin/alembic upgrade 0009_m14_ai_gateway
+```
+
+確認只新增 `omnicheck.ai_gateway_requests`。切換 Application 後先確認 `/api/health` 顯示 `ai_gateway=disabled`，deterministic Job、review、approval、render 正常，再把 `OMNICHECK_AI_ENABLED=true` 並只重啟 Web。
+
+AI E2E 驗收：
+
+1. 對 generated Section 呼叫 `generate-ai-draft`。
+2. 確認 revision 加一、workflow status 為 ai_drafted、selected source 仍為 deterministic。
+3. 檢查 EDB audit 的 provider、model、prompt version、actor、attempts、duration、SHA-256 與 usage。
+4. 確認 sanitized prompt 無 customer、hostname、IP、email、password 或 raw evidence。
+5. 確認 reasoning 未保存。
+6. 在 review／approval 前重新 render，正式報告不得出現 AI draft。
+7. 完成人工 review／approval 後重新 render，正式報告只出現 approved 內容。
+8. 暫時使用無效 endpoint 或測試 transport 驗證 fallback；Section revision 與 deterministic 產報不得改變。
+
+緊急停用只需設定 `OMNICHECK_AI_ENABLED=false` 並重啟 Web。Application 可切回 M10.3.2；0009 audit table 保留。正式 EDB 不 downgrade。
 
 ## 14. Pipeline 產物與判讀
 

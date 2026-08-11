@@ -2,7 +2,7 @@
 
 最後更新：2026-08-11
 
-目前狀態：M10.3.2 已完成公司 EDB／Web／Worker E2E；下一階段可開始 Ollama Gateway Adapter，但尚未啟用 AI。既有 Pipeline 不更換。
+目前執行：M14.1 Ollama Gateway Adapter。公司 `gpt-oss:20b` 最小連線已通過；程式完成，待公司 0009 migration 與 AI draft E2E。既有 Pipeline 不更換。
 
 ## 固定基礎
 
@@ -21,6 +21,8 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 | M13.2 | Version Matcher | Product／Version Parser、確定性 CVE 適用性、fixed／pending 狀態 |
 | M13.3 | CVE V4 Section | 環球晶圓方向版面、Quality Gate、來源與 matcher version |
 | M14 | Ollama AI Gateway | 繁中翻譯、觀察／建議草稿、主管摘要、歷史摘要、Prompt／Model／輸出稽核與 fallback |
+
+M14 分段：M14.1 先完成單一 Section 草稿、安全遮蔽、稽核與 fallback；M14.2 再做前端批次操作／佇列與人工審核體驗；主管摘要、歷史摘要及問答不在 M14.1 偷渡實作。
 | M15 | 正式環境強化 | VIP／EFM、TLS、Backup／Restore、Monitoring、Reverse Proxy、資源隔離與故障演練 |
 
 ## 不可跨越的責任邊界

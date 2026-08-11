@@ -212,6 +212,20 @@ class SectionWorkflowStore:
                 raise KeyError(job_id)
         return [{"item_id": row["item_id"], **row["payload"]} for row in rows]
 
+    def get_item(self, job_id: str, item_id: str) -> SectionWorkflowItem:
+        with self.engine.connect() as connection:
+            row = connection.execute(
+                select(section_workflow_items.c.payload)
+                .join(section_workflows)
+                .where(
+                    section_workflows.c.job_id == job_id,
+                    section_workflow_items.c.item_id == item_id,
+                )
+            ).mappings().first()
+        if row is None:
+            raise KeyError(item_id)
+        return SectionWorkflowItem.model_validate(row["payload"])
+
     def revisions(self, job_id: str, item_id: str) -> list[dict]:
         with self.engine.connect() as connection:
             rows = connection.execute(
