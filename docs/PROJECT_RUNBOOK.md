@@ -464,7 +464,7 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 
 Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
 
-待辦：正式切換前建立 per-release venv／systemd release owner，避免 shared editable venv 影響 Web、Worker 與 Knowledge process；之後進行使用者驗收。`current` 與 shared venv 目前仍維持 `e56f043`。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+待辦：`59eff13/.venv` 已建立並通過 85 tests；正式切換前將 systemd 改為 `current/.venv`，以 `/data/omnicheck/app/deploy.lock` 取得 non-blocking lock，保存 deployment owner／previous release／rollback metadata，並先為 `e56f043` 建立 rollback-local venv；之後進行使用者驗收。`current` 目前仍維持 `e56f043`。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
 
 ## 6. 標準開發手順
 

@@ -35,6 +35,14 @@
 - API 契約與資料庫 schema 不變，無 migration。
 - Application rollback 可切回 M10.3.1 release `e56f043`；不需 database downgrade。
 
+## Per-release runtime 與部署鎖
+
+- Web／Worker 的 systemd `ExecStart` 必須使用 `/data/omnicheck/app/current/.venv/bin/...`，不可再指向 shared `/data/omnicheck/venv`。
+- 每個 release 自帶 `.venv` 並在切換前執行完整 tests。
+- 正式切換使用 `/data/omnicheck/app/deploy.lock` 的 non-blocking `flock`；鎖已被其他部署持有時直接停止。
+- release 內保存 `RELEASE_DEPLOYMENT.json`，至少包含 owner、commit、branch、previous release、database revision、deployed_at 與 rollback target。
+- 本次沒有 migration；rollback 必須先確認舊 release 也有獨立 `.venv`，才允許單純切換 `current`。
+
 ## 安全修正
 
 Topology discovery 回傳 `can_confirm=false` 時，確認 checkbox 必須停用；若沒有提出任何節點，不得清空使用者已填寫的人工節點。這能避免 0 Primary／未解析 evidence 被誤認為已確認。

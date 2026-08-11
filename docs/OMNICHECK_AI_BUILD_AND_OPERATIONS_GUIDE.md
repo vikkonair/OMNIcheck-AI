@@ -606,7 +606,7 @@ git diff --check
 
 公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests、M10.1 為 82 tests；M10.3.1 候選為 85 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
 
-M10.2 UI Adapter 候選仍為 85 tests，因只新增 UI Adapter、路由與 fail-closed 畫面行為，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。公司 VM 隔離 release `59eff13` 已通過 85 tests、EDB/external-worker health 與台灣行動支付 13 inputs／14 outputs、QA/V4 QA、Section Workflow、DOCX/PDF；來源 SHA-256 前後一致。
+M10.2 UI Adapter 候選仍為 85 tests，因只新增 UI Adapter、路由與 fail-closed 畫面行為，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。公司 VM 隔離 release `59eff13` 已建立獨立 `.venv` 並通過 85 tests、EDB/external-worker health 與台灣行動支付 13 inputs／14 outputs、QA/V4 QA、Section Workflow、DOCX/PDF；來源 SHA-256 前後一致。Web／Worker systemd 必須改用 `current/.venv`，切換時持有 `/data/omnicheck/app/deploy.lock` 並保存 owner／commit／previous／rollback metadata。
 
 ### 13.2 V4 bundle 完整性
 
