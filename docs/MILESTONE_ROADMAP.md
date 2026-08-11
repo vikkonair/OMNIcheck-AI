@@ -2,7 +2,7 @@
 
 最後更新：2026-08-11
 
-目前執行：M14.1 Ollama Gateway Adapter。公司 `gpt-oss:20b` 最小連線已通過；程式完成，待公司 0009 migration 與 AI draft E2E。既有 Pipeline 不更換。
+目前狀態：M14.1 Ollama Gateway Adapter 已完成公司 0009 migration 與 `gpt-oss:20b` 真實 AI draft→review→approval→render E2E。下一步為 M14.2 前端批次審核體驗與受控佇列／rate limit；既有 Pipeline 不更換。
 
 ## 固定基礎
 
