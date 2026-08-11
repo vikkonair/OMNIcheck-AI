@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.config import JobConfig
@@ -17,9 +18,27 @@ from omni_healthcheck.job_store import (
     UnsafeUploadPathError,
 )
 from omni_healthcheck.services import SERVICE_REGISTRY
+from omni_healthcheck.section_persistence import (
+    SectionRevisionConflictError,
+    SectionWorkflowStore,
+)
 from omni_healthcheck.topology_discovery import DiscoveryEvidence, discover_topology
 from omni_healthcheck.web_ui import INDEX_HTML
 from omni_healthcheck.web_ui_integrated import INTEGRATED_INDEX_HTML
+
+
+class SectionTextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    actor: str = Field(min_length=1, max_length=128)
+    observation: str = Field(min_length=1)
+    recommendation: str = Field(min_length=1)
+
+
+class SectionApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    actor: str = Field(min_length=1, max_length=128)
 
 
 def _default_data_root() -> Path:
@@ -64,6 +83,20 @@ def create_app(
     selected_rules = (rules_path or _default_rules_path()).resolve()
     app = FastAPI(title="OMNIcheck AI", version="0.9.0")
     app.state.job_store = store
+    section_store = (
+        SectionWorkflowStore(engine=selected_metadata_store.engine)
+        if selected_metadata_store is not None
+        and getattr(selected_metadata_store, "engine", None) is not None
+        else None
+    )
+
+    def sections_or_503() -> SectionWorkflowStore:
+        if section_store is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Section Workflow persistence requires EDB metadata",
+            )
+        return section_store
 
     def job_or_404(job_id: str) -> dict:
         try:
@@ -196,6 +229,67 @@ def create_app(
         if metadata["status"] != "succeeded":
             raise HTTPException(status_code=409, detail="job output is not ready")
         return store.outputs(job_id)
+
+    @app.get("/api/jobs/{job_id}/sections")
+    def list_sections(job_id: str) -> list[dict]:
+        job_or_404(job_id)
+        try:
+            return sections_or_503().list_items(job_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=409, detail="section workflow is not ready") from exc
+
+    @app.get("/api/jobs/{job_id}/sections/{item_id}/revisions")
+    def list_section_revisions(job_id: str, item_id: str) -> list[dict]:
+        job_or_404(job_id)
+        return sections_or_503().revisions(job_id, item_id)
+
+    def transition_section(job_id: str, item_id: str, action: str, body) -> dict:
+        job_or_404(job_id)
+        try:
+            return sections_or_503().transition(
+                job_id,
+                item_id,
+                expected_revision=body.expected_revision,
+                action=action,
+                actor=body.actor,
+                observation=getattr(body, "observation", None),
+                recommendation=getattr(body, "recommendation", None),
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="section item not found") from exc
+        except SectionRevisionConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/jobs/{job_id}/sections/{item_id}/ai-draft")
+    def save_ai_draft(job_id: str, item_id: str, body: SectionTextRequest) -> dict:
+        """Store an externally supplied draft; this endpoint never invokes AI."""
+        return transition_section(job_id, item_id, "ai_drafted", body)
+
+    @app.post("/api/jobs/{job_id}/sections/{item_id}/review")
+    def review_section(job_id: str, item_id: str, body: SectionTextRequest) -> dict:
+        return transition_section(job_id, item_id, "reviewed", body)
+
+    @app.post("/api/jobs/{job_id}/sections/{item_id}/approve")
+    def approve_section(job_id: str, item_id: str, body: SectionApprovalRequest) -> dict:
+        return transition_section(job_id, item_id, "approved", body)
+
+    @app.post("/api/jobs/{job_id}/sections/render")
+    def render_approved_sections(job_id: str) -> dict:
+        metadata = job_or_404(job_id)
+        if metadata["status"] != "succeeded":
+            raise HTTPException(status_code=409, detail="job output is not ready")
+        paths = store.paths(job_id)
+        try:
+            workflow = sections_or_503().document(job_id)
+            run_generate(
+                paths["job"], paths["input"], paths["output"], selected_rules,
+                section_workflow_override=workflow,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=409, detail=f"approved render failed: {exc}") from exc
+        return {"job_id": job_id, "status": "rendered", "policy": "approved_or_deterministic"}
 
     @app.get("/api/jobs/{job_id}/outputs/{filename}")
     def download_output(job_id: str, filename: str) -> FileResponse:

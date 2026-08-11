@@ -29,6 +29,7 @@
 | 0.10.3-draft.3 | 2026-08-11 | 修正無 Primary 時 Database Output 誤顯示 DR、人工修正後重新開放確認 | 本機 88 tests、公司 VM targeted 11 tests、health／UI marker／per-release process 通過；rollback `a0582a0` |
 | 0.10.3-draft.2 | 2026-08-11 | 同仁 UI Adapter 公司候選部署、per-release venv、systemd release isolation、deploy lock／owner | 公司 release `a0582a0` 87 tests；Golden Web → EDB Queue → Worker → V4、QA、重啟持久性通過；待使用者驗收 |
 | 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 本機／公司 VM 85 tests；台灣行動支付 14 檔／19 sections、公司 ENGDB 3 檔／9 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待使用者驗收 |
+| 0.10.3-draft.2 | 2026-08-11 | 0007 schema reconciliation、EDB Section current/revision persistence、review/approval API、approved-only Renderer | 本機 97 tests；Alembic 單一 head `0008_m10_3_sections`；Golden approved overlay、QA/V4 QA 通過；待公司 migration/E2E |
 | 0.10.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping、Scope 稽核與使用者驗收 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF、來源 hash 與公司 Web 驗收通過 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
@@ -78,9 +79,9 @@
 | M9.6 | 正式完成 | Artifact version、derivation、events、Retention、copy-verify archive 與公司部署 |
 | M10 | 正式完成 | 未知資料包的確定性節點／角色／服務候選、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成 | 舊式 Database Output 內容辨識、來源節點候選、人工 mapping 與 Primary-only 保護 |
-| M10.2 | 公司候選已部署、待使用者驗收 | 同仁新版 UI 接既有 API 與 M10.3.1 後端；保留 `/classic` fallback；per-release venv／deploy lock |
-| M10.3.1 | 公司候選完成、待使用者驗收 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
-| M10.3.2 | 待 schema reconciliation | EDB Section persistence、版本、稽核與 API |
+| M10.2 | 完成、已合併主線 | 同仁新版 UI 接既有 API 與後端；保留 `/classic` fallback；per-release venv／deploy lock |
+| M10.3.1 | 完成 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
+| M10.3.2 | 程式完成、待公司 E2E | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。
@@ -712,6 +713,42 @@ pdffonts /tmp/report-check/report.pdf
 - `renderer_uses_ai=false`，既有 V4 report 與版面不得改變。
 - 實際資料來源 manifest、QA、V4 QA、DOCX／PDF 必須通過。
 - 本階段無 migration；application rollback 使用 `m10.1`。
+
+### 13.13 M10.3.2 EDB Section persistence 部署與驗收
+
+部署前先確認 migration head 與公司 current：
+
+```bash
+.venv/bin/alembic heads
+PGPASSFILE=/etc/omnicheck-ai/pgpass /usr/edb/as17/bin/psql \
+  -h 192.168.118.81 -p 5444 -U omnicheck_app -d omnicheck_app \
+  -X -Atc "select version_num from omnicheck.alembic_version"
+```
+
+預期分別為 `0008_m10_3_sections` 與部署前的 `0007_m13_catalog`。先建立 schema-only 備份與 Alembic／新表清冊；備份檔保存於 `/data/omnicheck/archive/`，記錄 SHA-256。確認 0005～0007 migration 與同仁 source SHA-256 完全一致後，才允許：
+
+```bash
+cd /data/omnicheck/app/current
+set -a
+. /etc/omnicheck-ai/omnicheck.env
+set +a
+.venv/bin/alembic upgrade 0008_m10_3_sections
+```
+
+migration 只應新增 `section_workflows`、`section_workflow_items`、`section_workflow_revisions`。不得執行 `stamp`、`downgrade` 或刪除 0005～0007 tables。
+
+API 驗收順序：
+
+1. 建立並完成一個測試 Job，確認 Worker 自動保存 generated baseline。
+2. `GET /api/jobs/{job_id}/sections` 取得 `item_id` 與 revision 1。
+3. 不建立 AI draft，直接呼叫 review；確認 revision 2、selected source 仍為 deterministic。
+4. 用舊 revision 核准，預期 HTTP 409。
+5. 用 revision 2 核准，預期 revision 3、selected source 為 approved。
+6. 呼叫 `/sections/render`，確認核准文字出現在 report-model/V4/DOCX/PDF。
+7. 另選未核准 section，確認報告仍使用 deterministic 內容。
+8. 查 revisions，確認 generated/reviewed/approved、actor、timestamp、content SHA-256 均存在。
+
+Rollback 原則：Application 可切回上一 release；0008 tables留在 EDB 不影響舊程式。正式環境採 forward-fix，不執行 Alembic downgrade。誤核准內容以新 revision 修正並重新核准，不刪除歷史。
 
 ## 14. Pipeline 產物與判讀
 

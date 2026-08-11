@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M10.3.1 Section Workflow Foundation 已完成程式與實際資料驗證；M10.2 等待前端需求
+目前開發進度：M10.2 已完成驗收並合併主線；M10.3.2 Section persistence／審核 API 已完成程式，待公司 EDB migration 與 E2E
 
 ## 1. 文件目的
 
@@ -100,6 +100,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M10.1 | 正式完成、目前 main | `m10.1` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
 | M10.3.1 | 公司候選完成、待使用者驗收 | `e56f043` | 可回到 `m10.1`；無 DB downgrade | Section JSON、AI draft／review／approval 分離與 Artifact 登錄 |
 | M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `327748d` | 可回到 `0a6dccd`；無 DB downgrade | 同仁 UI Adapter、聯詠拓撲／格式、明確 Database Output 來源 |
+| M10.3.2 | 程式完成、待公司 E2E | 待正式 commit | App 可回前版；0008 保留、forward-fix | EDB current＋revision history、review／approval API、approved-only Renderer |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -466,6 +467,12 @@ Rollback：application 可直接回 `m10.1`，不需 database downgrade。
 Rollback：本階段無 migration、套件或環境變數變更。畫面可切 `/classic`；Application 可切回 `e56f043`，不需 database downgrade。
 
 部署狀態：公司 `current` 已切至 `327748d`；聯詠三檔正式 Discovery API 自動提出 `OADB15N → Primary`、`OADB15-DR → DR` 與 Database Output 來源 `OADB15N`。本機 93 tests、公司相關 28 tests、health、Web／Worker per-release process、coverage 92.5%、QA/V4 QA、29 頁 PDF 與來源 hash 通過。rollback 為 `0a6dccd`，無 migration。詳細文件：`docs/M10_2_COWORKER_UI_INTEGRATION.md`。
+
+### M10.3.2：EDB Section persistence 與 approved-only Renderer
+
+公司 EDB 的 `0007_m13_catalog` 已與同仁 source 逐檔核對。Repository 原樣納入 `0005_m11`、`0006_m13`、`0007_m13_catalog`，再新增 additive `0008_m10_3_sections`；不得使用 stamp 或正式環境 downgrade。
+
+Worker 在 PipelineResult persistence 後將 `section-workflow.json` 寫入 EDB。current projection 與 append-only revisions 分開保存，所有人工／AI 寫入要求 actor 與 expected revision。AI 關閉時 deterministic 可直接 review；Renderer 僅選 approved，其他狀態一律 deterministic。API、schema、rollback 與驗收方式詳見 `docs/M10_3_2_SECTION_PERSISTENCE.md`。
 
 ## 6. 標準開發手順
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 import signal
 import socket
 import threading
@@ -14,6 +15,8 @@ from omni_healthcheck.cli import run_generate
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.job_store import JobStore
 from omni_healthcheck.pipeline_persistence import PipelineResultStore
+from omni_healthcheck.section_persistence import SectionWorkflowStore
+from omni_healthcheck.section_workflow import SectionWorkflowDocument
 
 
 def run_once(
@@ -58,6 +61,15 @@ def run_once(
                 customer_id=str(customer_id),
                 system_id=str(system_id),
                 output_dir=paths["output"],
+            )
+        if persist_results:
+            if store.metadata_store is None:
+                raise RuntimeError("Section Workflow persistence requires database metadata")
+            workflow = SectionWorkflowDocument.model_validate(
+                json.loads((paths["output"] / "section-workflow.json").read_text(encoding="utf-8"))
+            )
+            SectionWorkflowStore(engine=store.metadata_store.engine).persist_baseline(
+                job_id, workflow
             )
         if register_artifacts and customer_id and system_id:
             ArtifactRegistry(engine=store.metadata_store.engine).register_outputs(

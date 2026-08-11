@@ -12,6 +12,7 @@ from omni_healthcheck.section_workflow import (
     SectionWorkflowItem,
     approve_review,
     attach_ai_draft,
+    apply_approved_narratives,
     build_section_workflow,
     review_draft,
 )
@@ -82,8 +83,9 @@ def test_ai_draft_cannot_replace_selected_text_without_engineer_approval() -> No
 
 def test_review_and_approval_fail_closed() -> None:
     original = build_section_workflow(assessment_document()).items[0]
-    with pytest.raises(ValueError, match="AI draft"):
-        review_draft(original, observation="x", recommendation="y")
+    reviewed = review_draft(original, observation="x", recommendation="y")
+    assert reviewed.ai_draft is None
+    assert reviewed.workflow_status == "reviewed"
     with pytest.raises(ValueError, match="engineer review"):
         approve_review(original)
 
@@ -91,3 +93,25 @@ def test_review_and_approval_fail_closed() -> None:
     forged["selected_source"] = "approved"
     with pytest.raises(ValueError, match="only be selected after approval"):
         SectionWorkflowItem.model_validate(forged)
+
+
+def test_renderer_overlay_uses_only_approved_or_deterministic() -> None:
+    assessment = assessment_document()
+    original = build_section_workflow(assessment)
+    drafted = original.model_copy(update={"items": [attach_ai_draft(
+        original.items[0], observation="AI 不可見", recommendation="AI 不可見"
+    )]})
+    assert apply_approved_narratives(assessment, drafted) == assessment
+
+    reviewed = review_draft(
+        drafted.items[0], observation="工程師觀察", recommendation="工程師建議"
+    )
+    reviewed_document = drafted.model_copy(update={"items": [reviewed]})
+    assert apply_approved_narratives(assessment, reviewed_document) == assessment
+
+    approved_document = reviewed_document.model_copy(
+        update={"items": [approve_review(reviewed)]}
+    )
+    rendered = apply_approved_narratives(assessment, approved_document)
+    assert rendered.assessments[0].observation == "工程師觀察"
+    assert rendered.assessments[0].recommendation == "工程師建議"

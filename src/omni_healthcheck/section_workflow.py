@@ -6,7 +6,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from omni_healthcheck.rules import AssessmentDocument, EvidenceReference, RuleTrace, Status
+from omni_healthcheck.rules import (
+    AssessmentDocument,
+    EvidenceReference,
+    RuleTrace,
+    Status,
+)
 
 
 WorkflowStatus = Literal["generated", "ai_drafted", "reviewed", "approved"]
@@ -51,9 +56,8 @@ class SectionWorkflowItem(WorkflowModel):
             raise ValueError("reviewed narrative must use engineer source")
         if self.approved is not None and self.approved.source != "engineer":
             raise ValueError("approved narrative must use engineer source")
-        if self.workflow_status in {"ai_drafted", "reviewed", "approved"}:
-            if self.ai_draft is None:
-                raise ValueError("AI draft is required for this workflow status")
+        if self.workflow_status == "ai_drafted" and self.ai_draft is None:
+            raise ValueError("AI draft is required for ai_drafted status")
         if self.workflow_status in {"reviewed", "approved"} and self.reviewed is None:
             raise ValueError("engineer review is required for this workflow status")
         if self.workflow_status == "approved" and self.approved is None:
@@ -126,8 +130,7 @@ def attach_ai_draft(
 def review_draft(
     item: SectionWorkflowItem, *, observation: str, recommendation: str
 ) -> SectionWorkflowItem:
-    if item.ai_draft is None:
-        raise ValueError("an AI draft is required before review")
+    """Save engineer text based on either AI or deterministic content."""
     return item.model_copy(
         update={
             "workflow_status": "reviewed",
@@ -140,6 +143,37 @@ def review_draft(
         },
         deep=True,
     )
+
+
+def apply_approved_narratives(
+    assessment: AssessmentDocument,
+    workflow: SectionWorkflowDocument,
+) -> AssessmentDocument:
+    """Overlay approved text only; all other stages remain deterministic."""
+
+    by_key = {item.section_key: item for item in workflow.items}
+    updated = []
+    for item in assessment.assessments:
+        key = f"{item.section_id}:{item.node}:{item.check_id}"
+        workflow_item = by_key.get(key)
+        narrative = (
+            workflow_item.selected_narrative
+            if workflow_item is not None
+            else None
+        )
+        if narrative is None:
+            updated.append(item)
+            continue
+        updated.append(
+            item.model_copy(
+                update={
+                    "observation": narrative.observation,
+                    "recommendation": narrative.recommendation,
+                },
+                deep=True,
+            )
+        )
+    return assessment.model_copy(update={"assessments": updated}, deep=True)
 
 
 def approve_review(item: SectionWorkflowItem) -> SectionWorkflowItem:

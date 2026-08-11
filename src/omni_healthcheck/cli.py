@@ -17,7 +17,11 @@ from omni_healthcheck.quality import (
 )
 from omni_healthcheck.reporting import build_report_model
 from omni_healthcheck.rules import RulesConfigError, evaluate_rules, load_rules
-from omni_healthcheck.section_workflow import build_section_workflow
+from omni_healthcheck.section_workflow import (
+    SectionWorkflowDocument,
+    apply_approved_narratives,
+    build_section_workflow,
+)
 from omni_healthcheck.topology import build_scope_ledger, build_topology
 from omni_healthcheck.v4_adapter import build_v4_report
 from omni_healthcheck.v4_quality import V4QualityError, validate_v4_report
@@ -45,6 +49,7 @@ def run_generate(
     input_dir: Path,
     output_dir: Path,
     rules_path: Path = Path("config/rules.default.yaml"),
+    section_workflow_override: SectionWorkflowDocument | None = None,
 ) -> int:
     job = load_job(job_path)
     inventory = build_inventory(input_dir, job)
@@ -60,13 +65,14 @@ def run_generate(
         configuration_comparison,
         load_rules(rules_path),
     )
-    section_workflow = build_section_workflow(assessment)
+    section_workflow = section_workflow_override or build_section_workflow(assessment)
+    report_assessment = apply_approved_narratives(assessment, section_workflow)
     coverage = build_coverage_ledger(job, normalized, assessment)
     qa_result = build_qa_result(
         job, inventory, scope_ledger, normalized, assessment, coverage
     )
     report_model = build_report_model(
-        job, topology, normalized, assessment, coverage, configuration_comparison
+        job, topology, normalized, report_assessment, coverage, configuration_comparison
     )
     v4_report = build_v4_report(report_model, scope_ledger, input_dir)
     v4_qa = validate_v4_report(

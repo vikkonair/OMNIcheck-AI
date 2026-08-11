@@ -4,6 +4,10 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from omni_healthcheck.web import create_app
+from omni_healthcheck.database import DatabaseMetadataStore
+from omni_healthcheck.section_persistence import SectionWorkflowStore
+from omni_healthcheck.section_workflow import build_section_workflow
+from test_section_workflow import assessment_document
 
 
 ROOT = Path(__file__).parents[1]
@@ -188,3 +192,44 @@ def test_web_discovers_topology_without_persisting_samples(tmp_path: Path) -> No
         "Standby",
     ]
     assert list(jobs.iterdir()) == []
+
+
+def test_section_review_api_requires_revision_and_approval(tmp_path: Path) -> None:
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'api.db'}")
+    metadata.create_schema_for_test()
+    app = create_app(data_root=tmp_path / "jobs", metadata_store=metadata)
+    client = TestClient(app)
+    job_id = client.post("/api/jobs", json=_config()).json()["job_id"]
+    section_store = SectionWorkflowStore(engine=metadata.engine)
+    section_store.persist_baseline(job_id, build_section_workflow(assessment_document()))
+
+    item = client.get(f"/api/jobs/{job_id}/sections").json()[0]
+    reviewed = client.post(
+        f"/api/jobs/{job_id}/sections/{item['item_id']}/review",
+        json={
+            "expected_revision": 1,
+            "actor": "engineer-a",
+            "observation": "人工確認觀察",
+            "recommendation": "人工確認建議",
+        },
+    )
+    assert reviewed.status_code == 200
+    assert reviewed.json()["selected_source"] == "deterministic_template"
+
+    stale = client.post(
+        f"/api/jobs/{job_id}/sections/{item['item_id']}/approve",
+        json={"expected_revision": 1, "actor": "reviewer-a"},
+    )
+    assert stale.status_code == 409
+    approved = client.post(
+        f"/api/jobs/{job_id}/sections/{item['item_id']}/approve",
+        json={"expected_revision": 2, "actor": "reviewer-a"},
+    )
+    assert approved.status_code == 200
+    assert approved.json()["selected_source"] == "approved"
+    revisions = client.get(
+        f"/api/jobs/{job_id}/sections/{item['item_id']}/revisions"
+    )
+    assert [entry["action"] for entry in revisions.json()] == [
+        "generated", "reviewed", "approved"
+    ]
