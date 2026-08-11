@@ -18,6 +18,7 @@
 | Coverage validation | Coverage validator | Expected checks and evidence | Coverage ledger | Ensure every assessment has Output |
 | Historical comparison | Comparison engine | Current and prior normalized snapshots | Added/removed/changed values | Support recurring health checks |
 | Assessment | Rule engine | Normalized evidence and comparisons | Status, observation and recommendation | Produce deterministic findings |
+| Section workflow | Section workflow builder | Deterministic assessments | Versioned template, AI draft, review and approval contract | Keep AI text separate and fail closed |
 | Version/CVE | CVE service | Product and installed version | Patch and CVE records | Populate section 5.1 |
 | AI enrichment | Optional AI gateway | Redacted evidence and rule result | Optional prose refinement | Improve ambiguous or complex explanations |
 | Report assembly | Report assembler | Evidence and assessments | Report model | Build ordered report content |
@@ -111,8 +112,9 @@ Continue with `待確認` when:
 
 ## AI boundary
 
-AI may refine observation and recommendation prose or help classify previously
-unknown evidence. It cannot:
+AI may draft observation and recommendation prose or suggest a label for
+previously unknown evidence. Suggestions never alter topology or scope without
+deterministic validation and operator confirmation. AI cannot:
 
 - select the Primary
 - alter scope

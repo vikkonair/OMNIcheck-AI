@@ -34,6 +34,9 @@ def test_generate_writes_inventory_and_warns_for_unknown(
     assessment = json.loads(
         (output_dir / "assessment.json").read_text(encoding="utf-8")
     )
+    section_workflow = json.loads(
+        (output_dir / "section-workflow.json").read_text(encoding="utf-8")
+    )
     coverage = json.loads(
         (output_dir / "coverage-ledger.json").read_text(encoding="utf-8")
     )
@@ -42,6 +45,9 @@ def test_generate_writes_inventory_and_warns_for_unknown(
     )
     assert comparison["nodes"] == ["gwcymsedb"]
     assert assessment["ruleset_version"] == "2026.1"
+    assert section_workflow["contract"] == "omnicheck.section-workflow"
+    assert section_workflow["ai_enabled"] is False
+    assert section_workflow["renderer_uses_ai"] is False
     assert coverage["summary"]["missing"] > 0
     assert qa_result["delivery_allowed"] is False
     assert normalized["schema_version"] == "1.0"

@@ -17,6 +17,7 @@ from omni_healthcheck.quality import (
 )
 from omni_healthcheck.reporting import build_report_model
 from omni_healthcheck.rules import RulesConfigError, evaluate_rules, load_rules
+from omni_healthcheck.section_workflow import build_section_workflow
 from omni_healthcheck.topology import build_scope_ledger, build_topology
 from omni_healthcheck.v4_adapter import build_v4_report
 from omni_healthcheck.v4_quality import V4QualityError, validate_v4_report
@@ -59,6 +60,7 @@ def run_generate(
         configuration_comparison,
         load_rules(rules_path),
     )
+    section_workflow = build_section_workflow(assessment)
     coverage = build_coverage_ledger(job, normalized, assessment)
     qa_result = build_qa_result(
         job, inventory, scope_ledger, normalized, assessment, coverage
@@ -78,6 +80,7 @@ def run_generate(
         "normalized.json": normalized.model_dump(mode="json"),
         "configuration-comparison.json": configuration_comparison,
         "assessment.json": assessment.model_dump(mode="json"),
+        "section-workflow.json": section_workflow.model_dump(mode="json"),
         "coverage-ledger.json": coverage,
         "qa-result.json": qa_result,
         "report-model.json": report_model.model_dump(mode="json"),

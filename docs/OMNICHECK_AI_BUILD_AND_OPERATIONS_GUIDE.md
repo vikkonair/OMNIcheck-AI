@@ -1,9 +1,9 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.10.1
+文件版本：0.10.3-draft.1
 最後更新：2026-08-10
-適用程式基準：`main` / `m10.1`
+適用程式基準：`feature/m10-3-section-foundation`；正式基準仍為 `main` / `m10.1`
 正式可回復基準：`m10.1`；前一個 application rollback 點為 `m10`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.10.3-draft.1 | 2026-08-11 | AI-optional Section Workflow JSON、draft／review／approval 分離、Artifact 關係與無 migration rollback | 85 tests、V4 manifest、台灣行動支付 14 檔／19 sections、QA/V4 QA、DOCX/PDF 與來源 hash 通過；待公司候選驗收 |
 | 0.10.1 | 2026-08-10 | 舊式 Database Output 內容分類、來源節點候選、人工 evidence mapping、Scope 稽核與使用者驗收 | 本機／公司 VM 82 tests；實際 ENGDB 3 檔、17 項 Primary checks、QA/V4 QA、19 頁 PDF、來源 hash 與公司 Web 驗收通過 |
 | 0.10.0 | 2026-08-10 | M10 deterministic topology discovery、人工確認、稽核來源、Web gate、2.1 節點 Database 清冊與公司正式部署 | 本機／公司 VM 78 tests；台灣行動支付 13 檔、5 節點、QA/V4 QA、DOCX/PDF、來源 hash、Queue/Worker、EDB 持久性與重啟通過 |
 | 0.9.6 | 2026-08-10 | M9.6 公司 EDB deployment、Scoped Artifact E2E 與正式回復點 | Backup/hash、VM 74 tests、`0004_m9_6`、冪等、archive dry-run 與 restart 通過 |
@@ -74,7 +75,9 @@
 | M9.6 | 正式完成 | Artifact version、derivation、events、Retention、copy-verify archive 與公司部署 |
 | M10 | 正式完成 | 未知資料包的確定性節點／角色／服務候選、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成 | 舊式 Database Output 內容辨識、來源節點候選、人工 mapping 與 Primary-only 保護 |
-| M10.2～M10.3 | 已核准、待實作 | 既有前端 REST／OpenAPI 整合、Section API、AI 草稿與人工審核 |
+| M10.2 | 等待前端需求 | 既有前端 REST／OpenAPI 整合 |
+| M10.3.1 | 功能分支完成、待公司驗收 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
+| M10.3.2 | 待 schema reconciliation | EDB Section persistence、版本、稽核與 API |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。
@@ -601,7 +604,7 @@ cd /data/omnicheck/app/current
 git diff --check
 ```
 
-公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests；M10.1 候選為 82 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
+公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests、M10.1 為 82 tests；M10.3.1 候選為 85 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
 
 ### 13.2 V4 bundle 完整性
 
@@ -695,6 +698,16 @@ pdffonts /tmp/report-check/report.pdf
 - 實際 ENGDB 基準為 3 allowed、0 pending、17 項 Primary checks、QA 8/8、V4 QA、19 頁 PDF；來源 hash 不變。
 - M10.1 不新增 migration、套件或環境變數；application rollback 使用 `m10`。
 
+### 13.12 M10.3.1 Section Workflow 驗收
+
+- `section-workflow.json` 必須使用 `omnicheck.section-workflow`／schema `1.0`。
+- 初始 item 必須全部為 `generated`，selected source 為 deterministic template。
+- 加入 AI draft 不得改變 status、evidence、rule trace 或 selected source。
+- 未經 engineer review 不得 approve；未 approve 不得選用 AI／人工文字。
+- `renderer_uses_ai=false`，既有 V4 report 與版面不得改變。
+- 實際資料來源 manifest、QA、V4 QA、DOCX／PDF 必須通過。
+- 本階段無 migration；application rollback 使用 `m10.1`。
+
 ## 14. Pipeline 產物與判讀
 
 | 檔案 | 代表意義 |
@@ -705,6 +718,7 @@ pdffonts /tmp/report-check/report.pdf
 | `normalized.json` | Parser 標準化結果 |
 | `configuration-comparison.json` | Primary／Standby／DR 設定差異 |
 | `assessment.json` | 規則狀態、證據、觀察、結論、建議 |
+| `section-workflow.json` | 固定模板、AI 草稿、工程師審查／核准、版本及 selected source |
 | `coverage-ledger.json` | 預期檢查、缺漏與覆蓋率 |
 | `qa-result.json` | M6 交付 gate |
 | `report-model.json` | 報告組裝中介模型 |

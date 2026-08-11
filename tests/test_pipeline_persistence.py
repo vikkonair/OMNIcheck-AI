@@ -107,10 +107,10 @@ def test_worker_persists_scoped_job_before_success(tmp_path: Path) -> None:
     assert row["system_id"] == system["system_id"]
     assert len(app.list_artifacts(
         customer["customer_id"], system["system_id"], job["job_id"]
-    )) == 11
+    )) == 12
     assert len(ArtifactRegistry(url).list_relations(
         customer["customer_id"], job["job_id"]
-    )) == 2
+    )) == 3
 
 
 def test_legacy_unscoped_worker_remains_compatible(tmp_path: Path) -> None:

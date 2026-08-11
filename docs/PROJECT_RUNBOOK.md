@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M10.1 已通過公司 Web 使用者驗收；下一步為 M10.2 既有前端 App 的 API 整合
+目前開發進度：M10.3.1 Section Workflow Foundation 已完成程式與實際資料驗證；M10.2 等待前端需求
 
 ## 1. 文件目的
 
@@ -98,6 +98,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M9.6 | 正式完成 | `m9.6` | 可回到 `m9.5` application；DB downgrade 需另行核准 | Artifact 版本、衍生關係、事件、Retention、Archive 與公司部署 |
 | M10 | 正式完成 | `m10` | 可回到 `m9.6`；無 DB downgrade | 未知資料包節點／角色／服務候選、理由、人工確認、fail-closed gate 與公司部署 |
 | M10.1 | 正式完成、目前 main | `m10.1` | 可回到 `m10`；無 DB downgrade | 舊式 Database Output 內容辨識、來源節點候選與人工 mapping |
+| M10.3.1 | 功能分支完成、待公司驗收 | 待 commit | 可回到 `m10.1`；無 DB downgrade | Section JSON、AI draft／review／approval 分離與 Artifact 登錄 |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -438,6 +439,20 @@ Rollback：application 可直接切回 `m9.6`，不需 Alembic downgrade。詳�
 Rollback：不含 migration、套件或環境變數變更，可直接切回正式 `m10`。
 
 詳細文件：`docs/M10_1_LEGACY_DATABASE_EVIDENCE.md`、`docs/M10_1_VALIDATION.md`。
+
+### M10.3.1：Backend Section Workflow Foundation
+
+目的：在接 Ollama 前先建立安全且版本化的 Section 文字工作流，不讓 AI 草稿改變規則事實或直接進入正式報告。
+
+完成內容：新增 `section-workflow.json`、`generated／ai_drafted／reviewed／approved` 狀態、確定性／AI／工程師文字分離、工程師核准前維持 deterministic selected source，以及 Artifact 登錄與衍生關係。V4 Renderer 維持不變。
+
+驗證：完整 85 tests；台灣行動支付 14 檔唯讀流程建立 19 個 deterministic section items，QA 8/8、V4 QA、DOCX/PDF 與來源 manifest 均通過。
+
+限制：為避免與公司 EDB 暫停 M11 additive revision 形成 Alembic 分支衝突，本階段不新增 migration；EDB tables／API 留到 M10.3.2 schema reconciliation 後。
+
+Rollback：application 可直接回 `m10.1`，不需 database downgrade。
+
+詳細文件：`docs/M10_3_SECTION_FOUNDATION.md`、`docs/M10_3_VALIDATION.md`。
 
 ## 6. 標準開發手順
 
