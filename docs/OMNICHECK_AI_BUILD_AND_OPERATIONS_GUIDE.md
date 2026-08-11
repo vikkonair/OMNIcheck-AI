@@ -84,7 +84,7 @@
 | M10.3.1 | 完成 | Section Workflow JSON、AI 草稿／人工審查／核准與 fail-closed selected source |
 | M10.3.2 | 完成、公司 E2E 通過 | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
 | M14.1 | 完成、公司真實模型 E2E 通過 | Ollama Section draft、遮蔽、audit、fallback；feature flag 可立即停用 |
-| M14.2 | 本機候選完成、公司待驗證 | Section 審核工作台、EDB durable batch、逐筆限流、進度與人工核准 |
+| M14.2 | 公司候選完成、待多項批次／使用者驗收 | Section 審核工作台、EDB durable batch、逐筆限流、進度與人工核准 |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。

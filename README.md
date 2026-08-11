@@ -4,7 +4,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 
 目前正式版本已完成至 **M10.1：舊式 Database Output 分類與來源確認**，並已通過公司環境使用者驗收。公司 CentOS 9 App VM 與 EPAS 17.10 已完成 Web → EDB Queue → Worker → V4 Report 端到端驗證、服務重啟與 EDB 持久性驗證。系統可以讀取客戶提供的 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 及監控資料，辨識節點拓撲與資料範圍，將不同格式的證據轉換為統一結構，依據版本化規則產生可追溯的健檢判斷，並輸出通過品質驗證的 V4 DOCX／PDF 報告。
 
-目前 **M14.1 Ollama Gateway** 已完成公司 EDB／Web／真實模型 E2E；**M14.2 Section 審核工作台與受控 AI 批次佇列**已完成本機候選版。使用者可勾選少量 Section 排入 EDB durable queue，由既有 Worker 依序呼叫 `gpt-oss:20b`，並在同一介面完成工程師修改、核准及重新產報。AI 停用、失敗或 revision 衝突時仍保留 deterministic 內容。
+目前 **M14.1 Ollama Gateway** 已完成公司 EDB／Web／真實模型 E2E；**M14.2 Section 審核工作台與受控 AI 批次佇列**已完成公司候選部署與單一 eligible Section 真實模型驗證。使用者可勾選少量 Section 排入 EDB durable queue，由既有 Worker 依序呼叫 `gpt-oss:20b`，並在同一介面完成工程師修改、核准及重新產報。AI 停用、失敗或 revision 衝突時仍保留 deterministic 內容。
 
 選取未知資料包後，M10 會提出節點、角色、服務、信心與理由，必須由使用者確認後才執行既有 Pipeline；系統不會自行取代 DBA 的最終判斷。
 
@@ -217,7 +217,7 @@ Section Workflow API（目前供前端 Adapter 串接）：
 - M10.3.1：Section Workflow JSON 與 fail-closed 審核契約（完成）
 - M10.3.2：EDB Section persistence、revision audit、review／approval API 與 approved-only Renderer（完成；公司 0008／E2E 通過）
 - M14.1：Ollama Section draft Gateway、遮蔽、EDB audit 與 fallback（完成；公司 0009／真實模型 E2E 通過）
-- M14.2：Section 審核工作台、EDB durable AI batch、逐筆 rate limit、進度／fallback／conflict（本機候選完成；公司 0010 待驗證）
+- M14.2：Section 審核工作台、EDB durable AI batch、逐筆 rate limit、進度／fallback／conflict（公司 0010 與單項真實 E2E 通過；待多項批次與使用者驗收）
 - M11：登入／RBAC／隔離／稽核（選配、延後）
 - M12：歷史比較
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section

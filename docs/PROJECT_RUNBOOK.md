@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M10.3.2 與 M14.1 已完成公司驗證；M14.2 本機候選與 103 tests 已通過，下一步公司 0010／真實批次 E2E
+目前開發進度：M10.3.2 與 M14.1 已完成公司驗證；M14.2 公司 0010、103 tests 與單項真實 Ollama E2E 通過，待多項批次／使用者驗收
 
 ## 1. 文件目的
 
@@ -102,7 +102,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M10.2 UI Adapter | 公司候選已部署、待使用者驗收 | `327748d` | 可回到 `0a6dccd`；無 DB downgrade | 同仁 UI Adapter、聯詠拓撲／格式、明確 Database Output 來源 |
 | M10.3.2 | 完成、公司 E2E 通過 | `48eac67` 候選 | App 可回 `327748d`；0008 保留、forward-fix | EDB current＋revision history、review／approval API、approved-only Renderer |
 | M14.1 | 完成、公司真實模型 E2E 通過 | `6b24cb5` | 關閉 AI／App 回 `48eac67`；0009 保留 | Ollama draft、遮蔽、audit、timeout/retry、deterministic fallback |
-| M14.2 | 本機候選完成、公司待驗證 | 待 commit | 關閉 AI／App 回 `m14.1`；0010 保留 | Section 審核工作台、durable batch、逐筆限流、進度與 fallback/conflict |
+| M14.2 | 公司候選完成、待多項批次／使用者驗收 | `8031088` | 關閉 AI／App 回 `m14.1`；0010 保留 | Section 審核工作台、durable batch、逐筆限流、進度與 fallback/conflict |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -488,7 +488,9 @@ App VM `192.168.118.77` 已以不含客戶資料的 prompt 成功呼叫 `http://
 
 新增 `0010_m14_2_batches` additive migration，保存 batch 與逐項狀態。Web 只負責驗證並排入 EDB；既有 Worker 使用 `FOR UPDATE SKIP LOCKED` 領取一個 batch，依 ordinal 逐筆呼叫 M14.1 Gateway，並以 `OMNICHECK_AI_BATCH_MAX_ITEMS` 與 `OMNICHECK_AI_MIN_INTERVAL_SECONDS` 控制單批數量和呼叫間隔。Web 工作台提供載入、勾選、進度、工程師修改、核准與 approved render。AI disabled／失敗／revision conflict 均不覆寫 deterministic。完整設計見 `docs/M14_2_SECTION_REVIEW_AND_BATCH.md`。
 
-本機驗證：103 tests 通過；瀏覽器確認桌面版工作台欄位、按鈕與 M14.2 版本正常。公司 migration、真實多 Section Ollama 批次、服務重啟恢復與 PDF regression 尚未執行，不標示為已驗證。
+本機驗證：103 tests 通過；瀏覽器確認桌面版工作台欄位、按鈕與 M14.2 版本正常。
+
+公司候選：release `8031088`，0009 schema backup SHA-256 `83f675eb69adc3e8767acba9162631f0c25d3820c84e77311f8e2a66c5524f11`，EDB 已升至 `0010_m14_2_batches`，Web／Worker active。Batch `1b954283e6734c7fa9d93e569259f71b` 由 Worker `omnicheck-ai-app-57555` 完成，真實 request `c0f5cdee611047cca020b8269913246d` 使用 `gpt-oss:20b`，10.621 秒、693 tokens、fallback 0／conflict 0；Section 只變為 ai_drafted revision 2，selected source 仍 deterministic。舊 revision 建立 batch 回 409，未核准文字未進 report-model，QA／V4 QA 均允許交付。該 Golden Job 未設定 DOCX/PDF，因此本輪沒有 PDF regression；多項批次與使用者 UI 驗收仍待執行。
 
 ## 6. 標準開發手順
 

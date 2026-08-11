@@ -2,7 +2,7 @@
 
 最後更新：2026-08-11
 
-目前狀態：M14.2 已完成本機候選版：Section 審核工作台、0010 durable batch、既有 Worker 逐筆執行、批次上限／最小間隔、進度與 fallback／conflict。下一步為公司 0010 migration 與真實批次 E2E；既有 Pipeline 不更換。
+目前狀態：M14.2 已完成公司候選部署：Section 審核工作台、0010 durable batch、既有 Worker 逐筆執行、批次上限／最小間隔、進度與 fallback／conflict。公司既有 Golden Job 只有一個 eligible Section，單項真實 `gpt-oss:20b` E2E 已通過；下一步是建立含 2～3 個 generated Sections 的測試 Job 完成多項批次驗收。
 
 ## 固定基礎
 
