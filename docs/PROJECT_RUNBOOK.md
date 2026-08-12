@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.4 證據式全 Section AI 分析已完成本機 122 tests、台灣行動支付 20 個文字 Workflow Evidence Snapshot 覆蓋、QA／V4 QA，待建立版本並部署公司環境；Vision 驗證依使用者決策暫緩
+目前開發進度：M14.4 證據式全 Section AI 已部署公司環境；文字／表格 Section 自動產生 AI 草稿，純資訊 Section 排除。2026-08-12 模型比較確認 `gemma4:26b` 可分析 CPU、Memory、Disk、Process PEM 圖，預計同時作為文字與 Vision 草稿模型；所有 AI 內容仍須工程師核准
 
 ## 1. 文件目的
 
@@ -52,6 +52,8 @@
 2026-08-12 資料型 AI Section 部署：`956cbb0` 為大型資料表、SLRU、Dead Tuple 建立證據式 deterministic baseline 與 AI Workflow，並對 AI 草稿執行必要事實保留驗證。公司 122 tests 通過；同一 Job 的不可變 input 正確建立三個 Workflow，Ruleset 2026.5、QA／V4 QA 通過。公司 `current` 已切至 `956cbb0`，Web／Worker 與 AI Gateway health 正常，rollback 為 `62bb5a3`；本次無 migration，Vision 驗證暫緩。
 
 2026-08-12 M14.4 前置相容部署：公司先部署 `419d0df`，只將持久化 Workflow JSON 的未知 additive 欄位改為忽略，不變更 Pipeline、功能或 schema。公司完整測試與 health 通過，讓後續含 `evidence_snapshot` 的新案件可安全 rollback 至此版本。正式 M14.4 部署後 rollback 應指向 `419d0df`，而非更舊的 strict payload release。
+
+2026-08-12 M14.4 模型與 UI 驗收：相同 filesystem 規則測試中，`gpt-oss:20b` 文字可用但較冗長且不接受圖片，`nemotron-3-ultra:cloud` 文字可用但曾誤寫掛載點且圖片回 HTTP 400，`gemma4:26b` 文字最精簡並成功分析 CPU、Memory、Disk、Process 四張 PEM 圖。因此公司候選設定採 `OMNICHECK_AI_MODEL=gemma4:26b` 與 `OMNICHECK_AI_VISION_MODEL=gemma4:26b`。Vision 數值仍可能誤讀，必須保留「看不清楚即待確認」Prompt、deterministic fallback 與工程師核准。UI 同步調整為案件列表預設收合、正式報告只優先顯示 PDF／DOCX、JSON／QA 置於進階收合區，並在結果區直接顯示可複製 Job ID。
 
 ## 3. 目前整體架構
 

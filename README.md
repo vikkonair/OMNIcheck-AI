@@ -229,4 +229,6 @@ Section Workflow API（目前供前端 Adapter 串接）：
 - M13.1～M13.3：官方 CVE／Release Cache、確定性 Version Matcher、CVE V4 Section
 - M14.4～M15：主管／歷史摘要、選配問答與正式 HA／VIP／TLS／Backup／Monitoring 強化
 
+目前 AI 草稿模型可由環境變數替換。公司驗證以 `gemma4:26b` 作為文字與 PEM 圖片分析模型；AI 只產生觀察／建議草稿，工程師核准前不會進入正式報告。結果頁優先提供 PDF／DOCX，內部 JSON／QA 產物與既有案件列表預設收合，並直接顯示 Job ID。
+
 報告版面將以核准的現代健檢報告方向製作；CVE 區段則以指定的環球晶圓報告樣式為主要參考。

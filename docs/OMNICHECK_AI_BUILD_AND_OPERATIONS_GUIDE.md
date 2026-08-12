@@ -25,7 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.14.4-candidate | 2026-08-12 | 全文字 Section Evidence-to-Ollama、additive Workflow rollback 相容、每 release 原生 venv 與載入路徑驗證 | 本機 123 tests；台灣行動支付 20/20 文字 Evidence Snapshot、QA/V4 QA、公司 gpt-oss:20b 實際 Evidence 分析通過；正式切換待完成 |
+| 0.14.4 | 2026-08-12 | 全 Section Evidence-to-Ollama、Gemma 文字／PEM Vision、收合式案件與產物 UI、additive Workflow rollback 相容、每 release 原生 venv | 124 tests；台灣行動支付 20/20 文字 Evidence Snapshot、QA/V4 QA；`gemma4:26b` 通過 filesystem 文字與 CPU／Memory／Disk／Process 圖片測試 |
 | 0.14.3-candidate | 2026-08-12 | 全 V4 可見 Section 自動 AI 批次、PEM 圖片 Vision 分流、整批核准與一鍵重新產報 | release `a18c7cd`；本機／公司 115 tests、台灣行動支付 29/29 Workflow、5 張圖片、Ruleset 2026.2、QA/V4 QA、DOCX/PDF 通過；待使用者與 Vision 驗收 |
 | 0.14.2.2-candidate | 2026-08-12 | Ruleset 2026.2：filesystem 50/70、bloat 前十名敘述契約、罕用索引 10 筆、系統角色排除 | 本機測試通過；實際客戶資料與公司部署待驗證 |
 | 0.14.2.1 | 2026-08-12 | PEM backend Database Output 自動映射唯一 PEM Witness、後端 Scope 防繞過、Section key 寫入前唯一性 QA | release `8bef579`；本機／公司 106 tests，原失敗 Job、20 Sections、QA/V4 QA、DOCX/PDF、來源 hash 通過 |
@@ -781,14 +781,14 @@ Rollback 原則：Application 可切回上一 release；0008 tables留在 EDB �
 ```bash
 OMNICHECK_AI_ENABLED=false
 OMNICHECK_AI_ENDPOINT=http://192.168.68.39:11434/v1/chat/completions
-OMNICHECK_AI_MODEL=gpt-oss:20b
+OMNICHECK_AI_MODEL=gemma4:26b
 OMNICHECK_AI_TIMEOUT_SECONDS=120
 OMNICHECK_AI_MAX_ATTEMPTS=2
 OMNICHECK_AI_BATCH_MAX_ITEMS=5
 OMNICHECK_AI_MIN_INTERVAL_SECONDS=1
 OMNICHECK_AI_AUTO_DRAFT_ALL=true
 # 選配；必須是 Ollama 已安裝且支援 OpenAI image_url 的 Vision 模型
-OMNICHECK_AI_VISION_MODEL=
+OMNICHECK_AI_VISION_MODEL=gemma4:26b
 ```
 
 先保持 disabled，建立 0008 schema-only backup 並記錄 SHA-256，再執行 additive migration：
@@ -857,10 +857,12 @@ M14.3 不新增 migration，沿用 0010 durable batch。Web 與 Worker 的環境
 
 ```bash
 OMNICHECK_AI_AUTO_DRAFT_ALL=true
-OMNICHECK_AI_VISION_MODEL=<已在 Ollama 安裝且支援圖片輸入的模型名稱>
+OMNICHECK_AI_VISION_MODEL=gemma4:26b
 ```
 
 `OMNICHECK_AI_AUTO_DRAFT_ALL` 預設在 AI enabled 時啟用；若需保留 M14.2 人工勾選模式，明確設為 `false`。`OMNICHECK_AI_VISION_MODEL` 是選配設定：未設定時 PEM 圖片不會送入文字模型，而是保留 deterministic 觀察／建議並記錄 fallback；文字 Section 不受影響。Web 與 Worker 都應讀取相同環境檔，變更後至少重啟 Worker。
+
+公司模型比較（2026-08-12）：`gpt-oss:20b` 與 `nemotron-3-ultra:cloud` 的 OpenAI-compatible endpoint 均未接受測試用 `image_url`（HTTP 400）；Nemotron 文字回覆另曾將 pemp1 `/` 誤寫為 `/pgdata`。`gemma4:26b` 正確遵守 filesystem 50%／70% 規則，並連續成功分析 CPU、Memory、Disk、Process 四張 PEM 圖。故目前文字與 Vision 都採 Gemma。圖片判讀仍是草稿，精確數值、期間與異常必須由工程師覆核後才能核准進入正式報告。
 
 部署後使用一包含 PEM 圖片的測試資料驗收：
 

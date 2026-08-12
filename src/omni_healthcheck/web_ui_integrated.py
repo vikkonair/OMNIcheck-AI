@@ -3,7 +3,7 @@
 from omni_healthcheck.web_ui import INDEX_HTML as CLASSIC_INDEX_HTML
 
 
-PUBLIC_UI_VERSION = "M14.2 candidate"
+PUBLIC_UI_VERSION = "M14.4"
 
 
 _OMNIWARESOFT_LOGO_DATA_URI = (

@@ -67,6 +67,12 @@ INDEX_HTML = r"""<!doctype html>
     .download-list { display:grid; gap:8px; margin-top:12px; }
     .download-list a { display:flex; justify-content:space-between; padding:10px 12px;
       border:1px solid var(--line); border-radius:7px; color:var(--brand-dark); text-decoration:none; }
+    .job-identity { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0 14px;
+      padding:9px 11px; border-radius:7px; background:#f4f8fa; }
+    .job-identity code { overflow-wrap:anywhere; color:var(--brand-dark); }
+    details.disclosure { margin-top:10px; border:1px solid var(--line); border-radius:8px; background:#fbfdfe; }
+    details.disclosure > summary { padding:12px 14px; cursor:pointer; font-weight:600; }
+    details.disclosure > .disclosure-body { padding:0 14px 14px; }
     .hidden { display:none !important; }
     @media (max-width:720px) {
       .grid, .node-head { grid-template-columns:1fr; }
@@ -141,14 +147,24 @@ INDEX_HTML = r"""<!doctype html>
   <section class="hidden" id="resultSection">
     <h2>健檢結果</h2>
     <div id="resultSummary"></div>
-    <div class="download-list" id="downloads"></div>
+    <div class="job-identity"><strong>Job ID</strong><code id="resultJobId"></code>
+      <button type="button" class="secondary" id="copyJobId">複製</button></div>
+    <div class="download-list" id="reportDownloads"></div>
+    <details class="disclosure" id="optionalOutputs">
+      <summary>工程師進階檔案（JSON／QA／內部產物）</summary>
+      <div class="disclosure-body download-list" id="technicalDownloads"></div>
+    </details>
   </section>
 
   <section>
-    <h2>案件列表</h2>
-    <p class="muted">可查看本機已建立的案件與執行狀態。</p>
-    <table><thead><tr><th>客戶</th><th>期間</th><th>產品</th><th>狀態</th><th>輸入</th><th></th></tr></thead>
-      <tbody id="jobs"><tr><td colspan="6">載入中…</td></tr></tbody></table>
+    <details class="disclosure" id="jobListDisclosure">
+      <summary>查看既有案件列表</summary>
+      <div class="disclosure-body">
+        <p class="muted">需要查詢舊案件時再展開；預設不顯示完整清單。</p>
+        <table><thead><tr><th>客戶</th><th>期間</th><th>產品</th><th>狀態</th><th>輸入</th><th></th></tr></thead>
+          <tbody id="jobs"><tr><td colspan="6">展開後載入…</td></tr></tbody></table>
+      </div>
+    </details>
   </section>
 </main>
 <script>
@@ -333,12 +349,15 @@ async function startJob(event) {
 function showResult(job) {
   el('resultSection').classList.remove('hidden'); el('step4').classList.add('active');
   el('resultSummary').textContent = `${job.customer}｜${job.period}｜狀態：${job.status}`;
-  const list=el('downloads'); list.replaceChildren();
+  el('resultJobId').textContent=job.job_id; state.jobId=job.job_id;
+  const reports=el('reportDownloads'); const technical=el('technicalDownloads'); reports.replaceChildren(); technical.replaceChildren();
   (job.outputs || []).forEach(output => {
     const link=document.createElement('a'); link.href=`/api/jobs/${job.job_id}/outputs/${encodeURIComponent(output.name)}`;
     link.download=output.name; const name=document.createElement('span'); name.textContent=output.name;
-    const size=document.createElement('span'); size.textContent=`${(output.size/1024).toFixed(1)} KB`; link.append(name,size); list.append(link);
+    const size=document.createElement('span'); size.textContent=`${(output.size/1024).toFixed(1)} KB`; link.append(name,size);
+    (/\.(?:pdf|docx)$/i.test(output.name) ? reports : technical).append(link);
   });
+  el('optionalOutputs').classList.toggle('hidden',technical.children.length===0);
   el('resultSection').scrollIntoView({behavior:'smooth'});
 }
 async function refreshJobs() {
@@ -361,7 +380,9 @@ el('folderInput').addEventListener('change', event => updateFiles(event.target.f
 el('dropZone').addEventListener('dragover', event => event.preventDefault());
 el('dropZone').addEventListener('drop', event => { event.preventDefault(); if (event.dataTransfer.files.length) updateFiles(event.dataTransfer.files); });
 el('jobForm').addEventListener('submit', startJob);
-(async () => { try { state.options=await api('/api/config-options'); } catch (_) {} renderNodes(); refreshJobs(); })();
+el('copyJobId').addEventListener('click', async () => { if (!state.jobId) return; await navigator.clipboard.writeText(state.jobId); el('copyJobId').textContent='已複製'; setTimeout(()=>{ el('copyJobId').textContent='複製'; },1200); });
+el('jobListDisclosure').addEventListener('toggle', event => { if (event.target.open) refreshJobs(); });
+(async () => { try { state.options=await api('/api/config-options'); } catch (_) {} renderNodes(); })();
 </script>
 </body>
 </html>"""

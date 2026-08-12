@@ -143,6 +143,12 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert "review-observation" in page.text
     assert "/ai-draft-batches" in page.text
     assert "依核准內容重新產報" in page.text
+    assert 'id="resultJobId"' in page.text
+    assert "工程師進階檔案（JSON／QA／內部產物）" in page.text
+    assert 'id="jobListDisclosure"' in page.text
+    assert "查看既有案件列表" in page.text
+    assert "jobListDisclosure').addEventListener('toggle'" in page.text
+    assert "/\\.(?:pdf|docx)$/i" in page.text
 
     options = client.get("/api/config-options")
     assert options.status_code == 200
