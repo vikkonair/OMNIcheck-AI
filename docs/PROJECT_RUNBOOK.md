@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.3 已完成公司候選部署與資訊型 Section 驗收；Ruleset 2026.3 的 pgBackRest stanza 狀態判斷已完成本機測試及台灣行動支付實際資料回歸，待建立版本並部署公司環境
+目前開發進度：M14.3 已完成公司部署；Ruleset 2026.3 的 pgBackRest stanza 狀態判斷已部署公司環境，本機／公司 119 tests、台灣行動支付實際資料 E2E、QA／V4 QA 均通過
 
 ## 1. 文件目的
 
@@ -41,6 +41,8 @@
 15. 純資訊清冊（系統組態、版本、Extension、資料庫清單、PEM/EFM 服務摘要）只顯示 Output，不顯示狀態／觀察／建議，也不送入 AI；容量、監控、組態差異、運行狀態、權限與維護候選仍屬健檢判斷。
 
 2026-08-12 公司修正部署：使用 Job `a1714d038a204676b88ba453ef245876` 的不可變 input 驗證 `90f9aca`，29 個可見項目中 5 個資訊清冊不含狀態／觀察／建議，24 個判斷項目進 Workflow，V4 QA、DOCX／PDF 與 116 tests 通過。公司 `current` 已切至 `90f9aca`，Web／Worker health 正常，rollback 為 `a18c7cd`。
+
+2026-08-12 pgBackRest stanza 修正部署：`4d2097e` 將備份判斷改為逐 stanza 解析；同一 Output 的 `edb=status: ok` 與 `edbdr=error` 不再互相污染主要備份結論。公司 119 tests 通過，並以 Job `a1714d038a204676b88ba453ef245876` 的不可變 input 在獨立輸出目錄驗證 Ruleset 2026.3、QA／V4 QA 通過。公司 `current` 已切至 `4d2097e`，Web／Worker 與 AI Gateway health 正常，rollback 為 `90f9aca`；本次無 migration。
 
 ## 3. 目前整體架構
 
