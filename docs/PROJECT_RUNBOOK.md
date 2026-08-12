@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.3 已完成公司部署；Ruleset 2026.5 的大型資料表、SLRU、Dead Tuple 證據式 AI Section 已完成本機 122 tests、台灣行動支付實際資料 E2E、QA／V4 QA，待建立版本並部署公司環境；Vision 驗證依使用者決策暫緩
+目前開發進度：M14.3 已完成公司部署；Ruleset 2026.5 的大型資料表、SLRU、Dead Tuple 證據式 AI Section 已部署公司環境，本機／公司 122 tests、台灣行動支付實際資料 E2E、QA／V4 QA 均通過；Vision 驗證依使用者決策暫緩
 
 ## 1. 文件目的
 
@@ -47,6 +47,8 @@
 2026-08-12 pgBackRest stanza 修正部署：`4d2097e` 將備份判斷改為逐 stanza 解析；同一 Output 的 `edb=status: ok` 與 `edbdr=error` 不再互相污染主要備份結論。公司 119 tests 通過，並以 Job `a1714d038a204676b88ba453ef245876` 的不可變 input 在獨立輸出目錄驗證 Ruleset 2026.3、QA／V4 QA 通過。公司 `current` 已切至 `4d2097e`，Web／Worker 與 AI Gateway health 正常，rollback 為 `90f9aca`；本次無 migration。
 
 2026-08-12 PEM 服務摘要修正部署：`62bb5a3` 將 5.1 PEM／EFM 服務摘要改為條件式評估。公司 120 tests 通過；使用同一 Job 的不可變 input 驗證只對 Witness `pemp1` 建立 PEM Server 注意評估，辨識 46 行明確異常、建立 1 個 `pem_efm_summary` Workflow，QA／V4 QA 通過。公司 `current` 已切至 `62bb5a3`，Web／Worker 與 AI Gateway health 正常，rollback 為 `4d2097e`；本次無 migration。
+
+2026-08-12 資料型 AI Section 部署：`956cbb0` 為大型資料表、SLRU、Dead Tuple 建立證據式 deterministic baseline 與 AI Workflow，並對 AI 草稿執行必要事實保留驗證。公司 122 tests 通過；同一 Job 的不可變 input 正確建立三個 Workflow，Ruleset 2026.5、QA／V4 QA 通過。公司 `current` 已切至 `956cbb0`，Web／Worker 與 AI Gateway health 正常，rollback 為 `62bb5a3`；本次無 migration，Vision 驗證暫緩。
 
 ## 3. 目前整體架構
 
