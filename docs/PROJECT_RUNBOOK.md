@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M10.3.2 與 M14.1 已完成公司驗證；M14.2 公司 0010、103 tests 與單項真實 Ollama E2E 通過；PEM backend Scope 修正本機 106 tests 通過，待公司原失敗案件回歸驗證
+目前開發進度：M10.3.2 與 M14.1 已完成公司驗證；M14.2 公司 0010、103 tests 與單項真實 Ollama E2E 通過；PEM backend Scope 修正已完成本機 106 tests 與公司原失敗案件回歸驗證
 
 ## 1. 文件目的
 
@@ -492,6 +492,14 @@ App VM `192.168.118.77` 已以不含客戶資料的 prompt 成功呼叫 `http://
 本機驗證：103 tests 通過；瀏覽器確認桌面版工作台欄位、按鈕與 M14.2 版本正常。
 
 公司候選：release `8031088`，0009 schema backup SHA-256 `83f675eb69adc3e8767acba9162631f0c25d3820c84e77311f8e2a66c5524f11`，EDB 已升至 `0010_m14_2_batches`，Web／Worker active。Batch `1b954283e6734c7fa9d93e569259f71b` 由 Worker `omnicheck-ai-app-57555` 完成，真實 request `c0f5cdee611047cca020b8269913246d` 使用 `gpt-oss:20b`，10.621 秒、693 tokens、fallback 0／conflict 0；Section 只變為 ai_drafted revision 2，selected source 仍 deterministic。舊 revision 建立 batch 回 409，未核准文字未進 report-model，QA／V4 QA 均允許交付。該 Golden Job 未設定 DOCX/PDF，因此本輪沒有 PDF regression；多項批次與使用者 UI 驗收仍待執行。
+
+### PEM backend Database Output Scope 回歸修正
+
+原因：Discovery 曾將 `20260616_PEM_check/20260616_DB_check.txt` 當成未映射 Database Output，預設建議業務 Primary；人工 mapping 又優先於既有 service path，導致 PEM backend 與業務 Primary 兩份不同 Database Output 同時解析為同一節點，最後在 EDB `uq_section_items_key` 發生重複。
+
+修正：Discovery 在唯一 PEM Server 節點存在時自動建議該 Witness；Scope controller 以 `policy.pem_backend_database_scope` 防止舊的錯誤 Primary mapping 繞過；Section Workflow 在 persistence 前檢查 key 唯一性並提供明確錯誤。不得合併兩份內容不同的 Database Output。
+
+驗證：commit／company release `8bef579`；本機與公司 VM 均 106 tests、V4 manifest 5/5 通過。原失敗 Job `871079e5936f4035bf975a241fb401a1` 未修改 `job.yaml` 或 13 個 input，保留錯誤 mapping 直接重跑後成功；PEM DB evidence 解析為 `pemp1 / Witness / excluded`，20/20 Section keys 唯一並持久化，QA／V4 QA delivery allowed，DOCX／PDF 產生完成。來源 aggregate SHA-256 前後皆為 `551d2498af7f456ad0b8f6550aad7b2356fd9e085787fb17ddd47c0eecea77aa`；Web／Worker active，warning journal 為零。Rollback 只需將 application symlink 指回 `8031088`，沒有 migration 或 EDB downgrade。
 
 ## 6. 標準開發手順
 

@@ -25,7 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.14.2.1-candidate | 2026-08-12 | PEM backend Database Output 自動映射唯一 PEM Witness、後端 Scope 防繞過、Section key 寫入前唯一性 QA | 本機 106 tests 通過；公司原失敗案件待回歸驗證 |
+| 0.14.2.1 | 2026-08-12 | PEM backend Database Output 自動映射唯一 PEM Witness、後端 Scope 防繞過、Section key 寫入前唯一性 QA | release `8bef579`；本機／公司 106 tests，原失敗 Job、20 Sections、QA/V4 QA、DOCX/PDF、來源 hash 通過 |
 | 0.10.3-draft.4 | 2026-08-11 | 聯詠 walsender／walreceiver topology、OS／DB 標題相容、zero-row 與 coverage ID | release `327748d`；本機 93 tests、公司相關 28 tests、Discovery API、health、PDF 與來源 hash 通過 |
 | 0.10.3-draft.3 | 2026-08-11 | 修正無 Primary 時 Database Output 誤顯示 DR、人工修正後重新開放確認 | 本機 88 tests、公司 VM targeted 11 tests、health／UI marker／per-release process 通過；rollback `a0582a0` |
 | 0.10.3-draft.2 | 2026-08-11 | 同仁 UI Adapter 公司候選部署、per-release venv、systemd release isolation、deploy lock／owner | 公司 release `a0582a0` 87 tests；Golden Web → EDB Queue → Worker → V4、QA、重啟持久性通過；待使用者驗收 |
@@ -618,13 +618,15 @@ git diff --check
 
 PEM backend Scope 回歸至少必須驗證：Discovery 將 `PEM_check` Database Output 指向唯一 PEM Witness；既有錯誤 Primary mapping 被後端政策覆寫為 Witness／excluded；一般未標節點 Database Output 的人工 Primary mapping 保持可用；重複 Section key 在 persistence 前提供明確錯誤。本機候選基準為 106 tests、0 failed。
 
+公司實測：release `8bef579` 的 106 tests 與 V4 manifest 5/5 通過。原失敗 Job `871079e5936f4035bf975a241fb401a1` 在不修改舊 Primary mapping 與 13 個 input 的情況下重跑成功；PEM backend evidence 為 `pemp1 / Witness / excluded`，20/20 Section keys 唯一並保存至 EDB，QA／V4 QA 可交付，DOCX/PDF 正常。輸入 aggregate SHA-256 前後同為 `551d2498af7f456ad0b8f6550aad7b2356fd9e085787fb17ddd47c0eecea77aa`。本次無 migration；rollback release 為 `8031088`。
+
 M10.2 UI Adapter 公司候選為 88 tests，新增 UI Adapter、路由、fail-closed 畫面行為與 deployment contract tests，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。Database Output 沒有 Primary suggestion 時，UI 必須顯示「請選擇來源節點」，不得預選排序第一台 DR；人工修正為唯一 Primary 並完成全部來源映射後，確認 checkbox 才可啟用。公司 release `a0582a0` 使用獨立 `.venv`，Web／Worker systemd 已改用 `current/.venv`；切換時持有 `/data/omnicheck/app/deploy.lock` 並保存 owner／commit／previous／rollback metadata。Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 已完成 Web → EDB Queue → Worker → 12 個 Canonical/V4 產物，QA/V4 QA 均允許交付，服務重啟後案件仍可由 EDB 讀回。公司 EDB revision `0007_m13_catalog` 並非本分支 migration head，本次未執行 migration 或 downgrade；待 schema reconciliation 後才進行 Section persistence/API。
 
 ### 13.2 V4 bundle 完整性
 
 ```bash
-cd /data/omnicheck/app/current
-sha256sum -c vendor/omni-v4-renderer/MANIFEST.sha256
+cd /data/omnicheck/app/current/vendor/omni-v4-renderer
+sha256sum -c MANIFEST.sha256
 ```
 
 所有項目必須 `OK`。Renderer、模板、字型或圖片 hash 不符時禁止交付。

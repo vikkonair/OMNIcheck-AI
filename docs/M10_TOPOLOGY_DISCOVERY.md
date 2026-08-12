@@ -46,3 +46,5 @@ Section Workflow 寫入 EDB 前會檢查 `section_id:node:check_id` 是否唯一
 ## 正式部署證據
 
 公司 App VM 已部署 release `6e8ee6e`，VM 78 tests 與 V4 manifest 通過。台灣行動支付實際資料經 Web、EDB Queue 與獨立 Worker 建立 Job `12c90aa3da354f1c83dbc42e6d57e118`，正確提出 5 個節點、唯一 Primary，完成 13 個 outputs，QA／V4 QA 通過且來源 manifest 不變。Web／Worker 重啟後 Job 與 outputs 仍可由 EDB 讀回；revision 維持 `0004_m9_6`。
+
+2026-08-12 補充：release `8bef579` 修正 PEM backend Database Output 的錯誤 Primary mapping。公司原失敗 Job `871079e5936f4035bf975a241fb401a1` 保留舊 mapping 與原始 13 檔直接重跑成功；PEM DB evidence 解析為 `pemp1 / Witness / excluded`，20 個 Section keys 全部唯一並保存至 EDB，QA／V4 QA、DOCX/PDF 與來源 aggregate SHA-256 不變均通過。無 migration，rollback 為 `8031088`。
