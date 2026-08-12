@@ -64,6 +64,8 @@
 
 2026-08-12 M14.6 效能調校開始：不含客戶資料的 Ollama JSON benchmark 顯示 `gpt-oss:20b` 12.3 秒、`gemma4:26b` 12.2 秒、`nemotron-3-ultra:cloud` 37.3 秒，三者格式均合格；預設文字保留 `gpt-oss:20b`，Vision 使用 Gemma。候選程式將 Vision timeout／retry 獨立為 35 秒／1 次、記憶體內縮圖 JPEG、正常圖略過與最多兩張圖片並行；不改變原始證據、確定性規則與 M14.5 完成條件。本機完整 127 tests 通過，待公司新 Job 效能驗收。
 
+2026-08-12 M14.6 公司效能驗收：main release `01ba901` 已切入公司 App VM，rollback 為 `e6e31f2`，無 migration。新 Job `453916431f454b84a05789ba23ee4bc2` 使用不可變 input 的獨立副本，約 6 分鐘才轉為 succeeded 並提供 14 個正式產物，較 M14.5 約 25 分鐘大幅下降；DOCX／PDF、QA、V4 QA 均通過。25 個 Section 中 15 個套用 AI draft、10 個 fallback，符合「AI 終止後才完成」語意。AI audit：gpt-oss 14 success／6 failed、Gemma Vision 1 success／4 failed；所有失敗安全回退 deterministic。下一步是改善 gpt-oss JSON／事實保留失敗率與 Vision 模型能力，而不放寬事實／規則 gate。
+
 ## 3. 目前整體架構
 
 ```text

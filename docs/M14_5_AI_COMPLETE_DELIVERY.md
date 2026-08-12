@@ -36,4 +36,6 @@
 - Vision 仍使用 `gemma4:26b`，但 timeout 改為獨立預設 35 秒、最多嘗試一次；文字仍維持獨立的 timeout／retry 政策。
 - Vision request 只在記憶體中把可解碼圖片縮至最長邊 1280 px、JPEG quality 75；原始 PEM 證據與 SHA-256 不修改。
 - `normal` PEM 圖預設維持確定性敘述而不送 Vision；`attention`／`critical`／`pending` 才送入 Vision。每個 batch 的 Vision concurrency 預設上限為 2。
-- 此調校不改變 Primary、Scope、Rules、V4 contract 或「完成後才可下載」語意。需以新 Job 在公司環境驗證實際模型吞吐與 fallback 比例。
+- 此調校不改變 Primary、Scope、Rules、V4 contract 或「完成後才可下載」語意。
+
+2026-08-12 公司驗收：release `01ba901` 的新 Job `453916431f454b84a05789ba23ee4bc2` 由 queued 至 succeeded 約 6 分鐘，DOCX／PDF、QA 與 V4 QA 均通過。25 個 Section 中 15 個為 AI draft、10 個 deterministic fallback；五張候選 PEM 圖中一張 Vision 成功、四張在 35 秒政策內 fallback。AI audit 顯示 `gpt-oss:20b` 14 success／6 failed，`gemma4:26b` 1 success／4 failed；失敗項目均未阻斷交付。
