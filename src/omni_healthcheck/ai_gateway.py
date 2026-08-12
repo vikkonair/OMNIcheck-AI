@@ -262,11 +262,16 @@ def _parse_content(response: dict) -> tuple[AIDraft, dict]:
         stripped = re.sub(r"^```(?:json)?\s*|\s*```$", "", stripped, flags=re.I)
     raw_draft = json.loads(stripped)
     if isinstance(raw_draft, dict) and isinstance(raw_draft.get("observation"), str):
-        raw_draft["observation"] = re.sub(
-            r"(?m)^\s*[-*]?\s*(?:觀測|觀察)?結論\s*[:：]\s*",
+        observation = re.sub(
+            r"[-*]?\s*(?:觀測|觀察)?結論\s*[:：]\s*",
             "結論：",
             raw_draft["observation"],
         )
+        # Some models return a valid conclusion label at the end of the
+        # evidence sentence instead of starting a new line. Normalize that
+        # harmless formatting variation before enforcing the report shape.
+        observation = re.sub(r"(?<!\n)(?<!^)結論：", "\n結論：", observation)
+        raw_draft["observation"] = observation
     draft = AIDraft.model_validate(raw_draft)
     draft = AIDraft(
         observation=sanitize_text(draft.observation, node=""),
