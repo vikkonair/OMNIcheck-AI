@@ -24,7 +24,8 @@ NarrativeSource = Literal["deterministic_template", "ai", "engineer"]
 
 
 class WorkflowModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Persisted Workflow JSON must remain readable after additive upgrades.
+    model_config = ConfigDict(extra="ignore")
 
 
 class Narrative(WorkflowModel):
