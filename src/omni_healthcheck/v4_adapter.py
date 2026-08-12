@@ -32,6 +32,8 @@ INFORMATION_ONLY_TITLES = {
     "版本資訊",
     "Extension 清單",
     "資料庫清單",
+}
+SERVICE_SUMMARY_TITLES = {
     "PEM / EFM 服務摘要",
     "PEM / EFM / XDB 服務摘要",
 }
@@ -341,7 +343,10 @@ def build_v4_report(
                     "evidence": _evidence(unit),
                     **_assessment(assessment_value),
                 }
-                if unit["title"] in INFORMATION_ONLY_TITLES:
+                if unit["title"] in INFORMATION_ONLY_TITLES or (
+                    unit["title"] in SERVICE_SUMMARY_TITLES
+                    and assessment_value is None
+                ):
                     item["assessment_display"] = False
                     item.pop("status", None)
                     item.pop("observation", None)

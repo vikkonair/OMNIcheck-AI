@@ -317,6 +317,36 @@ def test_pgbackrest_primary_stanza_error_is_attention() -> None:
     assert "最近成功備份" in assessment.recommendation
 
 
+def test_pem_server_log_error_creates_actionable_assessment() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "pem_server_status",
+                ["Output"],
+                [["WARNING: probe execution error: schema monitor does not exist"]],
+                node="pem-witness",
+                role="Witness",
+                product="PEM",
+            )
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+        load_rules(ROOT / "config/rules.default.yaml"),
+    )
+
+    assessment = result.assessments[0]
+    assert assessment.status == "attention"
+    assert "PEM Server" in assessment.observation
+    assert "probe execution error" in assessment.observation
+    assert "schema、function、權限" in assessment.recommendation
+    assert assessment.trace.rule_id == "service.explicit_error.v1"
+
+
 def test_zero_row_database_locks_are_assessed_as_normal() -> None:
     normalized = NormalizedDocument(
         pipeline_version="test",

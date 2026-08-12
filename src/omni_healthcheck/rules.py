@@ -414,6 +414,49 @@ def _backup_assessment(check: CheckResult, version: str) -> Assessment:
     )
 
 
+def _service_error_assessment(
+    check: CheckResult, version: str
+) -> Assessment | None:
+    if check.check_id in {"pem_server_status", "pem_agent_status", "xdb_status"} and (
+        check.node_role != "Witness"
+    ):
+        return None
+    output = _output_text(check)
+    error_lines = [
+        line.strip()
+        for line in output.splitlines()
+        if re.search(
+            r"(?i)(?:\berror\b|\bfailed\b|\bfatal\b|\bexception\b|"
+            r"\binactive\b|\bdead\b|\bstopped\b)",
+            line,
+        )
+    ]
+    if not error_lines:
+        return None
+    service = {
+        "pem_server_status": "PEM Server",
+        "pem_agent_status": "PEM Agent",
+        "efm_status": "EFM",
+        "xdb_status": "XDB",
+    }.get(check.check_id, check.product)
+    sample = re.sub(r"\s+", " ", error_lines[0])[:180]
+    return _assessment(
+        check,
+        status="attention",
+        rule_id="service.explicit_error.v1",
+        ruleset_version=version,
+        explanation=(
+            f"{check.node} 的 {service} Output 偵測到 {len(error_lines)} 行明確異常訊息；"
+            f"代表訊息為：{sample}。"
+        ),
+        conclusion=f"{service} 存在需處理的服務或探針執行錯誤。",
+        recommendation=(
+            f"請檢查 {service} 服務狀態與日誌，確認失敗探針所需的 schema、function、"
+            "權限及受監控資料庫設定；修正後重新執行探針並確認錯誤不再發生。"
+        ),
+    )
+
+
 def _schema_privilege_assessment(
     check: CheckResult, version: str
 ) -> Assessment:
@@ -601,6 +644,13 @@ def evaluate_rules(
             )
         elif check.check_id == "backup_configuration":
             assessment = _backup_assessment(check, version)
+        elif check.check_id in {
+            "pem_server_status",
+            "pem_agent_status",
+            "efm_status",
+            "xdb_status",
+        }:
+            assessment = _service_error_assessment(check, version)
         elif check.check_id == "schema_privileges":
             assessment = _schema_privilege_assessment(check, version)
         elif check.check_id == "roles_privileges":

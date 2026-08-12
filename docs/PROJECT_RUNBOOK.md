@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.3 已完成公司部署；Ruleset 2026.3 的 pgBackRest stanza 狀態判斷已部署公司環境，本機／公司 119 tests、台灣行動支付實際資料 E2E、QA／V4 QA 均通過
+目前開發進度：M14.3 已完成公司部署；Ruleset 2026.4 的 PEM／EFM 服務異常條件式評估已完成本機 120 tests、台灣行動支付實際資料 E2E、QA／V4 QA，待建立版本並部署公司環境
 
 ## 1. 文件目的
 
@@ -38,7 +38,8 @@
 13. `PEM_check` 的 Database Output 是 PEM Server 後端 PostgreSQL 證據，必須映射到唯一 PEM Witness 並排除於業務 Primary 邏輯資料檢查；人工映射不得繞過此服務邊界。
 14. Ruleset `2026.2`：filesystem 50%～未滿 70% 維持正常但提醒觀察量體成長，70% 以上列注意；table/index bloat Output 保留前十名，觀察／建議逐一列出其中指數 >2 的物件及 `VACUUM FULL`／`REINDEX`；罕用索引 `idx_scan=0` 優先且最多 10 筆；權限輸出排除 `pg_*`、`postgres`、`enterprisedb`。
 15. Ruleset `2026.3`：pgBackRest 改為逐 stanza 解析 `status`；主要 stanza 的 `status: ok` 明確判為正常並要求持續監控與還原驗證，其他 stanza 獨立揭露，無法唯一辨識主要 stanza 時標示待確認。AI 草稿不得省略 stanza 與 status 事實。
-15. 純資訊清冊（系統組態、版本、Extension、資料庫清單、PEM/EFM 服務摘要）只顯示 Output，不顯示狀態／觀察／建議，也不送入 AI；容量、監控、組態差異、運行狀態、權限與維護候選仍屬健檢判斷。
+16. 純資訊清冊（系統組態、版本、Extension、資料庫清單）只顯示 Output，不顯示狀態／觀察／建議，也不送入 AI。PEM／EFM 服務摘要沒有明確異常時維持純資訊；出現 error／failed／fatal 等明確異常時，必須產生評估並送入 AI Workflow。容量、監控、組態差異、運行狀態、權限與維護候選仍屬健檢判斷。
+17. Ruleset `2026.4`：PEM Server、PEM Agent、EFM、XDB Output 出現明確異常訊號時列為注意；PEM／XDB 僅在 Witness 角色評估。5.1 服務摘要有異常時產生觀察、建議與 AI Workflow，無異常時仍為純資訊。
 
 2026-08-12 公司修正部署：使用 Job `a1714d038a204676b88ba453ef245876` 的不可變 input 驗證 `90f9aca`，29 個可見項目中 5 個資訊清冊不含狀態／觀察／建議，24 個判斷項目進 Workflow，V4 QA、DOCX／PDF 與 116 tests 通過。公司 `current` 已切至 `90f9aca`，Web／Worker health 正常，rollback 為 `a18c7cd`。
 

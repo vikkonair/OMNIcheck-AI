@@ -260,6 +260,7 @@ def build_report_model(
     auto_unit = unit(primary, "postgresql_auto_conf", "Primary postgresql.auto.conf", config_note("postgresql_auto_conf"))
 
     pem_rows = []
+    service_findings = []
     for node in node_rows:
         for check_id, label in (
             ("efm_status", "EFM"),
@@ -271,6 +272,19 @@ def build_report_model(
             if check:
                 sample = "；".join(" ".join(row) for row in check.evidence.rows[:2])
                 pem_rows.append([node["hostname"], label, sample])
+                finding = assessments.get((node["hostname"].casefold(), check_id))
+                if finding:
+                    service_findings.append(finding)
+    worst_service = max(
+        service_findings,
+        key=lambda x: ("normal", "pending", "attention", "critical").index(x.status),
+        default=None,
+    )
+    service_assessment = assessment_dict(worst_service)
+    if service_assessment:
+        service_assessment["observation"] = (
+            "PEM／EFM 服務 Output 已集中檢視。" + service_assessment["observation"]
+        )
 
     primary_backup_units = []
     supporting_backup_units = []
@@ -358,7 +372,7 @@ def build_report_model(
                     "headers": ["節點", "服務", "摘要"],
                     "rows": pem_rows or [["-", "未提供", "本次資料未包含 PEM／EFM 服務證據"]],
                     "omitted_rows": 0,
-                    "assessment": None,
+                    "assessment": service_assessment,
                 }]},
                 *(
                     [{

@@ -17,6 +17,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 從未知資料包提出節點與角色候選，保留判斷理由並要求人工確認。
 - 對 `ENGDB_check.txt` 等沒有 hostname 的舊式 Database Output 進行內容分類，並要求使用者指定實際來源節點。
 - 辨識各節點承載的 EFM、PEM、XDB 與備份服務。
+- PEM／EFM 服務摘要會在日誌出現明確錯誤時自動產生狀態、觀察、處置建議與 AI 草稿；沒有異常時維持精簡的資訊清冊。
 - 解析 OS、PostgreSQL／EPAS、EFM、PEM、XDB、pgBackRest、Barman 與資料庫邏輯資料。
 - 將不同來源和格式的資料轉換成統一的標準化 JSON。
 - 控制不同類型資料的檢查範圍，避免錯誤使用 Standby、DR 或 PEM 後端資料庫資料。

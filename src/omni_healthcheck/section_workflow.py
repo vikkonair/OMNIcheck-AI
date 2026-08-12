@@ -110,6 +110,7 @@ def _v4_check_id(title: str) -> str:
         "資料量與大型資料表": "largest_tables",
         "Schema Default Privileges": "schema_default_privileges",
         "PEM / EFM 服務摘要": "pem_efm_summary",
+        "PEM / EFM / XDB 服務摘要": "pem_efm_summary",
         "Primary 設定檔": "primary_configuration",
         "資料庫連線設定": "database_connections",
         "Transaction ID 年齡": "transaction_id_age",
