@@ -109,16 +109,16 @@ def _filesystem_assessment(
     if not percentages:
         return None
     usage = max(percentages)
-    warning = int(config["warning_percent"])
-    critical = int(config["critical_percent"])
-    if usage >= critical:
-        status: Status = "critical"
-        conclusion = f"檔案系統使用率已達重大門檻 {critical}% 以上。"
-        recommendation = "請立即清理空間並規劃容量擴充。"
-    elif usage >= warning:
-        status = "attention"
-        conclusion = f"檔案系統使用率已達注意門檻 {warning}% 以上。"
+    observe = int(config["observe_percent"])
+    attention = int(config["attention_percent"])
+    if usage >= attention:
+        status: Status = "attention"
+        conclusion = f"檔案系統使用率已達注意門檻 {attention}% 以上。"
         recommendation = "請確認成長趨勢並規劃清理或擴充。"
+    elif usage >= observe:
+        status = "normal"
+        conclusion = "目前容量尚未達注意門檻，但需持續觀察量體成長。"
+        recommendation = "請隨時觀察量體成長速度，並維持容量監控與告警。"
     else:
         status = "normal"
         conclusion = "目前容量仍在設定門檻內。"
@@ -249,6 +249,57 @@ def _candidate_assessment(
         "rarely_used_indexes": ("罕用索引", "確認實際工作負載後再決定是否移除。"),
     }
     label, recommendation = labels[check.check_id]
+    if check.check_id in {"table_bloat", "index_bloat"}:
+        headers = [header.casefold().strip() for header in check.evidence.headers]
+        bloat_index = next(
+            (index for index, header in enumerate(headers) if "bloat" in header or "膨脹" in header),
+            None,
+        )
+        name_indexes = [
+            index
+            for index, header in enumerate(headers)
+            if header in {
+                "current_database", "database", "schemaname", "schema_name",
+                "tablename", "table_name", "iname", "indexname", "index_name",
+            }
+        ]
+        candidates: list[tuple[str, str]] = []
+        if bloat_index is not None:
+            for row in check.evidence.rows:
+                if bloat_index >= len(row):
+                    continue
+                match = re.search(r"-?\d+(?:\.\d+)?", row[bloat_index].replace(",", ""))
+                if match and float(match.group()) > 2:
+                    object_name = ".".join(
+                        row[index].strip()
+                        for index in name_indexes
+                        if index < len(row) and row[index].strip()
+                    )
+                    candidates.append((object_name or "未命名物件", match.group()))
+        action = "VACUUM FULL" if check.check_id == "table_bloat" else "REINDEX"
+        if candidates:
+            listed = "、".join(f"{name}（{value}）" for name, value in candidates)
+            actions = "；".join(f"{name}：{action}" for name, _ in candidates)
+            explanation = (
+                f"Primary 膨脹前十名輸出中，膨脹指數高於 2 的{label}物件為：{listed}。"
+            )
+            conclusion = f"上述 {len(candidates)} 個物件需安排維護處理。"
+            recommendation = f"建議處置：{actions}。執行前請安排維護時段並確認可接受的鎖定影響。"
+            assessment_status: Status = status
+        else:
+            explanation = f"Primary 膨脹前十名輸出中，未發現膨脹指數高於 2 的{label}物件。"
+            conclusion = f"目前前十名清單未見需處理的{label}候選。"
+            recommendation = "持續定期檢查膨脹指數。"
+            assessment_status = "normal"
+        return _assessment(
+            check,
+            status=assessment_status,
+            rule_id=f"database.{check.check_id}.candidate.v1",
+            ruleset_version=version,
+            explanation=explanation,
+            conclusion=conclusion,
+            recommendation=recommendation,
+        )
     return _assessment(
         check,
         status=status,

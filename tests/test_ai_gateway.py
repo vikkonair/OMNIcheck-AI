@@ -98,6 +98,46 @@ def test_prompt_minimizes_and_redacts_infrastructure_data(tmp_path: Path) -> Non
     assert record["usage"]["completion_tokens"] == 20
 
 
+def test_bloat_ai_draft_must_preserve_every_object_and_action(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    item = sections.get_item(job_id, row["item_id"]).model_copy(
+        update={
+            "check_id": "table_bloat",
+            "deterministic": Narrative(
+                source="deterministic_template",
+                observation=(
+                    "膨脹指數高於 2 的物件為：public.orders（8.5）、audit.events（3.1）。\n"
+                    "結論：上述物件需安排維護處理。"
+                ),
+                recommendation=(
+                    "建議處置：public.orders：VACUUM FULL；"
+                    "audit.events：VACUUM FULL。"
+                ),
+            ),
+        },
+        deep=True,
+    )
+
+    def incomplete_transport(*_args):
+        return {
+            "choices": [{"message": {"content": (
+                '{"observation":"僅列 public.orders。\\n結論：需處理。",'
+                '"recommendation":"public.orders：VACUUM FULL。"}'
+            )}}]
+        }
+
+    gateway = OllamaGateway(settings(), audit, transport=incomplete_transport)
+    result = gateway.generate(
+        job_id=job_id,
+        item_id=row["item_id"],
+        item=item,
+        requested_by="engineer-a",
+    )
+
+    assert result.status == "fallback"
+    assert result.draft is None
+
+
 def test_invalid_ai_response_falls_back_without_section_mutation(tmp_path: Path) -> None:
     _, sections, audit, job_id, row = setup_stores(tmp_path)
 

@@ -478,7 +478,9 @@ class PsqlReportParser:
             "4.15",
         ),
         "表格膨脹比例前十名": ("table_bloat", "4.15"),
+        "表格膨脹比例": ("table_bloat", "4.15"),
         "索引膨脹程度前十名": ("index_bloat", "4.15"),
+        "索引膨脹程度": ("index_bloat", "4.15"),
         "罕用索引可能清單": ("rarely_used_indexes", "4.16"),
         "Partitioned Table 清單": ("partitioned_tables", "4.17"),
     }
@@ -486,6 +488,7 @@ class PsqlReportParser:
         "最後 AutoVacuum 執行時間清單",
         "最後 AutoAnalyze 執行時間清單",
     }
+    system_roles = {"postgres", "enterprisedb"}
 
     @classmethod
     def _title_positions(cls, lines: list[str]) -> list[tuple[int, str]]:
@@ -530,9 +533,41 @@ class PsqlReportParser:
     @staticmethod
     def _apply_policy(
         check_id: str, headers: list[str], rows: list[list[str]]
-    ) -> list[list[str]]:
-        if check_id in {"schema_privileges", "schema_default_privileges"}:
-            return rows[:20]
+    ) -> tuple[list[str], list[list[str]]]:
+        folded_headers = [header.casefold().strip() for header in headers]
+        if check_id in {
+            "roles_privileges",
+            "schema_privileges",
+            "schema_default_privileges",
+        }:
+            role_columns = [
+                index
+                for index, header in enumerate(folded_headers)
+                if header in {
+                    "role",
+                    "role_name",
+                    "rolename",
+                    "grantee",
+                    "user_name",
+                    "owner",
+                }
+            ]
+            rows = [
+                row
+                for row in rows
+                if not any(
+                    index < len(row)
+                    and (
+                        row[index].strip().casefold().startswith("pg_")
+                        or row[index].strip().casefold() in PsqlReportParser.system_roles
+                    )
+                    for index in role_columns
+                )
+            ]
+            if check_id in {"schema_privileges", "schema_default_privileges"}:
+                rows = rows[:20]
+            if not rows:
+                rows = [["未發現需列出的非系統角色", *([""] * (len(headers) - 1))]]
         if check_id == "rarely_used_indexes":
             index = next(
                 (
@@ -550,8 +585,8 @@ class PsqlReportParser:
                         int(row[index]) if row[index].strip().isdigit() else 10**30,
                     ),
                 )
-            return rows[:20]
-        return rows
+            rows = rows[:10]
+        return headers, rows
 
     def parse(self, context: ParserContext) -> list[CheckResult]:
         if context.scope_item["evidence_domain"] != "database":
@@ -578,7 +613,6 @@ class PsqlReportParser:
                 continue
             headers, rows = parsed
             check_id, section_id = self.mappings[title]
-            rows = self._apply_policy(check_id, headers, rows)
             if not rows:
                 continue
             if check_id in grouped and grouped[check_id][1] == headers:
@@ -595,10 +629,13 @@ class PsqlReportParser:
                 check_id=check_id,
                 section_id=section_id,
                 product=context.job.product,
-                headers=headers,
-                rows=self._apply_policy(check_id, headers, rows),
+                headers=policy_headers,
+                rows=policy_rows,
             )
             for check_id, (section_id, headers, rows) in grouped.items()
+            for policy_headers, policy_rows in [
+                self._apply_policy(check_id, headers, rows)
+            ]
         ]
 
 

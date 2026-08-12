@@ -130,12 +130,12 @@ def test_rule_engine_is_deterministic_and_evidence_backed() -> None:
     assert first == second
     assert first.summary == {
         "normal": 2,
-        "attention": 3,
-        "critical": 1,
+        "attention": 4,
+        "critical": 0,
         "pending": 2,
     }
     by_rule = {item.trace.rule_id: item for item in first.assessments}
-    assert by_rule["os.filesystem_usage.v1"].status == "critical"
+    assert by_rule["os.filesystem_usage.v1"].status == "attention"
     assert by_rule["database.txid_age.v1"].status == "normal"
     assert by_rule["database.idle_in_transaction.v1"].status == "attention"
     assert by_rule["database.replication_state.v1"].status == "normal"
@@ -149,6 +149,76 @@ def test_rule_engine_is_deterministic_and_evidence_backed() -> None:
     assert all(
         "primary_conninfo" not in item.observation for item in first.assessments
     )
+
+
+def test_filesystem_observes_growth_from_50_and_attention_from_70() -> None:
+    rules = load_rules(ROOT / "config/rules.default.yaml")
+
+    def assess(usage: int):
+        normalized = NormalizedDocument(
+            pipeline_version="test",
+            checks=[check("filesystem_usage", ["Output"], [[f"/dev/sda {usage}% /data"]])],
+            unparsed_allowed_evidence=[],
+        )
+        return evaluate_rules(
+            normalized,
+            {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+            rules,
+        ).assessments[0]
+
+    below = assess(49)
+    observe = assess(50)
+    attention = assess(70)
+
+    assert below.status == "normal"
+    assert "隨時觀察量體成長速度" not in below.recommendation
+    assert observe.status == "normal"
+    assert "隨時觀察量體成長速度" in observe.recommendation
+    assert attention.status == "attention"
+
+
+def test_bloat_assessment_lists_every_top_ten_object_above_two() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "table_bloat",
+                ["current_database", "schemaname", "tablename", "tbloat"],
+                [
+                    ["appdb", "public", "small", "1.9"],
+                    ["appdb", "public", "orders", "8.5"],
+                    ["appdb", "audit", "events", "3.1"],
+                ],
+                product="EPAS",
+            ),
+            check(
+                "index_bloat",
+                ["schemaname", "iname", "ibloat"],
+                [["public", "idx_small", "2"], ["public", "idx_orders", "6.2"]],
+                product="EPAS",
+            ),
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+        load_rules(ROOT / "config/rules.default.yaml"),
+    )
+    by_id = {item.check_id: item for item in result.assessments}
+
+    table = by_id["table_bloat"]
+    assert "appdb.public.orders（8.5）" in table.observation
+    assert "appdb.audit.events（3.1）" in table.observation
+    assert "small" not in table.observation
+    assert "appdb.public.orders：VACUUM FULL" in table.recommendation
+    assert "appdb.audit.events：VACUUM FULL" in table.recommendation
+
+    index = by_id["index_bloat"]
+    assert "public.idx_orders（6.2）" in index.observation
+    assert "idx_small" not in index.observation
+    assert "public.idx_orders：REINDEX" in index.recommendation
 
 
 def test_barman_failure_is_assessed_without_primary_database_scope() -> None:

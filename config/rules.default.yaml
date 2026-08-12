@@ -1,9 +1,9 @@
 schema_version: "1.0"
-ruleset_version: "2026.1"
+ruleset_version: "2026.2"
 
 filesystem_usage:
-  warning_percent: 80
-  critical_percent: 90
+  observe_percent: 50
+  attention_percent: 70
 
 transaction_id_age:
   warning: 1000000000

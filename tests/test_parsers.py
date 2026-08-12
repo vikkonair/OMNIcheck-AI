@@ -302,7 +302,8 @@ repo1-retention-full=2
 
 def test_psql_report_parser_applies_fixed_row_policies(tmp_path: Path) -> None:
     schema_rows = "\n".join(
-        f" schema{i} | role{i} | USAGE" for i in range(25)
+        f" schema{i} | {'pg_monitor' if i == 0 else 'postgres' if i == 1 else f'role{i}'} | USAGE"
+        for i in range(25)
     )
     rare_rows = "\n".join(
         f" public | table{i} | idx{i} | {0 if i % 3 == 0 else i}"
@@ -339,8 +340,61 @@ pg_hba 設定
     by_id = {check.check_id: check for check in checks}
 
     assert len(by_id["schema_privileges"].evidence.rows) == 20
-    assert len(by_id["rarely_used_indexes"].evidence.rows) == 20
+    assert all(
+        row[1] not in {"pg_monitor", "postgres"}
+        for row in by_id["schema_privileges"].evidence.rows
+    )
+    assert len(by_id["rarely_used_indexes"].evidence.rows) == 10
     scan_index = by_id["rarely_used_indexes"].evidence.headers.index("idx_scan")
     assert by_id["rarely_used_indexes"].evidence.rows[0][scan_index] == "0"
     assert "pg_hba_conf" not in by_id
     assert "last_autovacuum" not in by_id
+
+
+def test_psql_report_filters_system_roles_but_preserves_bloat_top_ten(tmp_path: Path) -> None:
+    path = tmp_path / "DB_check.txt"
+    path.write_text(
+        """資料庫帳號權限
+ role_name | is_superuser | can_create_role | can_create_db
+-----------+--------------+-----------------+--------------
+ pg_monitor | f | f | f
+ postgres | t | t | t
+ app_admin | f | t | t
+(3 rows)
+表格膨脹比例前十名
+ schemaname | tablename | bloat_ratio
+------------+-----------+------------
+ public | tiny | 2
+ public | orders | 8.5
+ public | audit | 3.1
+(3 rows)
+索引膨脹程度前十名
+ schemaname | indexname | bloat_pct
+------------+-----------+----------
+ public | idx_small | 1.9
+ public | idx_orders | 12%
+(2 rows)
+""",
+        encoding="utf-8",
+    )
+
+    by_id = {
+        check.check_id: check
+        for check in PsqlReportParser().parse(parser_context(path))
+    }
+
+    assert by_id["roles_privileges"].evidence.rows == [
+        ["app_admin", "f", "t", "t"]
+    ]
+    assert by_id["table_bloat"].evidence.headers == [
+        "schemaname", "tablename", "bloat_ratio"
+    ]
+    assert by_id["table_bloat"].evidence.rows == [
+        ["public", "tiny", "2"],
+        ["public", "orders", "8.5"],
+        ["public", "audit", "3.1"],
+    ]
+    assert by_id["index_bloat"].evidence.rows == [
+        ["public", "idx_small", "1.9"],
+        ["public", "idx_orders", "12%"],
+    ]
