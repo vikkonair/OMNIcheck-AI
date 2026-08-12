@@ -246,6 +246,31 @@ def test_invalid_ai_response_falls_back_without_section_mutation(tmp_path: Path)
     assert audit.list_for_job(job_id)[0]["status"] == "failed"
 
 
+def test_ai_observation_normalizes_observed_conclusion_label(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+
+    def variant_transport(*_args):
+        return {
+            "choices": [{"message": {"content": (
+                '{"observation":"證據顯示容量需追蹤。\\n- 觀測結論：目前未見異常。",'
+                '"recommendation":"建立容量基準。"}'
+            )}}]
+        }
+
+    gateway = OllamaGateway(settings(), audit, transport=variant_transport)
+    item = sections.get_item(job_id, row["item_id"])
+    result = gateway.generate(
+        job_id=job_id,
+        item_id=row["item_id"],
+        item=item,
+        requested_by="engineer-a",
+    )
+
+    assert result.status == "succeeded"
+    assert result.draft is not None
+    assert "\n結論：目前未見異常。" in result.draft.observation
+
+
 def test_disabled_gateway_does_not_require_a_valid_endpoint(tmp_path: Path) -> None:
     _, sections, audit, job_id, row = setup_stores(tmp_path)
     gateway = OllamaGateway(

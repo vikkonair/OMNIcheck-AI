@@ -90,7 +90,7 @@ def add_toc(paragraph) -> None:
     run._r.extend((fld_char1, instr, fld_char2, placeholder, fld_char3))
 
 
-def set_fonts(run, latin="Calibri", east_asia="Microsoft JhengHei") -> None:
+def set_fonts(run, latin="Arial Unicode MS", east_asia="Arial Unicode MS") -> None:
     run.font.name = latin
     run._element.rPr.rFonts.set(qn("w:eastAsia"), east_asia)
 
@@ -100,7 +100,7 @@ def add_inline(paragraph, text: str, *, code=False, bold=False, italic=False) ->
     run.bold = bold
     run.italic = italic
     if code:
-        set_fonts(run, "Consolas", "Microsoft JhengHei")
+        set_fonts(run, "Arial Unicode MS", "Arial Unicode MS")
         run.font.size = Pt(8.5)
         run.font.color.rgb = RGBColor.from_string(NAVY)
     else:
@@ -141,8 +141,8 @@ def configure_document(document: Document) -> None:
     section.footer_distance = Inches(0.3)
 
     normal = document.styles["Normal"]
-    normal.font.name = "Calibri"
-    normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft JhengHei")
+    normal.font.name = "Arial Unicode MS"
+    normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial Unicode MS")
     normal.font.size = Pt(10.2)
     normal.paragraph_format.space_after = Pt(5)
     normal.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
@@ -157,8 +157,8 @@ def configure_document(document: Document) -> None:
     }
     for style_name, (size, color, before, after) in heading_specs.items():
         style = document.styles[style_name]
-        style.font.name = "Calibri"
-        style._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft JhengHei")
+        style.font.name = "Arial Unicode MS"
+        style._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial Unicode MS")
         style.font.size = Pt(size)
         style.font.color.rgb = RGBColor.from_string(color)
         style.font.bold = True
@@ -168,15 +168,15 @@ def configure_document(document: Document) -> None:
 
     for style_name in ("List Bullet", "List Bullet 2", "List Number", "List Number 2"):
         style = document.styles[style_name]
-        style.font.name = "Calibri"
-        style._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft JhengHei")
+        style.font.name = "Arial Unicode MS"
+        style._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial Unicode MS")
         style.font.size = Pt(10.2)
         style.paragraph_format.space_after = Pt(3)
         style.paragraph_format.line_spacing = 1.15
 
     code_style = document.styles.add_style("Code Block", WD_STYLE_TYPE.PARAGRAPH)
-    code_style.font.name = "Consolas"
-    code_style._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft JhengHei")
+    code_style.font.name = "Arial Unicode MS"
+    code_style._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial Unicode MS")
     code_style.font.size = Pt(8)
     code_style.font.color.rgb = RGBColor.from_string(NAVY)
     code_style.paragraph_format.left_indent = Inches(0.16)
@@ -186,8 +186,8 @@ def configure_document(document: Document) -> None:
     code_style.paragraph_format.line_spacing = 1.02
 
     quote_style = document.styles.add_style("Guide Quote", WD_STYLE_TYPE.PARAGRAPH)
-    quote_style.font.name = "Calibri"
-    quote_style._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft JhengHei")
+    quote_style.font.name = "Arial Unicode MS"
+    quote_style._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial Unicode MS")
     quote_style.font.size = Pt(9.5)
     quote_style.font.color.rgb = RGBColor.from_string(NAVY)
     quote_style.paragraph_format.left_indent = Inches(0.28)

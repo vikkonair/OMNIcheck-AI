@@ -1,7 +1,7 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.14.3-candidate
+文件版本：0.14.4-candidate
 最後更新：2026-08-12
 適用程式基準：M14.3 本機候選；正式公司基準仍以已部署 release 為準
 正式可回復基準：`m10.1`；前一個 application rollback 點為 `m10`
@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.14.4-candidate | 2026-08-12 | 全文字 Section Evidence-to-Ollama、additive Workflow rollback 相容、每 release 原生 venv 與載入路徑驗證 | 本機 123 tests；台灣行動支付 20/20 文字 Evidence Snapshot、QA/V4 QA、公司 gpt-oss:20b 實際 Evidence 分析通過；正式切換待完成 |
 | 0.14.3-candidate | 2026-08-12 | 全 V4 可見 Section 自動 AI 批次、PEM 圖片 Vision 分流、整批核准與一鍵重新產報 | release `a18c7cd`；本機／公司 115 tests、台灣行動支付 29/29 Workflow、5 張圖片、Ruleset 2026.2、QA/V4 QA、DOCX/PDF 通過；待使用者與 Vision 驗收 |
 | 0.14.2.2-candidate | 2026-08-12 | Ruleset 2026.2：filesystem 50/70、bloat 前十名敘述契約、罕用索引 10 筆、系統角色排除 | 本機測試通過；實際客戶資料與公司部署待驗證 |
 | 0.14.2.1 | 2026-08-12 | PEM backend Database Output 自動映射唯一 PEM Witness、後端 Scope 防繞過、Section key 寫入前唯一性 QA | release `8bef579`；本機／公司 106 tests，原失敗 Job、20 Sections、QA/V4 QA、DOCX/PDF、來源 hash 通過 |
@@ -397,21 +398,28 @@ chown -h omnicheck:omnicheck /data/omnicheck/app/current
 
 實際 rollout 建議每版獨立目錄 `/data/omnicheck/app/releases/<version>`，`current` 只在驗證後原子切換。
 
-### 8.2 Python virtual environment
+### 8.2 每個 release 的 Python virtual environment
 
 ```bash
-python3.12 -m venv /data/omnicheck/venv
-/data/omnicheck/venv/bin/python -m pip install --upgrade pip
-/data/omnicheck/venv/bin/pip install -e '/data/omnicheck/app/current[dev]'
-/data/omnicheck/venv/bin/python --version
-/data/omnicheck/venv/bin/pip check
-/data/omnicheck/venv/bin/omni-healthcheck --help
+RELEASE_ID=8faff37
+RELEASE_DIR=/data/omnicheck/app/releases/${RELEASE_ID}
+python3.12 -m venv "${RELEASE_DIR}/.venv"
+"${RELEASE_DIR}/.venv/bin/python" -m pip install --upgrade pip
+"${RELEASE_DIR}/.venv/bin/pip" install -e "${RELEASE_DIR}[dev]"
+"${RELEASE_DIR}/.venv/bin/python" --version
+"${RELEASE_DIR}/.venv/bin/pip" check
+"${RELEASE_DIR}/.venv/bin/omni-healthcheck" --help
+"${RELEASE_DIR}/.venv/bin/python" -c \
+  'import omni_healthcheck; print(omni_healthcheck.__file__)'
+head -1 "${RELEASE_DIR}/.venv/bin/omni-healthcheck"
 ```
+
+禁止使用 `cp -a <OLD_RELEASE>/.venv <NEW_RELEASE>/.venv`、`rsync` 或複製 shared venv。Python console script 的 shebang 與 editable install 的 `.pth` 會保留舊 release 絕對路徑，使 `current` 雖已切換，Web／Worker／CLI 仍載入舊程式碼。每個 release 必須由系統 `python3.12 -m venv` 原生建立。安裝後必須確認 package path、console script shebang、Web／Worker process cwd 均屬於目標 release，並使用目標 release 的 `.venv/bin/pytest` 執行完整測試。
 
 正式離線環境應先建立經掃描的 wheelhouse 並保存 hashes，不要在正式 VM 即時連公共 PyPI。重建時保存：
 
 ```bash
-/data/omnicheck/venv/bin/pip freeze
+"${RELEASE_DIR}/.venv/bin/pip" freeze
 ```
 
 目前 V4 vendor bundle 位於固定 source release 外部，不包含於 wheel，因此部署採固定 release + editable link。`pyproject.toml` 仍允許版本範圍且尚未提供完整 lock file；正式上線前應建立可攜式 package data 與受控 lock／wheelhouse。
@@ -975,11 +983,21 @@ systemctl start omnicheck-web omnicheck-worker
 ### 17.2 Rolling application upgrade
 
 ```bash
-systemctl stop omnicheck-worker omnicheck-web
-# 安裝新 release 目錄與新 venv，先不要覆蓋舊版
+NEW_VERSION=<NEW_VERSION>
+NEW_RELEASE=/data/omnicheck/app/releases/${NEW_VERSION}
+# 安裝新 release，並以 python3.12 -m venv 原生建立 ${NEW_RELEASE}/.venv
+# 禁止複製舊 release 的 .venv
+"${NEW_RELEASE}/.venv/bin/python" -c \
+  'import omni_healthcheck; print(omni_healthcheck.__file__)'
+head -1 "${NEW_RELEASE}/.venv/bin/omni-healthcheck"
+cd "${NEW_RELEASE}"
+"${NEW_RELEASE}/.venv/bin/pytest" -q
 # 執行 alembic upgrade head（若有）
+flock /data/omnicheck/app/deploy.lock -c '
+systemctl stop omnicheck-worker omnicheck-web
 ln -sfn /data/omnicheck/app/releases/<NEW_VERSION> /data/omnicheck/app/current
 systemctl start omnicheck-web omnicheck-worker
+'
 curl --fail http://127.0.0.1:8000/api/health
 ```
 

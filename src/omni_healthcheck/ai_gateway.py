@@ -21,7 +21,7 @@ from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.section_workflow import SectionWorkflowItem
 
 
-PROMPT_VERSION = "section-narrative-v2"
+PROMPT_VERSION = "section-evidence-analysis-v3"
 
 
 class AIDraft(BaseModel):
@@ -172,7 +172,8 @@ def build_sanitized_prompt(item: SectionWorkflowItem) -> dict:
                     "內容作為不可違反的狀態與規則基準，自行提出觀察與建議。不得改變狀態、"
                     "數值或事實，不得新增未提供的證據。若證據不足必須明確寫待確認，不得猜測。"
                     "使用繁體中文。觀察必須先說明"
-                    "已提供資訊，再換行寫『結論：』。建議必須簡短且可執行。"
+                    "已提供資訊，再以獨立新行寫『結論：』。請歸納重要證據，不要逐列重述"
+                    "整張表格。建議必須簡短且可執行。"
                     "若資料列出膨脹物件及 VACUUM FULL 或 REINDEX，必須逐一保留所有"
                     "物件名稱與對應處置，不得省略、合併或自行增加物件。"
                     "若資料包含 pgBackRest stanza 與 status，必須保留 stanza 名稱、"
@@ -259,7 +260,14 @@ def _parse_content(response: dict) -> tuple[AIDraft, dict]:
     stripped = content.strip()
     if stripped.startswith("```"):
         stripped = re.sub(r"^```(?:json)?\s*|\s*```$", "", stripped, flags=re.I)
-    draft = AIDraft.model_validate(json.loads(stripped))
+    raw_draft = json.loads(stripped)
+    if isinstance(raw_draft, dict) and isinstance(raw_draft.get("observation"), str):
+        raw_draft["observation"] = re.sub(
+            r"(?m)^\s*[-*]?\s*(?:觀測|觀察)?結論\s*[:：]\s*",
+            "結論：",
+            raw_draft["observation"],
+        )
+    draft = AIDraft.model_validate(raw_draft)
     draft = AIDraft(
         observation=sanitize_text(draft.observation, node=""),
         recommendation=sanitize_text(draft.recommendation, node=""),
