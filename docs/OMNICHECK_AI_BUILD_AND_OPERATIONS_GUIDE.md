@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.14.2.1-candidate | 2026-08-12 | PEM backend Database Output 自動映射唯一 PEM Witness、後端 Scope 防繞過、Section key 寫入前唯一性 QA | 本機 106 tests 通過；公司原失敗案件待回歸驗證 |
 | 0.10.3-draft.4 | 2026-08-11 | 聯詠 walsender／walreceiver topology、OS／DB 標題相容、zero-row 與 coverage ID | release `327748d`；本機 93 tests、公司相關 28 tests、Discovery API、health、PDF 與來源 hash 通過 |
 | 0.10.3-draft.3 | 2026-08-11 | 修正無 Primary 時 Database Output 誤顯示 DR、人工修正後重新開放確認 | 本機 88 tests、公司 VM targeted 11 tests、health／UI marker／per-release process 通過；rollback `a0582a0` |
 | 0.10.3-draft.2 | 2026-08-11 | 同仁 UI Adapter 公司候選部署、per-release venv、systemd release isolation、deploy lock／owner | 公司 release `a0582a0` 87 tests；Golden Web → EDB Queue → Worker → V4、QA、重啟持久性通過；待使用者驗收 |
@@ -599,6 +600,8 @@ Discovery API 只取文字檔前 512 KiB 作樣本；圖片不解析內容。確
 
 M10.1 對沒有 hostname 的 `ENGDB_check.txt` 類型文字檔進行 Database Output 內容分類。若不能唯一對應節點，畫面會在「Database Output 來源確認」列出候選並要求使用者選擇；結果保存於 `job.yaml.evidence_mappings`，Scope ledger 記錄 `operator_confirmed_evidence_mapping`。候選不等於自動採用，未確認時保持 pending；映射到 Standby／DR／Witness 也不會繞過 Database logical Primary-only policy。
 
+`<日期>_PEM_check/` 內的 Database Output 是 PEM Server 的後端 PostgreSQL，不是客戶業務 Primary。當案件只有一個承載 PEM 的 Witness 時，Discovery 必須將來源建議為該節點；Scope controller 也會以 `service_path` 與 `policy.pem_backend_database_scope` 再次保護，即使舊案件曾誤存 Primary mapping，仍須排除於業務資料庫評估。若產生重複的 `section_id:node:check_id`，Section Workflow 必須在 EDB persistence 前停止並列出重複 key，不可合併不同來源的資料庫結果。
+
 報告 2.1 的 Database 欄是節點軟體清冊，不是邏輯資料 Scope：Primary／Standby／DR 都顯示案件的 PostgreSQL／EPAS 產品；承載 PEM Server 的 Witness 顯示 `PostgreSQL` backend；只有 EFM 且沒有資料庫服務證據的 Witness 留白。Database／Schema／Table 等後續判斷仍只採 Primary。
 
 ## 13. 驗證與驗收
@@ -612,6 +615,8 @@ git diff --check
 ```
 
 公司 M9.3 正式基準為 60 tests、M9.4 為 65 tests、M9.5 為 70 tests、M9.6 為 74 tests、M10 為 78 tests、M10.1 為 82 tests；M10.3.1 候選為 85 tests。實際數量會隨版本增加，不應硬性只等於固定數字；重點是 0 failed。
+
+PEM backend Scope 回歸至少必須驗證：Discovery 將 `PEM_check` Database Output 指向唯一 PEM Witness；既有錯誤 Primary mapping 被後端政策覆寫為 Witness／excluded；一般未標節點 Database Output 的人工 Primary mapping 保持可用；重複 Section key 在 persistence 前提供明確錯誤。本機候選基準為 106 tests、0 failed。
 
 M10.2 UI Adapter 公司候選為 88 tests，新增 UI Adapter、路由、fail-closed 畫面行為與 deployment contract tests，未增加 migration 或更換 Pipeline。`/` 與 `/integrated` 為新版介面，`/classic` 為原介面 fallback。第一階段不得部署同仁版本的 Login/RBAC、Knowledge/CVE、GPDB、`0005`～`0007` migration 或整份 `web.py`。Database Output 沒有 Primary suggestion 時，UI 必須顯示「請選擇來源節點」，不得預選排序第一台 DR；人工修正為唯一 Primary 並完成全部來源映射後，確認 checkbox 才可啟用。公司 release `a0582a0` 使用獨立 `.venv`，Web／Worker systemd 已改用 `current/.venv`；切換時持有 `/data/omnicheck/app/deploy.lock` 並保存 owner／commit／previous／rollback metadata。Golden Job `2a8d40b0727c41119236fd6642cd2ec2` 已完成 Web → EDB Queue → Worker → 12 個 Canonical/V4 產物，QA/V4 QA 均允許交付，服務重啟後案件仍可由 EDB 讀回。公司 EDB revision `0007_m13_catalog` 並非本分支 migration head，本次未執行 migration 或 downgrade；待 schema reconciliation 後才進行 Section persistence/API。
 

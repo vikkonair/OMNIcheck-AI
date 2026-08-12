@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -85,6 +86,20 @@ class SectionWorkflowDocument(WorkflowModel):
 
 def build_section_workflow(assessment: AssessmentDocument) -> SectionWorkflowDocument:
     """Create a deterministic baseline; no AI text is selected or rendered."""
+
+    section_keys = [
+        f"{item.section_id}:{item.node}:{item.check_id}"
+        for item in assessment.assessments
+    ]
+    duplicates = sorted(
+        key for key, count in Counter(section_keys).items() if count > 1
+    )
+    if duplicates:
+        raise ValueError(
+            "duplicate section workflow key(s): "
+            + ", ".join(duplicates)
+            + "; database evidence may have been mapped to the same node"
+        )
 
     return SectionWorkflowDocument(
         ruleset_version=assessment.ruleset_version,

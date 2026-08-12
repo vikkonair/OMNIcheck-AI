@@ -283,7 +283,33 @@ def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict
             (value for value in job.evidence_mappings if value.path.casefold() == relative_path.casefold()),
             None,
         )
-        if mapping:
+        natural_resolution = resolve_node(full_path, relative_path, job)
+        pem_backend_resolution = (
+            natural_resolution
+            if natural_resolution.status == "resolved"
+            and natural_resolution.sources == ["service_path"]
+            and natural_resolution.role == "Witness"
+            and any(
+                node.hostname.casefold() == natural_resolution.hostname.casefold()
+                and "pem" in {service.casefold() for service in node.services}
+                for node in job.nodes
+            )
+            and any(
+                re.fullmatch(r"(?:\d{8}_)?pem_check", part, re.IGNORECASE)
+                for part in Path(relative_path).parts
+            )
+            else None
+        )
+        if mapping and pem_backend_resolution is not None:
+            resolution = NodeResolution(
+                hostname=pem_backend_resolution.hostname,
+                role=pem_backend_resolution.role,
+                status="resolved",
+                matched_nodes=pem_backend_resolution.matched_nodes,
+                sources=["service_path", "policy.pem_backend_database_scope"],
+            )
+            domain = "database"
+        elif mapping:
             node = next(value for value in job.nodes if value.hostname.casefold() == mapping.node.casefold())
             resolution = NodeResolution(
                 hostname=node.hostname, role=node.role, status="resolved",
@@ -291,7 +317,7 @@ def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict
             )
             domain = mapping.domain
         else:
-            resolution = resolve_node(full_path, relative_path, job)
+            resolution = natural_resolution
             domain = classify_evidence_domain(relative_path, item["extension"], sample)
         if (
             domain == "monitoring"

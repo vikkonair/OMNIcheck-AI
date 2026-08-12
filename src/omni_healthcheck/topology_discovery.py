@@ -151,6 +151,29 @@ def _discover_node(hostname: str, texts: list[str], file_count: int) -> dict:
     }
 
 
+def _service_node_from_path(path: str, nodes: list[dict]) -> tuple[str, str] | None:
+    """Resolve service-owned database output without treating it as Primary data."""
+    parts = {part.casefold() for part in PurePosixPath(path.replace("\\", "/")).parts}
+    service = next(
+        (
+            name
+            for name in ("PEM",)
+            if any(re.fullmatch(rf"(?:\d{{8}}_)?{name.casefold()}_check", part) for part in parts)
+        ),
+        None,
+    )
+    if service is None:
+        return None
+    matches = [
+        node["hostname"]
+        for node in nodes
+        if service.casefold() in {value.casefold() for value in node["services"]}
+    ]
+    if len(matches) != 1:
+        return None
+    return matches[0], service
+
+
 def discover_topology(items: list[DiscoveryEvidence]) -> dict:
     """Return role suggestions that must be confirmed by an operator."""
     grouped_text: dict[str, list[str]] = defaultdict(list)
@@ -176,17 +199,26 @@ def discover_topology(items: list[DiscoveryEvidence]) -> dict:
     primary_count = sum(node["suggested_role"] == "Primary" for node in nodes)
     unresolved = [node["hostname"] for node in nodes if node["suggested_role"] == "Unknown"]
     primary = next((node["hostname"] for node in nodes if node["suggested_role"] == "Primary"), None)
-    evidence_candidates = [
-        {
+    evidence_candidates = []
+    for item, text in unassigned_items:
+        score = database_content_score(text)
+        if score < 2:
+            continue
+        service_match = _service_node_from_path(item.path, nodes)
+        suggested_node = service_match[0] if service_match else primary
+        reason = (
+            f"路徑屬於 {service_match[1]}_check；依唯一 {service_match[1]} Server 節點"
+            "判定為其後端資料庫，不納入業務 Primary 資料庫檢查"
+            if service_match
+            else f"偵測到 {score} 個資料庫輸出結構標記；來源節點需人工確認"
+        )
+        evidence_candidates.append({
             "path": item.path,
             "suggested_domain": "database",
-            "suggested_node": primary,
-            "confidence": "high" if database_content_score(text) >= 4 else "medium",
-            "reason": f"偵測到 {database_content_score(text)} 個資料庫輸出結構標記；來源節點需人工確認",
-        }
-        for item, text in unassigned_items
-        if database_content_score(text) >= 2
-    ]
+            "suggested_node": suggested_node,
+            "confidence": "high" if service_match or score >= 4 else "medium",
+            "reason": reason,
+        })
     warnings = []
     if primary_count != 1:
         warnings.append(f"Primary 候選數為 {primary_count}；正式執行前必須確認且只能保留一台")

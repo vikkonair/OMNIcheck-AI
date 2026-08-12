@@ -150,3 +150,32 @@ def test_operator_mapping_cannot_bypass_primary_only_scope(tmp_path: Path) -> No
     assert item["node_role"] == "Standby"
     assert item["decision"] == "excluded"
     assert item["reason"] == "database evidence belongs to Standby, not Primary"
+
+
+def test_primary_mapping_cannot_override_pem_backend_service_scope(tmp_path: Path) -> None:
+    from omni_healthcheck.config import JobConfig
+
+    raw = load_job(FIXTURE / "job.yaml").model_dump(mode="json")
+    raw["evidence_mappings"] = [{
+        "path": "20260616_PEM_check/20260616_DB_check.txt",
+        "node": "db-primary",
+        "domain": "database",
+    }]
+    job = JobConfig.model_validate(raw)
+    input_dir = tmp_path / "input"
+    pem_dir = input_dir / "20260616_PEM_check"
+    pem_dir.mkdir(parents=True)
+    (pem_dir / "20260616_DB_check.txt").write_text(
+        "資料庫訊息查看\ndb_ver | PostgreSQL 16.6\nList of databases\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(input_dir, job)
+    item = build_scope_ledger(input_dir, inventory, job)["evidence"][0]
+
+    assert item["node"] == "pem-witness"
+    assert item["node_role"] == "Witness"
+    assert item["decision"] == "excluded"
+    assert item["resolution_sources"] == [
+        "service_path",
+        "policy.pem_backend_database_scope",
+    ]

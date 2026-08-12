@@ -52,6 +52,16 @@ def test_builds_deterministic_ai_disabled_contract() -> None:
     assert item.ai_draft is None
 
 
+def test_duplicate_section_keys_fail_before_persistence() -> None:
+    assessment = assessment_document()
+    assessment = assessment.model_copy(
+        update={"assessments": assessment.assessments * 2}, deep=True
+    )
+
+    with pytest.raises(ValueError, match="duplicate section workflow key"):
+        build_section_workflow(assessment)
+
+
 def test_ai_draft_cannot_replace_selected_text_without_engineer_approval() -> None:
     original = build_section_workflow(assessment_document()).items[0]
     drafted = attach_ai_draft(

@@ -100,3 +100,23 @@ def test_discovery_proposes_mapping_for_legacy_database_output() -> None:
         "confidence": "high",
         "reason": "偵測到 4 個資料庫輸出結構標記；來源節點需人工確認",
     }]
+
+
+def test_discovery_maps_pem_database_output_to_unique_pem_witness() -> None:
+    result = discover_topology([
+        _item("HealthChekOS-LOG-db01.txt", "bind.address=efm-primary:7800\ndb.user=efm"),
+        _item(
+            "20260616_PEM_check/HealthChekOS-LOG-pemp1.txt",
+            "Postgres Enterprise Manager\n/usr/edb/pem/server",
+        ),
+        _item(
+            "20260616_PEM_check/20260616_DB_check.txt",
+            "資料庫訊息查看\ndb_ver | PostgreSQL 16.6\nList of databases\npg_stat_activity 查看",
+        ),
+    ])
+
+    candidate = result["evidence_candidates"][0]
+    assert candidate["suggested_node"] == "pemp1"
+    assert candidate["confidence"] == "high"
+    assert "後端資料庫" in candidate["reason"]
+    assert "不納入業務 Primary" in candidate["reason"]

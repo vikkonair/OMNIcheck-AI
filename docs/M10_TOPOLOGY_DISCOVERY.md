@@ -14,6 +14,7 @@
 - hostname 的 DR 標記。
 - `primary_conninfo` 只能提出 Standby／DR 待確認訊號，不單獨決定 Primary。
 - PEM Server、EFM、pgBackRest、Barman、XDB 使用明確服務訊號；PEM Agent 不等於 PEM Server。
+- `PEM_check` 內的 Database Output 屬於 PEM Server 的後端 PostgreSQL；若案件中只有一個 PEM 節點，Discovery 必須建議該 Witness，而不是業務 Primary。後端 Scope 會再次保護此服務邊界，舊的錯誤人工映射也不能把它帶入業務資料庫檢查。
 - 無法唯一判斷時輸出 `Unknown`／conflict，正式執行前必須人工修正。
 
 ## 人工確認與稽核
@@ -35,6 +36,8 @@ M10 位於 Job creation 與 M1 Inventory 之前。確認後仍使用原有 `JobC
 ```
 
 既有規則不變：邏輯資料庫 Primary-only；Primary／Standby／DR 設定檔比較；未標節點的 PEM 圖片預設 Primary；Witness 可承載 PEM、EFM、XDB 與 Barman。
+
+Section Workflow 寫入 EDB 前會檢查 `section_id:node:check_id` 是否唯一。若同一節點被錯誤納入兩份 Database Output，系統會先回報明確的 duplicate section workflow key，而不是延後到 EDB unique constraint 才失敗；不得以合併兩份不同資料庫輸出來規避錯誤。
 
 ## Rollback
 

@@ -3,7 +3,7 @@
 最後更新：2026-08-10
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M10.3.2 與 M14.1 已完成公司驗證；M14.2 公司 0010、103 tests 與單項真實 Ollama E2E 通過，待多項批次／使用者驗收
+目前開發進度：M10.3.2 與 M14.1 已完成公司驗證；M14.2 公司 0010、103 tests 與單項真實 Ollama E2E 通過；PEM backend Scope 修正本機 106 tests 通過，待公司原失敗案件回歸驗證
 
 ## 1. 文件目的
 
@@ -35,6 +35,7 @@
 10. 密碼、private key、客戶資料、實際輸出和本機 `.env` 不得進 Git。
 11. EDB 是結構化應用資料與歷史的主要查詢來源，`/data` 保存大型檔案，Canonical JSON 保留為不可變 Pipeline／Renderer 契約與 rollback 保護。
 12. AI 只能翻譯、解釋、摘要與產生文字初稿；事實、版本、Scope、規則狀態及 CVE 適用性由官方來源與確定性程式決定。
+13. `PEM_check` 的 Database Output 是 PEM Server 後端 PostgreSQL 證據，必須映射到唯一 PEM Witness 並排除於業務 Primary 邏輯資料檢查；人工映射不得繞過此服務邊界。
 
 ## 3. 目前整體架構
 
