@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.3 已完成公司部署；Ruleset 2026.4 的 PEM／EFM 服務異常條件式評估已部署公司環境，本機／公司 120 tests、台灣行動支付實際資料 E2E、QA／V4 QA 均通過
+目前開發進度：M14.3 已完成公司部署；Ruleset 2026.5 的大型資料表、SLRU、Dead Tuple 證據式 AI Section 已完成本機 122 tests、台灣行動支付實際資料 E2E、QA／V4 QA，待建立版本並部署公司環境；Vision 驗證依使用者決策暫緩
 
 ## 1. 文件目的
 
@@ -40,6 +40,7 @@
 15. Ruleset `2026.3`：pgBackRest 改為逐 stanza 解析 `status`；主要 stanza 的 `status: ok` 明確判為正常並要求持續監控與還原驗證，其他 stanza 獨立揭露，無法唯一辨識主要 stanza 時標示待確認。AI 草稿不得省略 stanza 與 status 事實。
 16. 純資訊清冊（系統組態、版本、Extension、資料庫清單）只顯示 Output，不顯示狀態／觀察／建議，也不送入 AI。PEM／EFM 服務摘要沒有明確異常時維持純資訊；出現 error／failed／fatal 等明確異常時，必須產生評估並送入 AI Workflow。容量、監控、組態差異、運行狀態、權限與維護候選仍屬健檢判斷。
 17. Ruleset `2026.4`：PEM Server、PEM Agent、EFM、XDB Output 出現明確異常訊號時列為注意；PEM／XDB 僅在 Witness 角色評估。5.1 服務摘要有異常時產生觀察、建議與 AI Workflow，無異常時仍為純資訊。
+18. Ruleset `2026.5`：大型資料表列出前三大物件與含索引容量；SLRU 提供累積命中率與讀取量最高項目，但單次快照保守維持待確認；Dead Tuple 列出前三高物件與數量並要求複核比例及 autovacuum。三者均建立 AI Workflow，AI 省略必要事實時退回 deterministic 內容。
 
 2026-08-12 公司修正部署：使用 Job `a1714d038a204676b88ba453ef245876` 的不可變 input 驗證 `90f9aca`，29 個可見項目中 5 個資訊清冊不含狀態／觀察／建議，24 個判斷項目進 Workflow，V4 QA、DOCX／PDF 與 116 tests 通過。公司 `current` 已切至 `90f9aca`，Web／Worker health 正常，rollback 為 `a18c7cd`。
 

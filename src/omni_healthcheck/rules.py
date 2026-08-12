@@ -198,6 +198,102 @@ def _replication_assessment(check: CheckResult, version: str) -> Assessment | No
     )
 
 
+def _parse_size_bytes(value: str) -> float | None:
+    match = re.search(r"(?i)([\d.]+)\s*(bytes?|kb|mb|gb|tb)\b", value.strip())
+    if not match:
+        return None
+    factors = {"byte": 1, "bytes": 1, "kb": 1024, "mb": 1024**2, "gb": 1024**3, "tb": 1024**4}
+    return float(match.group(1)) * factors[match.group(2).casefold()]
+
+
+def _largest_tables_assessment(check: CheckResult, version: str) -> Assessment | None:
+    headers = [header.casefold() for header in check.evidence.headers]
+    try:
+        schema_index = headers.index("schemaname")
+        table_index = headers.index("tablename")
+        size_index = headers.index("total_size_including_indexes")
+    except ValueError:
+        return None
+    candidates = []
+    for row in check.evidence.rows:
+        if len(row) <= max(schema_index, table_index, size_index):
+            continue
+        size_bytes = _parse_size_bytes(row[size_index])
+        if size_bytes is not None:
+            candidates.append((size_bytes, f"{row[schema_index]}.{row[table_index]}", row[size_index]))
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    listed = "、".join(f"{name}（含索引 {size}）" for _, name, size in candidates[:3])
+    return _assessment(
+        check,
+        status="normal",
+        rule_id="database.largest_tables.profile.v1",
+        ruleset_version=version,
+        explanation=f"Primary 共列出 {len(candidates)} 筆大型資料表；前三項為：{listed}。",
+        conclusion="本項為容量熱點清冊，單次容量快照未直接代表異常。",
+        recommendation="建議建立資料表容量成長基準，優先追蹤前三大物件的資料保留、分割區、索引占用及成長速度，並納入容量預估。",
+    )
+
+
+def _slru_assessment(check: CheckResult, version: str) -> Assessment | None:
+    headers = [header.casefold() for header in check.evidence.headers]
+    if not all(name in headers for name in ("name", "blks_hit", "blks_read")):
+        return None
+    indexes = {name: headers.index(name) for name in ("name", "blks_hit", "blks_read")}
+    rows = []
+    for row in check.evidence.rows:
+        try:
+            rows.append((row[indexes["name"]], int(row[indexes["blks_hit"]]), int(row[indexes["blks_read"]])))
+        except (IndexError, ValueError):
+            continue
+    if not rows:
+        return None
+    total_hit = sum(row[1] for row in rows)
+    total_read = sum(row[2] for row in rows)
+    ratio = total_hit / (total_hit + total_read) * 100 if total_hit + total_read else 100.0
+    busiest = sorted(rows, key=lambda row: row[2], reverse=True)[:3]
+    listed = "、".join(f"{name}（read {read:,}）" for name, _, read in busiest)
+    return _assessment(
+        check,
+        status="pending",
+        rule_id="database.slru.snapshot.v1",
+        ruleset_version=version,
+        explanation=f"Primary 的 SLRU 累積命中率約 {ratio:.2f}%，讀取量較高項目為：{listed}。",
+        conclusion="單次累積快照不足以判定 SLRU 是否異常，需搭配時間區間增量與工作負載複核。",
+        recommendation="建議定期保存 pg_stat_slru 快照並比較 blks_read、blks_written、flushes 與 truncates 增量；若磁碟讀取持續快速增加，再檢查 I/O 延遲與相關交易負載。",
+    )
+
+
+def _dead_tuples_assessment(check: CheckResult, version: str) -> Assessment | None:
+    headers = [header.casefold() for header in check.evidence.headers]
+    try:
+        schema_index = headers.index("schema_name")
+        table_index = headers.index("table_name")
+        dead_index = headers.index("dead_tuples")
+    except ValueError:
+        return None
+    candidates = []
+    for row in check.evidence.rows:
+        try:
+            candidates.append((int(row[dead_index]), f"{row[schema_index]}.{row[table_index]}"))
+        except (IndexError, ValueError):
+            continue
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    listed = "、".join(f"{name}（{count:,}）" for count, name in candidates[:3])
+    return _assessment(
+        check,
+        status="attention",
+        rule_id="database.dead_tuples.profile.v1",
+        ruleset_version=version,
+        explanation=f"Primary 共列出 {len(candidates)} 筆 Dead Tuple 候選；前三項為：{listed}。",
+        conclusion="存在 Dead Tuple 累積較高的資料表，需搭配資料表總列數及 autovacuum 執行情況複核影響。",
+        recommendation="建議優先檢查前三項資料表的 dead tuple 比例、更新／刪除頻率及 autovacuum 門檻與執行紀錄；必要時先執行 VACUUM (ANALYZE)，再依膨脹結果評估維護作業。",
+    )
+
+
 def _database_locks_assessment(check: CheckResult, version: str) -> Assessment | None:
     zero_rows = check.evidence.rows == [["0 rows（未發現項目）"]]
     if not zero_rows:
@@ -634,6 +730,12 @@ def evaluate_rules(
             )
         elif check.check_id == "replication_state":
             assessment = _replication_assessment(check, version)
+        elif check.check_id == "largest_tables":
+            assessment = _largest_tables_assessment(check, version)
+        elif check.check_id == "slru_status":
+            assessment = _slru_assessment(check, version)
+        elif check.check_id == "dead_tuples":
+            assessment = _dead_tuples_assessment(check, version)
         elif check.check_id == "database_locks":
             assessment = _database_locks_assessment(check, version)
         elif check.check_id == "connections":

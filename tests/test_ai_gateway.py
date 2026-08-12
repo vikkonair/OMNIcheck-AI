@@ -179,6 +179,43 @@ def test_backup_ai_draft_must_preserve_stanza_and_status(tmp_path: Path) -> None
     assert result.draft is None
 
 
+def test_largest_tables_ai_draft_must_preserve_evidence_objects(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    item = sections.get_item(job_id, row["item_id"]).model_copy(
+        update={
+            "check_id": "largest_tables",
+            "deterministic": Narrative(
+                source="deterministic_template",
+                observation=(
+                    "前三項為：public.orders（含索引 120 GB）、audit.events（含索引 60 GB）。\n"
+                    "結論：本項為容量熱點清冊。"
+                ),
+                recommendation="追蹤容量成長速度。",
+            ),
+        },
+        deep=True,
+    )
+
+    def incomplete_transport(*_args):
+        return {
+            "choices": [{"message": {"content": (
+                '{"observation":"大型資料表需關注。\\n結論：應持續追蹤。",'
+                '"recommendation":"建立容量基準。"}'
+            )}}]
+        }
+
+    gateway = OllamaGateway(settings(), audit, transport=incomplete_transport)
+    result = gateway.generate(
+        job_id=job_id,
+        item_id=row["item_id"],
+        item=item,
+        requested_by="engineer-a",
+    )
+
+    assert result.status == "fallback"
+    assert result.draft is None
+
+
 def test_invalid_ai_response_falls_back_without_section_mutation(tmp_path: Path) -> None:
     _, sections, audit, job_id, row = setup_stores(tmp_path)
 

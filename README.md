@@ -24,6 +24,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 比較 Primary、Standby 與 DR 的 PostgreSQL 參數和 `pg_hba.conf` 規則。
 - 依據確定性規則產生「正常、注意、嚴重、待確認」四種狀態。
 - 為每項判斷保留證據、觀察、結論、建議、規則編號與規則版本。
+- 大型資料表、SLRU 與 Dead Tuple 會先整理實際物件、容量、計數及比率，再由選配 AI 產生證據式觀察與建議。
 - 在輸出前遮蔽密碼等敏感資訊。
 - 產生檢查覆蓋率清單，讓缺漏項目保持可見。
 - 在交付前檢查 Primary 資料、證據引用、敏感資訊、來源路徑與客戶資料隔離。

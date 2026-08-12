@@ -13,6 +13,7 @@
 5. Vision 未設定、AI 停用或模型失敗時，保留 deterministic 內容，整份報告仍可正常產生。
 6. AI 草稿仍不會直接進正式報告。工程師可個別修改，或使用整批核准動作後重新產報。
 7. Renderer 只選取 approved 內容；其他狀態一律使用 deterministic 內容。
+8. 大型資料表、SLRU、Dead Tuple 先由確定性規則整理可見事實，再交由 AI 改寫觀察與建議；AI 不得省略物件名稱、容量、計數或比率，也不得把 SLRU 單次累積快照描述成趨勢。
 
 純資訊清冊不屬於健檢判斷：`主機與作業系統組態彙整`、`版本資訊`、`Extension 清單`、`資料庫清單`只顯示標題與 Output，不顯示狀態／觀察／建議，也不建立 Workflow 或進入 AI batch。`PEM / EFM 服務摘要`採條件式處理：沒有明確異常時維持純資訊；Output 出現 error／failed／fatal 等明確異常時，必須產生確定性評估、建立 Workflow 並進入 AI batch。Quality Gate 仍驗證所有項目必須有可見 Output。
 
@@ -22,6 +23,8 @@
 - Prompt audit 不保存圖片的 Base64 內容；只保存最小化、遮蔽後的文字 Prompt 與雜湊。
 - 圖片看不清楚時必須標示待確認，不得猜測數值。
 - 膨脹項目的 AI 草稿必須保留確定性規則列出的所有物件與 `VACUUM FULL`／`REINDEX` 處置。
+- 大型資料表、SLRU、Dead Tuple 的 AI 草稿若省略必要證據事實，必須 fail closed 並保留 deterministic 內容。
+- PEM 圖片 Vision 實機驗證依使用者決策暫緩，不阻擋文字 Section 的規則與 AI Workflow 優化；不得因此宣稱 Vision 已驗收。
 
 ## 設定
 

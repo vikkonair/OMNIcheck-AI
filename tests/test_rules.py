@@ -347,6 +347,57 @@ def test_pem_server_log_error_creates_actionable_assessment() -> None:
     assert assessment.trace.rule_id == "service.explicit_error.v1"
 
 
+def test_capacity_slru_and_dead_tuple_sections_receive_evidence_based_narratives() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "largest_tables",
+                ["database_name", "schemaname", "tablename", "table_size", "total_size_including_indexes"],
+                [["app", "public", "orders", "80 GB", "120 GB"], ["app", "audit", "events", "40 GB", "60 GB"]],
+                product="EPAS",
+            ),
+            check(
+                "slru_status",
+                ["name", "blks_hit", "blks_read"],
+                [["Xact", "900", "100"], ["Subtrans", "90", "10"]],
+                product="EPAS",
+            ),
+            check(
+                "dead_tuples",
+                ["schema_name", "table_name", "dead_tuples"],
+                [["public", "orders", "6000000"], ["audit", "events", "2000000"]],
+                product="EPAS",
+            ),
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+        load_rules(ROOT / "config/rules.default.yaml"),
+    )
+    by_id = {item.check_id: item for item in result.assessments}
+
+    largest = by_id["largest_tables"]
+    assert largest.status == "normal"
+    assert "public.orders（含索引 120 GB）" in largest.observation
+    assert "成長基準" in largest.recommendation
+
+    slru = by_id["slru_status"]
+    assert slru.status == "pending"
+    assert "90.00%" in slru.observation
+    assert "單次累積快照" in slru.observation
+    assert "pg_stat_slru" in slru.recommendation
+
+    dead = by_id["dead_tuples"]
+    assert dead.status == "attention"
+    assert "public.orders（6,000,000）" in dead.observation
+    assert "VACUUM (ANALYZE)" in dead.recommendation
+    assert dead.trace.rule_id == "database.dead_tuples.profile.v1"
+
+
 def test_zero_row_database_locks_are_assessed_as_normal() -> None:
     normalized = NormalizedDocument(
         pipeline_version="test",

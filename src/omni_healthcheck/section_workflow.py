@@ -116,6 +116,7 @@ def _v4_check_id(title: str) -> str:
         "Transaction ID 年齡": "transaction_id_age",
         "Lock 狀態": "lock_status",
         "Dead Tuples": "dead_tuples",
+        "Dead Tuple": "dead_tuples",
         "Table Bloat": "table_bloat",
         "Index Bloat": "index_bloat",
         "罕用索引": "rarely_used_indexes",
