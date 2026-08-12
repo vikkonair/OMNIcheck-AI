@@ -55,6 +55,8 @@
 
 2026-08-12 M14.4 模型與 UI 驗收：相同 filesystem 規則測試中，`gpt-oss:20b` 文字可用但較冗長且不接受圖片，`nemotron-3-ultra:cloud` 文字可用但曾誤寫掛載點且圖片回 HTTP 400，`gemma4:26b` 文字最精簡並成功分析 CPU、Memory、Disk、Process 四張 PEM 圖。因此公司候選設定採 `OMNICHECK_AI_MODEL=gemma4:26b` 與 `OMNICHECK_AI_VISION_MODEL=gemma4:26b`。Vision 數值仍可能誤讀，必須保留「看不清楚即待確認」Prompt、deterministic fallback 與工程師核准。UI 同步調整為案件列表預設收合、正式報告只優先顯示 PDF／DOCX、JSON／QA 置於進階收合區，並在結果區直接顯示可複製 Job ID。
 
+2026-08-12 M14.4 Gemma／UI 正式部署：公司 App VM `current` 已切至 release `4c755b7`，Web／Worker active，health 顯示 EDB metadata、external worker、AI enabled；環境檔備份為 `/etc/omnicheck-ai/omnicheck.env.pre-4c755b7`，application rollback 為 `33d02b1`。公司 release 124 tests 通過。實際 Gateway request `3ea01317c5194e4f843ffeed1da41bfd` 使用 `gemma4:26b` 將 CPU PEM 圖保存為 `ai_drafted` revision 2，selected source 仍為 deterministic。Chrome 實機驗收確認案件列表預設收合；展開後才載入案件；結果區顯示 Job ID、PDF／DOCX，12 個內部產物保持收合。
+
 ## 3. 目前整體架構
 
 ```text

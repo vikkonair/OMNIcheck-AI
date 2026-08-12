@@ -864,6 +864,8 @@ OMNICHECK_AI_VISION_MODEL=gemma4:26b
 
 公司模型比較（2026-08-12）：`gpt-oss:20b` 與 `nemotron-3-ultra:cloud` 的 OpenAI-compatible endpoint 均未接受測試用 `image_url`（HTTP 400）；Nemotron 文字回覆另曾將 pemp1 `/` 誤寫為 `/pgdata`。`gemma4:26b` 正確遵守 filesystem 50%／70% 規則，並連續成功分析 CPU、Memory、Disk、Process 四張 PEM 圖。故目前文字與 Vision 都採 Gemma。圖片判讀仍是草稿，精確數值、期間與異常必須由工程師覆核後才能核准進入正式報告。
 
+公司正式部署紀錄（2026-08-12）：release `4c755b7` 使用 per-release 原生 venv，124 tests 通過；Web／Worker active，health 為 database／external worker／AI enabled。`OMNICHECK_AI_MODEL` 與 `OMNICHECK_AI_VISION_MODEL` 均為 `gemma4:26b`。實際 CPU PEM Gateway request `3ea01317c5194e4f843ffeed1da41bfd` 成功保存 AI draft；核准前 Renderer 仍選 deterministic。環境檔備份為 `/etc/omnicheck-ai/omnicheck.env.pre-4c755b7`，application rollback release 為 `33d02b1`，本次沒有 migration。
+
 部署後使用一包含 PEM 圖片的測試資料驗收：
 
 1. 只按一次執行，確認 Pipeline 成功且自動建立多個 AI batches。
