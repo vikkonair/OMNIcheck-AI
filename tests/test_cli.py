@@ -44,7 +44,7 @@ def test_generate_writes_inventory_and_warns_for_unknown(
         (output_dir / "qa-result.json").read_text(encoding="utf-8")
     )
     assert comparison["nodes"] == ["gwcymsedb"]
-    assert assessment["ruleset_version"] == "2026.2"
+    assert assessment["ruleset_version"] == "2026.3"
     assert section_workflow["contract"] == "omnicheck.section-workflow"
     assert section_workflow["ai_enabled"] is False
     assert section_workflow["renderer_uses_ai"] is False

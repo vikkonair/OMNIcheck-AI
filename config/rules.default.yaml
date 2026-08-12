@@ -1,5 +1,5 @@
 schema_version: "1.0"
-ruleset_version: "2026.2"
+ruleset_version: "2026.3"
 
 filesystem_usage:
   observe_percent: 50

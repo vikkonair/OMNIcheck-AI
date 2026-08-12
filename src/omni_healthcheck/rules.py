@@ -312,7 +312,8 @@ def _candidate_assessment(
 
 
 def _backup_assessment(check: CheckResult, version: str) -> Assessment:
-    lowered = _output_text(check).casefold()
+    output = _output_text(check)
+    lowered = output.casefold()
     provider = next(
         (
             row[0].partition(":")[2].strip()
@@ -331,6 +332,75 @@ def _backup_assessment(check: CheckResult, version: str) -> Assessment:
             "check failed",
         )
     )
+    if provider.casefold() == "pgbackrest":
+        stanza_headers = list(
+            re.finditer(r"(?im)^\s*stanza:\s*([^\s|]+)", output)
+        )
+        stanza_statuses = []
+        for index, header in enumerate(stanza_headers):
+            block_end = (
+                stanza_headers[index + 1].start()
+                if index + 1 < len(stanza_headers)
+                else len(output)
+            )
+            status_match = re.search(
+                r"(?im)^\s*status:\s*([^\r\n|]+)",
+                output[header.end() : block_end],
+            )
+            if status_match:
+                stanza_statuses.append(
+                    (header.group(1).strip(), status_match.group(1).strip())
+                )
+        primary_candidates = [
+            item
+            for item in stanza_statuses
+            if not re.search(r"(?:^|[-_])(dr|standby|replica)(?:$|[-_])", item[0], re.I)
+            and not item[0].casefold().endswith("dr")
+        ]
+        if len(primary_candidates) == 1:
+            stanza, stanza_status = primary_candidates[0]
+            is_ok = stanza_status.casefold() == "ok"
+            other_statuses = [
+                f"{name}={status}"
+                for name, status in stanza_statuses
+                if name.casefold() != stanza.casefold()
+            ]
+            other_note = (
+                f"；另偵測到其他 stanza：{'、'.join(other_statuses)}，應獨立確認其用途與狀態"
+                if other_statuses
+                else ""
+            )
+            return _assessment(
+                check,
+                status="normal" if is_ok else "attention",
+                rule_id="os.backup_configuration.pgbackrest_stanza.v2",
+                ruleset_version=version,
+                explanation=(
+                    f"{check.node} 的 pgBackRest 主要備份 stanza `{stanza}` 回報 "
+                    f"`status: {stanza_status}`{other_note}。"
+                ),
+                conclusion=(
+                    f"主要備份 stanza `{stanza}` 狀態正常。"
+                    if is_ok
+                    else f"主要備份 stanza `{stanza}` 狀態異常，需進一步確認。"
+                ),
+                recommendation=(
+                    f"建議持續監控 stanza `{stanza}` 的備份結果與 WAL 歸檔，並定期執行還原驗證。"
+                    if is_ok
+                    else f"請檢查 stanza `{stanza}` 的 pgBackRest 日誌、儲存庫與最近成功備份，排除異常後執行還原驗證。"
+                ),
+            )
+        if stanza_statuses:
+            listed = "、".join(f"{name}={status}" for name, status in stanza_statuses)
+            return _assessment(
+                check,
+                status="pending",
+                rule_id="os.backup_configuration.pgbackrest_stanza.v2",
+                ruleset_version=version,
+                explanation=f"{check.node} 偵測到多個無法唯一對應主要備份的 pgBackRest stanza：{listed}。",
+                conclusion="目前無法安全判定哪一個 stanza 代表主要資料庫備份。",
+                recommendation="請確認主要資料庫對應的 pgBackRest stanza，再依該 stanza 的 status 與最近成功備份進行判斷。",
+            )
     return _assessment(
         check,
         status="attention" if has_error else "normal",

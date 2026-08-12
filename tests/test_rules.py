@@ -253,6 +253,70 @@ def test_barman_failure_is_assessed_without_primary_database_scope() -> None:
     assert assessment.node == "backup-witness"
 
 
+def test_pgbackrest_uses_primary_stanza_status_without_dr_pollution() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "backup_configuration",
+                ["Output"],
+                [
+                    ["Provider: pgBackRest"],
+                    ["stanza: edb"],
+                    ["    status: ok"],
+                    ["    full backup: 20260810-010000F"],
+                    ["stanza: edbdr"],
+                    ["    status: error (no valid backups)"],
+                ],
+                node="db-primary",
+                role="Primary",
+                product="Backup",
+            )
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+        load_rules(ROOT / "config/rules.default.yaml"),
+    )
+
+    assessment = result.assessments[0]
+    assert assessment.status == "normal"
+    assert "stanza `edb`" in assessment.observation
+    assert "`status: ok`" in assessment.observation
+    assert "edbdr=error (no valid backups)" in assessment.observation
+    assert "還原驗證" in assessment.recommendation
+    assert assessment.trace.rule_id == "os.backup_configuration.pgbackrest_stanza.v2"
+
+
+def test_pgbackrest_primary_stanza_error_is_attention() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "backup_configuration",
+                ["Output"],
+                [["Provider: pgBackRest"], ["stanza: app"], ["status: error"]],
+                product="Backup",
+            )
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+        load_rules(ROOT / "config/rules.default.yaml"),
+    )
+
+    assessment = result.assessments[0]
+    assert assessment.status == "attention"
+    assert "stanza `app`" in assessment.observation
+    assert "最近成功備份" in assessment.recommendation
+
+
 def test_zero_row_database_locks_are_assessed_as_normal() -> None:
     normalized = NormalizedDocument(
         pipeline_version="test",

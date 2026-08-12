@@ -61,6 +61,12 @@ backup:
 備份 Output 使用共通 `backup_configuration` check，並保留 provider、
 節點、原始可見 Output、判斷與證據追溯。
 
+pgBackRest 會以 stanza 為單位解析 `status`。若唯一的主要 stanza（排除名稱明確
+標示 DR／Standby／Replica 的 stanza）回報 `status: ok`，報告會將主要備份判為
+正常，並在觀察與建議中保留 stanza 名稱、狀態、持續監控及定期還原驗證要求。
+同一份 Output 內其他 stanza 的異常會另外揭露，不會污染主要備份結論；若無法
+唯一辨識主要 stanza，則保守標示待確認，不由 AI 猜測。
+
 ### 報告位置
 
 - Primary 上的備份工具：列於資料庫運行與效能狀態

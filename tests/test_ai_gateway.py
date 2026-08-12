@@ -142,6 +142,43 @@ def test_bloat_ai_draft_must_preserve_every_object_and_action(tmp_path: Path) ->
     assert result.draft is None
 
 
+def test_backup_ai_draft_must_preserve_stanza_and_status(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    item = sections.get_item(job_id, row["item_id"]).model_copy(
+        update={
+            "check_id": "backup_status",
+            "deterministic": Narrative(
+                source="deterministic_template",
+                observation=(
+                    "主要備份 stanza `edb` 回報 `status: ok`。\n"
+                    "結論：主要備份狀態正常。"
+                ),
+                recommendation="持續監控 stanza `edb` 並定期執行還原驗證。",
+            ),
+        },
+        deep=True,
+    )
+
+    def incomplete_transport(*_args):
+        return {
+            "choices": [{"message": {"content": (
+                '{"observation":"備份看起來正常。\\n結論：未見異常。",'
+                '"recommendation":"持續監控。"}'
+            )}}]
+        }
+
+    gateway = OllamaGateway(settings(), audit, transport=incomplete_transport)
+    result = gateway.generate(
+        job_id=job_id,
+        item_id=row["item_id"],
+        item=item,
+        requested_by="engineer-a",
+    )
+
+    assert result.status == "fallback"
+    assert result.draft is None
+
+
 def test_invalid_ai_response_falls_back_without_section_mutation(tmp_path: Path) -> None:
     _, sections, audit, job_id, row = setup_stores(tmp_path)
 

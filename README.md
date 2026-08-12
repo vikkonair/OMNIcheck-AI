@@ -64,7 +64,7 @@ OMNIcheck AI 將節點的基礎設施角色與節點上執行的服務分開處�
 
 - Database、Schema、Table、Role、Extension、Transaction、Bloat 等資料庫邏輯資料，只使用當前 Primary 的證據。
 - `postgresql.conf`、`postgresql.auto.conf` 與 `pg_hba.conf` 屬於節點層級設定，因此會納入 Primary、Standby 與 DR，並進行跨節點比較。
-- 備份 Output 使用明確指定的 provider／node；未指定時 pgBackRest 預設採 Primary。
+- 備份 Output 使用明確指定的 provider／node；未指定時 pgBackRest 預設採 Primary。pgBackRest 會逐一解析 stanza 的 `status`，主要 stanza 的 `status: ok` 會形成可追溯的正常結論與還原演練建議，其他 stanza 則獨立揭露。
 - Witness 的 OS、PEM、EFM、XDB、Barman 與監控證據可納入檢查。
 - Witness 上的 PEM 後端 PostgreSQL 不會被誤認成客戶主要業務資料庫。
 - 無法確認節點或資料領域的證據不會被自動採用，而會標示為 `pending`。

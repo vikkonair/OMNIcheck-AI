@@ -71,7 +71,7 @@ def test_golden_jobs_are_delivery_safe(name: str, tmp_path: Path) -> None:
     assert documents["qa-result"]["delivery_allowed"] is True
     assert documents["v4-qa-result"]["delivery_allowed"] is True
     assert documents["normalized"]["schema_version"] == "1.0"
-    assert documents["assessment"]["ruleset_version"] == "2026.2"
+    assert documents["assessment"]["ruleset_version"] == "2026.3"
     assert documents["report-model"]["template_version"] == "omni-v4-m7.2"
 
 
