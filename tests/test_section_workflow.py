@@ -107,13 +107,18 @@ def test_review_and_approval_fail_closed() -> None:
         SectionWorkflowItem.model_validate(forged)
 
 
-def test_renderer_overlay_uses_only_approved_or_deterministic() -> None:
+def test_renderer_uses_ai_draft_only_when_document_policy_enables_it() -> None:
     assessment = assessment_document()
     original = build_section_workflow(assessment)
     drafted = original.model_copy(update={"items": [attach_ai_draft(
         original.items[0], observation="AI 不可見", recommendation="AI 不可見"
     )]})
     assert apply_approved_narratives(assessment, drafted) == assessment
+
+    ai_delivery = drafted.model_copy(update={"renderer_uses_ai": True})
+    ai_rendered = apply_approved_narratives(assessment, ai_delivery)
+    assert ai_rendered.assessments[0].observation == "AI 不可見"
+    assert ai_rendered.assessments[0].recommendation == "AI 不可見"
 
     reviewed = review_draft(
         drafted.items[0], observation="工程師觀察", recommendation="工程師建議"

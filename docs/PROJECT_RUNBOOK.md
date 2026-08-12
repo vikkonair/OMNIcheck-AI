@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.4 證據式全 Section AI 已部署公司環境；文字／表格 Section 自動產生 AI 草稿，純資訊 Section 排除。2026-08-12 模型比較確認 `gemma4:26b` 可分析 CPU、Memory、Disk、Process PEM 圖，預計同時作為文字與 Vision 草稿模型；所有 AI 內容仍須工程師核准
+目前開發進度：M14.5 AI 完整交付流程開發中；Job 必須等全部適用 Section 的 Gemma 草稿、最終 DOCX／PDF 與 QA 完成後才顯示 succeeded。初版報告採 `approved → ai_draft → deterministic`，工程師下載後仍可修改、核准及重新產報
 
 ## 1. 文件目的
 
@@ -42,6 +42,7 @@
 17. Ruleset `2026.4`：PEM Server、PEM Agent、EFM、XDB Output 出現明確異常訊號時列為注意；PEM／XDB 僅在 Witness 角色評估。5.1 服務摘要有異常時產生觀察、建議與 AI Workflow，無異常時仍為純資訊。
 18. Ruleset `2026.5`：大型資料表列出前三大物件與含索引容量；SLRU 提供累積命中率與讀取量最高項目，但單次快照保守維持待確認；Dead Tuple 列出前三高物件與數量並要求複核比例及 autovacuum。三者均建立 AI Workflow，AI 省略必要事實時退回 deterministic 內容。
 19. M14.4：所有非資訊型文字 Section 保存 V4 可見 Evidence Snapshot 並送入 Ollama 分析；Prompt 遮蔽敏感資訊、排除路徑與圖片內容，超長 Evidence 受控截斷。AI 仍只能產生草稿，正式報告必須經工程師核准。
+20. M14.5：AI 成為 Job 完成條件。Worker 在同一 Job lease 內等待 durable batches 終止，以 AI draft 或 deterministic fallback 重新產生 DOCX／PDF；完成連結只在最終產物與 QA 完成後出現。
 
 2026-08-12 公司修正部署：使用 Job `a1714d038a204676b88ba453ef245876` 的不可變 input 驗證 `90f9aca`，29 個可見項目中 5 個資訊清冊不含狀態／觀察／建議，24 個判斷項目進 Workflow，V4 QA、DOCX／PDF 與 116 tests 通過。公司 `current` 已切至 `90f9aca`，Web／Worker health 正常，rollback 為 `a18c7cd`。
 
@@ -56,6 +57,8 @@
 2026-08-12 M14.4 模型與 UI 驗收：相同 filesystem 規則測試中，`gpt-oss:20b` 文字可用但較冗長且不接受圖片，`nemotron-3-ultra:cloud` 文字可用但曾誤寫掛載點且圖片回 HTTP 400，`gemma4:26b` 文字最精簡並成功分析 CPU、Memory、Disk、Process 四張 PEM 圖。因此公司候選設定採 `OMNICHECK_AI_MODEL=gemma4:26b` 與 `OMNICHECK_AI_VISION_MODEL=gemma4:26b`。Vision 數值仍可能誤讀，必須保留「看不清楚即待確認」Prompt、deterministic fallback 與工程師核准。UI 同步調整為案件列表預設收合、正式報告只優先顯示 PDF／DOCX、JSON／QA 置於進階收合區，並在結果區直接顯示可複製 Job ID。
 
 2026-08-12 M14.4 Gemma／UI 正式部署：公司 App VM `current` 已切至 release `4c755b7`，Web／Worker active，health 顯示 EDB metadata、external worker、AI enabled；環境檔備份為 `/etc/omnicheck-ai/omnicheck.env.pre-4c755b7`，application rollback 為 `33d02b1`。公司 release 124 tests 通過。實際 Gateway request `3ea01317c5194e4f843ffeed1da41bfd` 使用 `gemma4:26b` 將 CPU PEM 圖保存為 `ai_drafted` revision 2，selected source 仍為 deterministic。Chrome 實機驗收確認案件列表預設收合；展開後才載入案件；結果區顯示 Job ID、PDF／DOCX，12 個內部產物保持收合。
+
+2026-08-12 M14.5 開始：使用者確認 AI 建議必須是報告生成的一環，不接受「Pipeline 先成功、AI 背景補草稿」的流程。實作方向固定為同步等待全部 AI batches、個別失敗 deterministic fallback、以 approved／AI draft／deterministic 優先順序產生初版報告，最後才將 Job 標示 succeeded。本變更不調整 Primary、Scope、Rules 或 V4 版面，也不新增 migration。規格見 `docs/M14_5_AI_COMPLETE_DELIVERY.md`。
 
 ## 3. 目前整體架構
 

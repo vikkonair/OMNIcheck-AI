@@ -449,7 +449,11 @@ def create_app(
             )
         except Exception as exc:
             raise HTTPException(status_code=409, detail=f"approved render failed: {exc}") from exc
-        return {"job_id": job_id, "status": "rendered", "policy": "approved_or_deterministic"}
+        return {
+            "job_id": job_id,
+            "status": "rendered",
+            "policy": "approved_then_ai_draft_then_deterministic",
+        }
 
     @app.get("/api/jobs/{job_id}/outputs/{filename}")
     def download_output(job_id: str, filename: str) -> FileResponse:

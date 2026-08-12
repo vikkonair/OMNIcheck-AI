@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 import pytest
 
@@ -12,6 +13,13 @@ from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.job_store import JobStore
 from omni_healthcheck.pipeline_persistence import PipelineResultStore
 from omni_healthcheck.worker import run_once
+from omni_healthcheck.ai_batch import AIDraftBatchStore
+from omni_healthcheck.ai_gateway import AIGatewaySettings, OllamaGateway
+from omni_healthcheck.ai_persistence import AIGatewayAuditStore
+from omni_healthcheck.section_persistence import SectionWorkflowStore
+from omni_healthcheck.section_workflow import build_section_workflow
+
+from test_section_workflow import assessment_document
 
 from test_web import FIXTURE, ROOT, _config
 
@@ -137,6 +145,65 @@ def test_worker_auto_queues_all_visible_sections_after_baseline(tmp_path: Path) 
         ai_batch_store=batches, auto_ai_draft_all=True,
     ) is True
     assert batches.calls == [(job["job_id"], "system:auto-ai")]
+
+
+def test_worker_waits_for_ai_and_renders_draft_before_success(
+    tmp_path: Path, monkeypatch
+) -> None:
+    url = f"sqlite+pysqlite:///{tmp_path / 'ai-completion.sqlite'}"
+    metadata = DatabaseMetadataStore(url)
+    metadata.create_schema_for_test()
+    jobs = JobStore(tmp_path / "jobs", metadata_store=metadata)
+    job = jobs.create(JobConfig.model_validate(_config()))
+    jobs.update(job["job_id"], status="queued")
+    paths = jobs.paths(job["job_id"])
+    workflow = build_section_workflow(assessment_document())
+    render_calls = []
+
+    def fake_generate(_job, _input, output, _rules, section_workflow_override=None):
+        output.mkdir(parents=True, exist_ok=True)
+        document = section_workflow_override or workflow
+        (output / "section-workflow.json").write_text(
+            json.dumps(document.model_dump(mode="json")), encoding="utf-8"
+        )
+        if section_workflow_override is not None:
+            render_calls.append(document)
+            (output / "rendered-observation.txt").write_text(
+                document.items[0].ai_draft.observation, encoding="utf-8"
+            )
+        return 0
+
+    monkeypatch.setattr("omni_healthcheck.worker.run_generate", fake_generate)
+    audit = AIGatewayAuditStore(engine=metadata.engine)
+
+    def transport(*_args):
+        return {"choices": [{"message": {"content": json.dumps({
+            "observation": "AI 已完成分析。\n結論：納入初版報告。",
+            "recommendation": "工程師下載後覆核。",
+        }, ensure_ascii=False)}}]}
+
+    gateway = OllamaGateway(AIGatewaySettings(
+        enabled=True, endpoint="http://ollama.internal/v1/chat/completions",
+        model="gemma4:26b", timeout_seconds=10, max_attempts=1,
+    ), audit, transport=transport)
+    batches = AIDraftBatchStore(engine=metadata.engine, max_items=5)
+
+    assert run_once(
+        jobs, "synchronous-ai-worker", ROOT / "config/rules.default.yaml",
+        retry_seconds=0, heartbeat_seconds=0, register_artifacts=False,
+        ai_batch_store=batches, ai_gateway=gateway,
+        ai_min_interval_seconds=0, auto_ai_draft_all=True,
+    ) is True
+
+    assert jobs.get(job["job_id"])["status"] == "succeeded"
+    assert len(render_calls) == 1
+    assert render_calls[0].renderer_uses_ai is True
+    assert paths["output"].joinpath("rendered-observation.txt").read_text(
+        encoding="utf-8"
+    ).startswith("AI 已完成分析")
+    stored = SectionWorkflowStore(engine=metadata.engine).document(job["job_id"])
+    assert stored.renderer_uses_ai is True
+    assert stored.items[0].workflow_status == "ai_drafted"
 
 
 def test_legacy_unscoped_worker_remains_compatible(tmp_path: Path) -> None:

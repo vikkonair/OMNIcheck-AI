@@ -145,6 +145,15 @@ class AIDraftBatchStore:
             ).order_by(ai_draft_batch_items.c.ordinal)).mappings().all()
         return {**_serialize(batch), "items": [_serialize(row) for row in items]}
 
+    def list_for_job(self, job_id: str) -> list[dict]:
+        with self.engine.connect() as connection:
+            batch_ids = connection.scalars(
+                select(ai_draft_batches.c.batch_id)
+                .where(ai_draft_batches.c.job_id == job_id)
+                .order_by(ai_draft_batches.c.created_at)
+            ).all()
+        return [self.get(job_id, str(batch_id)) for batch_id in batch_ids]
+
     def claim_next(self, worker_id: str) -> dict | None:
         now = _now()
         with self.engine.begin() as connection:

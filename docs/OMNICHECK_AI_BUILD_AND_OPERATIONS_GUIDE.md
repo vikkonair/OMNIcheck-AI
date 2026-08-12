@@ -25,6 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
+| 0.14.5-candidate | 2026-08-12 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才顯示 PDF／DOCX | 本機 125 tests；公司實際案件與 PDF／DOCX 待部署驗證 |
 | 0.14.4 | 2026-08-12 | 全 Section Evidence-to-Ollama、Gemma 文字／PEM Vision、收合式案件與產物 UI、additive Workflow rollback 相容、每 release 原生 venv | 124 tests；台灣行動支付 20/20 文字 Evidence Snapshot、QA/V4 QA；`gemma4:26b` 通過 filesystem 文字與 CPU／Memory／Disk／Process 圖片測試 |
 | 0.14.3-candidate | 2026-08-12 | 全 V4 可見 Section 自動 AI 批次、PEM 圖片 Vision 分流、整批核准與一鍵重新產報 | release `a18c7cd`；本機／公司 115 tests、台灣行動支付 29/29 Workflow、5 張圖片、Ruleset 2026.2、QA/V4 QA、DOCX/PDF 通過；待使用者與 Vision 驗收 |
 | 0.14.2.2-candidate | 2026-08-12 | Ruleset 2026.2：filesystem 50/70、bloat 前十名敘述契約、罕用索引 10 筆、系統角色排除 | 本機測試通過；實際客戶資料與公司部署待驗證 |
@@ -879,6 +880,23 @@ OMNICHECK_AI_VISION_MODEL=gemma4:26b
 Rollback：不需 EDB downgrade。先將 `OMNICHECK_AI_AUTO_DRAFT_ALL=false` 並重啟 Worker，即回到人工批次；若需完全停用 AI，設定 `OMNICHECK_AI_ENABLED=false` 並重啟 Web／Worker。已保存的 AI audit 與 revision 保留，不刪除歷史。
 
 公司候選部署紀錄（2026-08-12）：`current` 已原子切至 `/data/omnicheck/app/releases/a18c7cd`，Web／Worker cwd 均確認為該 release，EDB migration 為 `0010_m14_2_batches (head)`，health 顯示 database／external worker／AI enabled。Rollback release 為 `8bef579`，環境檔備份為 `/etc/omnicheck-ai/omnicheck.env.pre-a18c7cd`。舊 Job 的 Section Workflow 是稽核歷史，不會在重新 render 時改寫 ruleset；驗收新規則必須建立新案件。
+
+### 13.17 M14.5 AI 完整交付流程
+
+M14.5 不新增 migration。行為由 Application release 改變：Worker 取得 Job lease 後，先執行既有 Pipeline 與持久化 deterministic baseline，再於同一 lease 內完成該 Job 的所有 durable AI batches，最後以 `approved → ai_draft → deterministic` 優先順序重新產生 DOCX／PDF。只有最終 render 與 QA 成功後，Job 才標示 `succeeded`，Web 才顯示下載連結。
+
+個別 AI request 失敗時，batch item 記錄 `fallback`，該 Section 使用 deterministic，不阻斷其他項目或整份報告。AI disabled 時維持 deterministic-only。AI draft 進入初版報告不代表工程師 approval；工程師修改文字仍須 reviewed／approved 後，才會優先取代 AI draft。
+
+部署驗收：
+
+1. 建立含文字與 PEM 圖片的新案件，確認 Job 在 AI batches 尚未終止時保持 `running`，outputs API 不可下載。
+2. 確認文字與圖片 AI audit 使用 `gemma4:26b`；成功項目為 `ai_drafted`，失敗項目有 fallback error。
+3. Job 顯示 succeeded 後下載 DOCX／PDF，抽查文字與 PEM Section 已使用 AI observation／recommendation；fallback 項目仍是 deterministic。
+4. 確認 `section-workflow.json` 的 `renderer_uses_ai=true`，但 item `selected_source` 仍保留 `deterministic_template` 或 `approved`，避免把未核准草稿偽裝為 approved。
+5. 工程師修改並核准一個 Section 後重新產報，確認 approved 文字優先於原 AI draft。
+6. 重新啟動 Worker 模擬 retry，確認 terminal batches 不重跑，既有 AI／工程師 revisions 不被覆寫。
+
+Rollback：切回 M14.4 Application release 即恢復舊流程，不需 EDB downgrade。注意 M14.4 會先將 Job 標示 succeeded，再於背景產生 AI 草稿，且初版報告不使用未核准草稿；操作公告必須清楚說明語意差異。
 
 ## 14. Pipeline 產物與判讀
 

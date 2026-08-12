@@ -105,6 +105,8 @@ def run_once(
     register_artifacts: bool = True,
     artifact_retention_days: int = 365,
     ai_batch_store: AIDraftBatchStore | None = None,
+    ai_gateway: OllamaGateway | None = None,
+    ai_min_interval_seconds: float = 1.0,
     auto_ai_draft_all: bool = False,
     auto_ai_actor: str = "system:auto-ai",
 ) -> bool:
@@ -150,12 +152,47 @@ def run_once(
             persisted = section_store.persist_baseline(
                 job_id, workflow
             )
-            if (
-                auto_ai_draft_all
-                and ai_batch_store is not None
-                and persisted["created"]
-            ):
-                ai_batch_store.create_all_generated(job_id, auto_ai_actor)
+            delivery_batches = []
+            if auto_ai_draft_all and ai_batch_store is not None:
+                if ai_gateway is None:
+                    if persisted["created"]:
+                        ai_batch_store.create_all_generated(job_id, auto_ai_actor)
+                else:
+                    delivery_batches = ai_batch_store.list_for_job(job_id)
+                if ai_gateway is not None and (
+                    persisted["created"] or not delivery_batches
+                ):
+                    delivery_batches = ai_batch_store.create_all_generated(
+                        job_id, auto_ai_actor
+                    )
+            if delivery_batches and ai_gateway is not None:
+                pending_batch_ids = {
+                    str(batch["batch_id"]) for batch in delivery_batches
+                    if batch["status"] in {"queued", "running"}
+                }
+                while pending_batch_ids:
+                    progressed = run_ai_batch_once(
+                        ai_batch_store,
+                        section_store,
+                        ai_gateway,
+                        worker_id,
+                        min_interval_seconds=ai_min_interval_seconds,
+                    )
+                    pending_batch_ids = {
+                        batch_id for batch_id in pending_batch_ids
+                        if ai_batch_store.get(job_id, batch_id)["status"]
+                        in {"queued", "running"}
+                    }
+                    if pending_batch_ids and not progressed:
+                        raise RuntimeError(
+                            "AI batches did not reach a terminal state"
+                        )
+            if auto_ai_draft_all and ai_gateway is not None:
+                workflow = section_store.document(job_id)
+                run_generate(
+                    paths["job"], paths["input"], paths["output"], rules_path,
+                    section_workflow_override=workflow,
+                )
         if register_artifacts and customer_id and system_id:
             ArtifactRegistry(engine=store.metadata_store.engine).register_outputs(
                 job_id=job_id,
@@ -252,6 +289,8 @@ def main() -> None:
             register_artifacts=register_artifacts,
             artifact_retention_days=artifact_retention_days,
             ai_batch_store=ai_batches,
+            ai_gateway=ai_gateway,
+            ai_min_interval_seconds=ai_min_interval,
             auto_ai_draft_all=auto_ai_draft_all,
         )
         if not processed:

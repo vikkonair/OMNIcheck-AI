@@ -132,7 +132,7 @@ INTEGRATED_INDEX_HTML = (
         "</main>",
         r"""  <section id="sectionReviewWorkbench">
     <h2>Section 審核工作台</h2>
-    <p class="muted">AI 只提供文字草稿；規則狀態、證據與 Scope 不會被改動。只有工程師核准的文字才會進入正式報告。</p>
+    <p class="muted">案件完成前會先產生 AI 觀察建議並納入初版報告；規則狀態、證據與 Scope 不會被改動。工程師可在此修改、核准並重新產報。</p>
     <div class="review-toolbar">
       <label>Job ID<input id="reviewJobId" placeholder="完成案件後會自動帶入，也可貼上 Job ID"></label>
       <label>工程師／審核者<input id="reviewActor" value="engineer"></label>

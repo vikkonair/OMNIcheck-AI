@@ -191,7 +191,7 @@ class SectionWorkflowStore:
             schema_version=workflow["schema_version"],
             ruleset_version=workflow["ruleset_version"],
             ai_enabled=workflow["ai_enabled"],
-            renderer_uses_ai=False,
+            renderer_uses_ai=workflow["renderer_uses_ai"],
             items=[SectionWorkflowItem.model_validate(row["payload"]) for row in rows],
         )
 
@@ -313,7 +313,7 @@ class SectionWorkflowStore:
             connection.execute(
                 update(section_workflows)
                 .where(section_workflows.c.workflow_id == row["workflow_id"])
-                .values(updated_at=_now(), renderer_uses_ai=False)
+                .values(updated_at=_now(), renderer_uses_ai=True)
             )
         return {"item_id": item_id, **payload}
 

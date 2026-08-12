@@ -327,7 +327,7 @@ async function pollJob(jobId) {
   for (;;) {
     const job=await api(`/api/jobs/${jobId}`);
     if (job.status === 'succeeded' || job.status === 'failed') return job;
-    setProgress(job.status === 'running' ? 82 : 70); setMessage(job.status === 'running' ? 'Pipeline 執行中，正在分析資料並組裝報告…' : '案件已排入處理…');
+    setProgress(job.status === 'running' ? 82 : 70); setMessage(job.status === 'running' ? '健檢執行中：正在分析資料、產生 AI 觀察建議並組裝正式報告…' : '案件已排入處理…');
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
 }

@@ -2,7 +2,7 @@
 
 最後更新：2026-08-12
 
-目前狀態：M14.3 已完成本機候選實作。新案件會將全部 V4 可見項目自動排入既有 EDB durable batch；PEM 圖片透過選配 Vision model 分流，未設定時使用 deterministic fallback。台灣行動支付唯讀資料驗證為 29 個 V4 可見項目、29 個 Workflow 項目及 5 個圖片項目；待公司部署與實際 Ollama／Vision 驗收。
+目前狀態：M14.5 AI 完整交付流程進行中。新案件必須完成全部適用 Section 的文字／PEM Vision 草稿、最終 DOCX／PDF 與 QA 後才顯示 succeeded；初版報告使用 AI draft，個別失敗項目回退 deterministic，工程師下載後再覆核與核准。
 
 ## 固定基礎
 
@@ -21,8 +21,9 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 | M13.2 | Version Matcher | Product／Version Parser、確定性 CVE 適用性、fixed／pending 狀態 |
 | M13.3 | CVE V4 Section | 環球晶圓方向版面、Quality Gate、來源與 matcher version |
 | M14 | Ollama AI Gateway | 繁中翻譯、觀察／建議草稿、主管摘要、歷史摘要、Prompt／Model／輸出稽核與 fallback |
+| M14.5 | AI 完整交付 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才提供 PDF／DOCX |
 
-M14 分段：M14.1 已完成單一 Section 草稿、安全遮蔽、稽核與 fallback；M14.2 已完成前端批次操作、EDB durable queue、逐筆 rate limit 與人工審核體驗；M14.3 自動涵蓋全部 V4 可見 Section、圖片 Vision 分流及整批核准目前為本機候選。主管摘要、歷史摘要及問答留在後續階段。
+M14 分段：M14.1 已完成單一 Section 草稿、安全遮蔽、稽核與 fallback；M14.2 已完成前端批次操作、EDB durable queue、逐筆 rate limit 與人工審核體驗；M14.3／M14.4 完成全 Section Evidence 與 Gemma Vision；M14.5 將 AI 納入 Job 完成條件與初版報告。主管摘要、歷史摘要及問答留在後續階段。
 | M15 | 正式環境強化 | VIP／EFM、TLS、Backup／Restore、Monitoring、Reverse Proxy、資源隔離與故障演練 |
 
 ## 不可跨越的責任邊界
@@ -30,4 +31,4 @@ M14 分段：M14.1 已完成單一 Section 草稿、安全遮蔽、稽核與 fal
 - 前端只能透過 API 使用系統，不得直接讀寫 EDB 或直接啟動 Worker。
 - Ollama／其他 AI 不得決定或修改 Product、Version、Primary、Topology、Scope、Rule Status、CVE Match、Canonical JSON 或 V4 contract。
 - AI 停用或失敗時，固定模板仍必須能產生完整可交付報告。
-- 正式報告使用人工核准內容；規則原文、AI 草稿與核准版必須分開保存。
+- 初版報告可使用 AI 草稿；人工修改後以核准內容優先。規則原文、AI 草稿與核准版必須分開保存。

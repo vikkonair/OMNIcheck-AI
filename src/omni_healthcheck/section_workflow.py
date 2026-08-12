@@ -89,6 +89,17 @@ class SectionWorkflowItem(WorkflowModel):
         return self.deterministic
 
 
+def narrative_for_render(
+    item: SectionWorkflowItem, *, renderer_uses_ai: bool
+) -> Narrative:
+    """Select report prose without misrepresenting an AI draft as approved."""
+    if item.selected_source == "approved" and item.approved is not None:
+        return item.approved
+    if renderer_uses_ai and item.ai_draft is not None:
+        return item.ai_draft
+    return item.deterministic
+
+
 class SectionWorkflowDocument(WorkflowModel):
     schema_version: Literal["1.0"] = "1.0"
     contract: Literal["omnicheck.section-workflow"] = "omnicheck.section-workflow"
@@ -210,7 +221,7 @@ def build_v4_section_workflow(v4_report: dict, ruleset_version: str) -> SectionW
 
 
 def apply_workflow_to_v4_report(v4_report: dict, workflow: SectionWorkflowDocument) -> dict:
-    """Overlay approved narratives onto the exact visible V4 items only."""
+    """Overlay delivery-selected narratives onto the exact V4 items only."""
     updated = json.loads(json.dumps(v4_report, ensure_ascii=False))
     by_key = {item.section_key: item for item in workflow.items}
     for chapter in updated.get("chapters", []):
@@ -222,7 +233,9 @@ def apply_workflow_to_v4_report(v4_report: dict, workflow: SectionWorkflowDocume
                 item = by_key.get(key)
                 if item is None:
                     continue
-                narrative = item.selected_narrative
+                narrative = narrative_for_render(
+                    item, renderer_uses_ai=workflow.renderer_uses_ai
+                )
                 report_item["observation"] = narrative.observation
                 report_item["recommendation"] = narrative.recommendation
     return updated
@@ -270,7 +283,7 @@ def build_section_workflow(assessment: AssessmentDocument) -> SectionWorkflowDoc
 def attach_ai_draft(
     item: SectionWorkflowItem, *, observation: str, recommendation: str
 ) -> SectionWorkflowItem:
-    """Attach an untrusted AI draft without changing facts or selected text."""
+    """Attach an untrusted AI draft without changing facts or approval state."""
 
     return item.model_copy(
         update={
@@ -308,7 +321,7 @@ def apply_approved_narratives(
     assessment: AssessmentDocument,
     workflow: SectionWorkflowDocument,
 ) -> AssessmentDocument:
-    """Overlay approved text only; all other stages remain deterministic."""
+    """Overlay delivery-selected prose; facts and rule status stay deterministic."""
 
     by_key = {item.section_key: item for item in workflow.items}
     updated = []
@@ -316,9 +329,10 @@ def apply_approved_narratives(
         key = f"{item.section_id}:{item.node}:{item.check_id}"
         workflow_item = by_key.get(key)
         narrative = (
-            workflow_item.selected_narrative
-            if workflow_item is not None
-            else None
+            narrative_for_render(
+                workflow_item, renderer_uses_ai=workflow.renderer_uses_ai
+            )
+            if workflow_item is not None else None
         )
         if narrative is None:
             updated.append(item)
