@@ -25,7 +25,7 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.14.3-candidate | 2026-08-12 | 全 V4 可見 Section 自動 AI 批次、PEM 圖片 Vision 分流、整批核准與一鍵重新產報 | 本機 115 tests；台灣行動支付唯讀資料 29/29 Workflow、5 張圖片通過；公司部署與 Vision 實機待驗證 |
+| 0.14.3-candidate | 2026-08-12 | 全 V4 可見 Section 自動 AI 批次、PEM 圖片 Vision 分流、整批核准與一鍵重新產報 | release `a18c7cd`；本機／公司 115 tests、台灣行動支付 29/29 Workflow、5 張圖片、Ruleset 2026.2、QA/V4 QA、DOCX/PDF 通過；待使用者與 Vision 驗收 |
 | 0.14.2.2-candidate | 2026-08-12 | Ruleset 2026.2：filesystem 50/70、bloat 前十名敘述契約、罕用索引 10 筆、系統角色排除 | 本機測試通過；實際客戶資料與公司部署待驗證 |
 | 0.14.2.1 | 2026-08-12 | PEM backend Database Output 自動映射唯一 PEM Witness、後端 Scope 防繞過、Section key 寫入前唯一性 QA | release `8bef579`；本機／公司 106 tests，原失敗 Job、20 Sections、QA/V4 QA、DOCX/PDF、來源 hash 通過 |
 | 0.10.3-draft.4 | 2026-08-11 | 聯詠 walsender／walreceiver topology、OS／DB 標題相容、zero-row 與 coverage ID | release `327748d`；本機 93 tests、公司相關 28 tests、Discovery API、health、PDF 與來源 hash 通過 |
@@ -865,6 +865,8 @@ OMNICHECK_AI_VISION_MODEL=<已在 Ollama 安裝且支援圖片輸入的模型名
 7. 抽查 filesystem、table/index bloat、rare index、roles/schema privileges，確認 AI 未改變規則狀態、Output 與必要處置。
 
 Rollback：不需 EDB downgrade。先將 `OMNICHECK_AI_AUTO_DRAFT_ALL=false` 並重啟 Worker，即回到人工批次；若需完全停用 AI，設定 `OMNICHECK_AI_ENABLED=false` 並重啟 Web／Worker。已保存的 AI audit 與 revision 保留，不刪除歷史。
+
+公司候選部署紀錄（2026-08-12）：`current` 已原子切至 `/data/omnicheck/app/releases/a18c7cd`，Web／Worker cwd 均確認為該 release，EDB migration 為 `0010_m14_2_batches (head)`，health 顯示 database／external worker／AI enabled。Rollback release 為 `8bef579`，環境檔備份為 `/etc/omnicheck-ai/omnicheck.env.pre-a18c7cd`。舊 Job 的 Section Workflow 是稽核歷史，不會在重新 render 時改寫 ruleset；驗收新規則必須建立新案件。
 
 ## 14. Pipeline 產物與判讀
 

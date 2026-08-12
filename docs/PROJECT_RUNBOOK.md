@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.3 全 V4 Section 自動 AI 草稿、PEM Vision 分流與整批核准已完成本機候選；115 tests 與台灣行動支付 29/29 Section、5 張圖片唯讀驗證通過，待公司部署與 Vision 模型實機驗收
+目前開發進度：M14.3 `a18c7cd` 已完成公司候選部署；本機／公司 115 tests、台灣行動支付 29/29 Section、5 張圖片及 Ruleset 2026.2 公司回歸通過，待使用者建立新案件驗收與 Vision 模型實機驗證
 
 ## 1. 文件目的
 
@@ -105,7 +105,7 @@ M10.2～M15 前端整合、Section 審核、選配權限、歷史、CVE、Ollama
 | M10.3.2 | 完成、公司 E2E 通過 | `48eac67` 候選 | App 可回 `327748d`；0008 保留、forward-fix | EDB current＋revision history、review／approval API、approved-only Renderer |
 | M14.1 | 完成、公司真實模型 E2E 通過 | `6b24cb5` | 關閉 AI／App 回 `48eac67`；0009 保留 | Ollama draft、遮蔽、audit、timeout/retry、deterministic fallback |
 | M14.2 | 公司候選完成、待多項批次／使用者驗收 | `8031088` | 關閉 AI／App 回 `m14.1`；0010 保留 | Section 審核工作台、durable batch、逐筆限流、進度與 fallback/conflict |
-| M14.3 | 本機候選完成、待公司驗收 | 待提交 | 設定 `OMNICHECK_AI_AUTO_DRAFT_ALL=false` 或回 M14.2；無 migration | 全 V4 Section 自動批次、PEM Vision 分流、整批核准產報 |
+| M14.3 | 公司候選已部署、待使用者驗收 | `a18c7cd` | 設定 `OMNICHECK_AI_AUTO_DRAFT_ALL=false` 或 App 回 `8bef579`；無 migration | 全 V4 Section 自動批次、PEM Vision 分流、整批核准產報與 Ruleset 2026.2 |
 
 目前 `main` 與 `m10.1` 是正式可回復基準；`m10` 保留為 M10.1 前的 application rollback 點，且不需 database downgrade。
 
@@ -497,7 +497,7 @@ App VM `192.168.118.77` 已以不含客戶資料的 prompt 成功呼叫 `http://
 
 新案件完成既有 Pipeline 後，Worker 依 V4 最終可見項目建立一對一 Section Workflow，並透過 `OMNICHECK_AI_AUTO_DRAFT_ALL` 自動將全部 generated 項目拆成受控批次。文字項目沿用 `gpt-oss:20b`；有圖片證據的 PEM 項目只在設定 `OMNICHECK_AI_VISION_MODEL` 時送往 Vision 模型，否則安全回退 deterministic。UI 新增整批核准並重新產報，但 Renderer 的 approved-only 原則不變。
 
-本機驗證：115 tests 通過；台灣行動支付原始資料唯讀 E2E 產生 29 個 V4 可見項目、29 個 Workflow 項目及 5 個圖片項目。公司 Ollama 文字模型自動全報告與 Vision 模型尚未執行，因此不得標示公司驗收完成。完整設計與 rollback 見 `docs/M14_3_AUTOMATIC_REPORT_AI.md`。
+本機／公司驗證：115 tests 通過；台灣行動支付原始資料唯讀 E2E 產生 29 個 V4 可見項目、29 個 Workflow 項目及 5 個圖片項目。公司以最近案件不可變 input 在獨立暫存輸出回歸：Ruleset 2026.2、QA／V4 QA、DOCX／PDF 通過；65% 的 `pemp1` 與 Witness 正確要求隨時觀察量體成長，table/index bloat 正確逐項列出 `VACUUM FULL`／`REINDEX`。公司 `current` 已切至 `a18c7cd`，rollback 為 `8bef579`；舊 Job Workflow 保留舊 ruleset，使用者驗收必須建立新案件。Vision 模型尚未提供，因此不得標示 Vision 驗收完成。完整設計與 rollback 見 `docs/M14_3_AUTOMATIC_REPORT_AI.md`。
 
 公司候選：release `8031088`，0009 schema backup SHA-256 `83f675eb69adc3e8767acba9162631f0c25d3820c84e77311f8e2a66c5524f11`，EDB 已升至 `0010_m14_2_batches`，Web／Worker active。Batch `1b954283e6734c7fa9d93e569259f71b` 由 Worker `omnicheck-ai-app-57555` 完成，真實 request `c0f5cdee611047cca020b8269913246d` 使用 `gpt-oss:20b`，10.621 秒、693 tokens、fallback 0／conflict 0；Section 只變為 ai_drafted revision 2，selected source 仍 deterministic。舊 revision 建立 batch 回 409，未核准文字未進 report-model，QA／V4 QA 均允許交付。該 Golden Job 未設定 DOCX/PDF，因此本輪沒有 PDF regression；多項批次與使用者 UI 驗收仍待執行。
 

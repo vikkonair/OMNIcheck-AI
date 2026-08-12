@@ -32,6 +32,6 @@ OMNICHECK_AI_VISION_MODEL=<支援 OpenAI image_url 格式的 Ollama 模型名稱
 
 ## 驗證與 rollback
 
-本機自動測試 115 項通過。台灣行動支付原始資料唯讀 E2E：V4 可見項目 29、Workflow 29、圖片 Workflow 5，數量一致。
+本機與公司 VM 自動測試 115 項通過。台灣行動支付原始資料唯讀 E2E：V4 可見項目 29、Workflow 29、圖片 Workflow 5，數量一致。公司 `a18c7cd` 候選部署的 Ruleset 2026.2、QA／V4 QA、DOCX／PDF 回歸成功；待使用者以新案件驗收。舊案件保留建立當時的 Workflow／ruleset，不以重新 render 覆寫歷史。
 
 Rollback 不需調整 EDB schema：將 `OMNICHECK_AI_AUTO_DRAFT_ALL=false` 後重啟 Worker，即回到 M14.2 的人工選取批次模式；或直接停用 `OMNICHECK_AI_ENABLED`，整套系統仍使用 deterministic 內容產報。
