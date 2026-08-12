@@ -407,6 +407,8 @@ def complete_summary(data: dict[str, Any]) -> list[dict[str, Any]]:
             for item in section.get("items") or []:
                 if is_omitted_history(item.get("title")):
                     continue
+                if item.get("assessment_display") is False:
+                    continue
                 status = item.get("status", "待確認")
                 if status not in VALID_STATUSES:
                     status = "待確認"
@@ -797,6 +799,9 @@ def add_item(doc: Document, item: dict[str, Any]) -> None:
     run = p.add_run(title)
     format_run(run, size=10.5, bold=True, color=BLUE)
     evidence_widths, evidence_table = add_evidence(doc, item.get("evidence") or {"type": "text", "content": "未提供資料"})
+    if item.get("assessment_display") is False:
+        doc.add_paragraph().paragraph_format.space_after = Pt(2)
+        return
     long_evidence = bool(item.get("controlled_continuation")) or (
         evidence_table is not None and len(evidence_table.rows) > 24
     )

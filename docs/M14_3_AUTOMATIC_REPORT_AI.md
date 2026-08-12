@@ -14,6 +14,8 @@
 6. AI 草稿仍不會直接進正式報告。工程師可個別修改，或使用整批核准動作後重新產報。
 7. Renderer 只選取 approved 內容；其他狀態一律使用 deterministic 內容。
 
+純資訊清冊不屬於健檢判斷：`主機與作業系統組態彙整`、`版本資訊`、`Extension 清單`、`資料庫清單`、`PEM / EFM 服務摘要`只顯示標題與 Output，不顯示狀態／觀察／建議，也不建立 Workflow 或進入 AI batch。Quality Gate 仍驗證這些項目必須有可見 Output。
+
 ## 安全與責任邊界
 
 - AI 不得變更 Primary、Topology、Scope、規則狀態、Output 或 V4 版面。

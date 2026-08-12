@@ -37,6 +37,7 @@
 12. AI 只能翻譯、解釋、摘要與產生文字初稿；事實、版本、Scope、規則狀態及 CVE 適用性由官方來源與確定性程式決定。
 13. `PEM_check` 的 Database Output 是 PEM Server 後端 PostgreSQL 證據，必須映射到唯一 PEM Witness 並排除於業務 Primary 邏輯資料檢查；人工映射不得繞過此服務邊界。
 14. Ruleset `2026.2`：filesystem 50%～未滿 70% 維持正常但提醒觀察量體成長，70% 以上列注意；table/index bloat Output 保留前十名，觀察／建議逐一列出其中指數 >2 的物件及 `VACUUM FULL`／`REINDEX`；罕用索引 `idx_scan=0` 優先且最多 10 筆；權限輸出排除 `pg_*`、`postgres`、`enterprisedb`。
+15. 純資訊清冊（系統組態、版本、Extension、資料庫清單、PEM/EFM 服務摘要）只顯示 Output，不顯示狀態／觀察／建議，也不送入 AI；容量、監控、組態差異、運行狀態、權限與維護候選仍屬健檢判斷。
 
 ## 3. 目前整體架構
 

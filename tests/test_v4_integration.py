@@ -133,6 +133,11 @@ def test_adapter_preserves_primary_database_and_configuration_observation(
     assert version["evidence"]["rows"] == [
         ["Database Version", "EDB Postgres Advanced Server 16.14"]
     ]
+    assert version["assessment_display"] is False
+    assert "status" not in version
+    assert "observation" not in version
+    assert "recommendation" not in version
+    assert validate_v4_report(report, {"evidence": []})["delivery_allowed"] is True
 
 
 def test_adapter_applies_requested_report_limits_and_database_columns() -> None:
@@ -200,7 +205,23 @@ def test_v4_quality_blocks_pending_scope() -> None:
 
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
-    assert digest == "32148a52f1ce2e889305833df8ef862dfb66ca2e2d09d47bf262022b1ccc2533"
+    assert digest == "10f4bb156df66955981f4dfaf99ef868a62389222bad2a7976984f6307944775"
+
+
+def test_renderer_omits_assessment_block_for_information_only_item() -> None:
+    spec = importlib.util.spec_from_file_location("omni_v4_info_only_test", VENDOR_RENDERER)
+    assert spec is not None and spec.loader is not None
+    renderer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(renderer)
+    document = Document()
+    renderer.configure_document(document)
+    renderer.add_item(document, {
+        "title": "Extension 清單",
+        "assessment_display": False,
+        "evidence": {"type": "table", "headers": ["Extension"], "rows": [["pg_stat_statements"]]},
+    })
+    assert len(document.tables) == 1
+    assert all("狀態" not in cell.text for table in document.tables for row in table.rows for cell in row.cells)
 
 
 def test_v4_summary_rows_do_not_chain_the_whole_table_to_the_next_page() -> None:

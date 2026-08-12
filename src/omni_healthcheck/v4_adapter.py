@@ -27,6 +27,14 @@ PRODUCT_NAMES = {
     "EPAS": "EDB Postgres Advanced Server",
     "PostgreSQL": "PostgreSQL",
 }
+INFORMATION_ONLY_TITLES = {
+    "主機與作業系統組態彙整",
+    "版本資訊",
+    "Extension 清單",
+    "資料庫清單",
+    "PEM / EFM 服務摘要",
+    "PEM / EFM / XDB 服務摘要",
+}
 
 
 def _split_numbered_title(value: str, fallback: str) -> tuple[str, str]:
@@ -333,6 +341,11 @@ def build_v4_report(
                     "evidence": _evidence(unit),
                     **_assessment(assessment_value),
                 }
+                if unit["title"] in INFORMATION_ONLY_TITLES:
+                    item["assessment_display"] = False
+                    item.pop("status", None)
+                    item.pop("observation", None)
+                    item.pop("recommendation", None)
                 if chapter_number == "4":
                     item["node"] = primary
                 if unit.get("omitted_rows"):

@@ -154,6 +154,8 @@ def build_v4_section_workflow(v4_report: dict, ruleset_version: str) -> SectionW
     for chapter in v4_report.get("chapters", []):
         for section in chapter.get("sections", []):
             for ordinal, report_item in enumerate(section.get("items", [])):
+                if report_item.get("assessment_display") is False:
+                    continue
                 title = str(report_item.get("title") or "Report Section")
                 evidence = report_item.get("evidence") or {}
                 digest = hashlib.sha256(

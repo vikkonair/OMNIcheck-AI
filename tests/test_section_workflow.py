@@ -146,6 +146,10 @@ def test_v4_workflow_covers_visible_text_and_monitoring_image(tmp_path) -> None:
                 "recommendation": "確認趨勢。",
                 "evidence": {"type": "image", "path": str(image)},
             },
+            {
+                "title": "Extension 清單", "assessment_display": False,
+                "evidence": {"type": "table", "headers": ["Extension"], "rows": [["postgis"]]},
+            },
         ],
     }]}]}
 

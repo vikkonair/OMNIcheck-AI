@@ -43,6 +43,8 @@ def validate_v4_report(
                     failures.append(f"item.no_visible_output={item.get('title')}")
                 if evidence_type == "image" and not Path(evidence["path"]).is_file():
                     failures.append(f"item.image_missing={item.get('title')}")
+                if item.get("assessment_display") is False:
+                    continue
                 if item.get("status") not in VALID_STATUSES:
                     failures.append(f"item.invalid_status={item.get('title')}")
                 if "結論：" not in str(item.get("observation", "")):

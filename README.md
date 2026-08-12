@@ -32,6 +32,7 @@ OMNIcheck AI 是一套針對 PostgreSQL 與 EDB Postgres Advanced Server（EPAS�
 - 可選用 EDB／PostgreSQL 保存案件 metadata，透過獨立 Worker 與資料庫佇列可靠執行、重試及保留事件紀錄。
 - 透過 Section 審核工作台載入案件、選取受控批次 AI 草稿、查看逐項進度、人工修改、核准及依核准內容重新產報；Renderer 不直接讀取未核准 AI 草稿。
 - AI 啟用時，新案件會自動替全部 V4 可見 Section 排入 durable batch；文字項目使用文字模型，PEM 圖片只在設定 Vision 模型時分析，否則安全回退。
+- 系統組態、版本、Extension、資料庫清單與 PEM／EFM 服務摘要屬純資訊清冊，只顯示 Output，不產生狀態、觀察、建議或 AI 草稿。
 - 後續已核准採用 EDB 中心化架構：EDB 保存結構化應用資料與歷史、`/data` 保存大型檔案、Canonical JSON 繼續作為 Pipeline 契約與 rollback 保護層。M9.4 已建立 tenant-scoped foundation，M9.5 已完成 Pipeline 結果持久化，M9.6 Artifact lifecycle 已正式完成。
 - M9.4 使用安全相對 storage key、SHA-256、大小與 media type 登錄 Evidence／Artifact，不把大型檔案以 `BYTEA` 存入 EDB；既有 M9.3 Job 可維持未關聯 tenant，避免破壞現有 Queue。
 
