@@ -340,6 +340,44 @@ def test_image_uses_vision_model_but_audit_does_not_store_image(tmp_path: Path) 
     assert "base64" not in str(record["sanitized_prompt"])
 
 
+def test_image_is_downscaled_before_vision_request(tmp_path: Path) -> None:
+    from PIL import Image
+    import base64
+
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    image = tmp_path / "large-monitor.png"
+    Image.new("RGB", (2400, 1600), "#4080c0").save(image)
+    item = sections.get_item(job_id, row["item_id"]).model_copy(update={
+        "media": WorkflowMedia(type="image", path=str(image), media_type="image/png")
+    })
+    captured = {}
+
+    def transport(_endpoint, payload, _headers, timeout):
+        captured["payload"] = payload
+        captured["timeout"] = timeout
+        return {"choices": [{"message": {"content": (
+            '{"observation":"圖表顯示趨勢平穩。\\n結論：未見明顯異常。",'
+            '"recommendation":"持續監控。"}'
+        )}}]}
+
+    configured = settings().__class__(**{
+        **settings().__dict__, "vision_model": "gemma4:26b",
+        "vision_timeout_seconds": 35, "vision_max_dimension": 800,
+    })
+    result = OllamaGateway(configured, audit, transport=transport).generate(
+        job_id=job_id, item_id=row["item_id"], item=item, requested_by="engineer-a"
+    )
+    assert result.status == "succeeded"
+    data_url = captured["payload"]["messages"][1]["content"][1]["image_url"]["url"]
+    assert data_url.startswith("data:image/jpeg;base64,")
+    encoded = data_url.split(",", 1)[1]
+    optimized = tmp_path / "optimized.jpg"
+    optimized.write_bytes(base64.b64decode(encoded))
+    with Image.open(optimized) as decoded:
+        assert max(decoded.size) <= 800
+    assert captured["timeout"] == 35
+
+
 def test_image_without_vision_model_retains_deterministic_fallback(tmp_path: Path) -> None:
     _, sections, audit, job_id, row = setup_stores(tmp_path)
     item = sections.get_item(job_id, row["item_id"]).model_copy(update={

@@ -21,7 +21,7 @@ from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.section_workflow import SectionWorkflowItem
 
 
-PROMPT_VERSION = "section-evidence-analysis-v3"
+PROMPT_VERSION = "section-evidence-analysis-v4"
 
 
 class AIDraft(BaseModel):
@@ -45,6 +45,10 @@ class AIGatewaySettings:
     max_attempts: int = 2
     api_key: str | None = None
     vision_model: str | None = None
+    vision_timeout_seconds: float = 35.0
+    vision_max_attempts: int = 1
+    vision_max_dimension: int = 1280
+    vision_jpeg_quality: int = 75
 
     @classmethod
     def from_env(cls) -> "AIGatewaySettings":
@@ -59,6 +63,18 @@ class AIGatewaySettings:
             vision_model=os.environ.get("OMNICHECK_AI_VISION_MODEL") or None,
             timeout_seconds=float(os.environ.get("OMNICHECK_AI_TIMEOUT_SECONDS", "120")),
             max_attempts=int(os.environ.get("OMNICHECK_AI_MAX_ATTEMPTS", "2")),
+            vision_timeout_seconds=float(
+                os.environ.get("OMNICHECK_AI_VISION_TIMEOUT_SECONDS", "35")
+            ),
+            vision_max_attempts=int(
+                os.environ.get("OMNICHECK_AI_VISION_MAX_ATTEMPTS", "1")
+            ),
+            vision_max_dimension=int(
+                os.environ.get("OMNICHECK_AI_VISION_MAX_DIMENSION", "1280")
+            ),
+            vision_jpeg_quality=int(
+                os.environ.get("OMNICHECK_AI_VISION_JPEG_QUALITY", "75")
+            ),
             api_key=os.environ.get("OMNICHECK_AI_API_KEY") or None,
         )
 
@@ -74,6 +90,14 @@ class AIGatewaySettings:
             raise ValueError("OMNICHECK_AI_TIMEOUT_SECONDS must be between 1 and 600")
         if not 1 <= self.max_attempts <= 3:
             raise ValueError("OMNICHECK_AI_MAX_ATTEMPTS must be between 1 and 3")
+        if not 1 <= self.vision_timeout_seconds <= 120:
+            raise ValueError("OMNICHECK_AI_VISION_TIMEOUT_SECONDS must be between 1 and 120")
+        if not 1 <= self.vision_max_attempts <= 2:
+            raise ValueError("OMNICHECK_AI_VISION_MAX_ATTEMPTS must be between 1 and 2")
+        if not 320 <= self.vision_max_dimension <= 4096:
+            raise ValueError("OMNICHECK_AI_VISION_MAX_DIMENSION must be between 320 and 4096")
+        if not 40 <= self.vision_jpeg_quality <= 95:
+            raise ValueError("OMNICHECK_AI_VISION_JPEG_QUALITY must be between 40 and 95")
 
 
 @dataclass(frozen=True)
@@ -194,13 +218,38 @@ def build_sanitized_prompt(item: SectionWorkflowItem) -> dict:
     }
 
 
-def _model_prompt(item: SectionWorkflowItem, audit_prompt: dict) -> dict:
-    if item.media is None:
-        return audit_prompt
+def _optimized_vision_image(item: SectionWorkflowItem, settings: AIGatewaySettings) -> tuple[bytes, str]:
+    """Bound Vision payload size without modifying immutable customer evidence."""
     path = Path(item.media.path)
     payload = path.read_bytes()
+    try:
+        from PIL import Image
+        from io import BytesIO
+
+        with Image.open(BytesIO(payload)) as image:
+            image = image.convert("RGB")
+            image.thumbnail(
+                (settings.vision_max_dimension, settings.vision_max_dimension),
+                Image.Resampling.LANCZOS,
+            )
+            output = BytesIO()
+            image.save(output, format="JPEG", quality=settings.vision_jpeg_quality, optimize=True)
+            payload = output.getvalue()
+            media_type = "image/jpeg"
+    except Exception:
+        # The original evidence remains valid for formats Pillow cannot decode.
+        media_type = item.media.media_type
     if len(payload) > 12 * 1024 * 1024:
-        raise ValueError("monitoring image exceeds 12 MiB vision limit")
+        raise ValueError("monitoring image exceeds 12 MiB vision limit after optimization")
+    return payload, media_type
+
+
+def _model_prompt(
+    item: SectionWorkflowItem, audit_prompt: dict, settings: AIGatewaySettings
+) -> dict:
+    if item.media is None:
+        return audit_prompt
+    payload, media_type = _optimized_vision_image(item, settings)
     user = audit_prompt["messages"][1]
     return {
         "messages": [
@@ -219,7 +268,7 @@ def _model_prompt(item: SectionWorkflowItem, audit_prompt: dict) -> dict:
                         "type": "image_url",
                         "image_url": {
                             "url": "data:"
-                            + item.media.media_type
+                            + media_type
                             + ";base64,"
                             + base64.b64encode(payload).decode("ascii")
                         },
@@ -325,7 +374,7 @@ class OllamaGateway:
             headers["Authorization"] = f"Bearer {self.settings.api_key}"
         payload = {
             "model": selected_model,
-            **_model_prompt(item, prompt),
+            **_model_prompt(item, prompt, self.settings),
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
         }
@@ -333,16 +382,24 @@ class OllamaGateway:
         attempts = 0
         try:
             response: dict[str, Any] | None = None
-            while attempts < self.settings.max_attempts:
+            max_attempts = (
+                self.settings.vision_max_attempts
+                if item.media is not None else self.settings.max_attempts
+            )
+            timeout_seconds = (
+                self.settings.vision_timeout_seconds
+                if item.media is not None else self.settings.timeout_seconds
+            )
+            while attempts < max_attempts:
                 attempts += 1
                 try:
                     response = self.transport(
                         self.settings.endpoint, payload, headers,
-                        self.settings.timeout_seconds,
+                        timeout_seconds,
                     )
                     break
                 except (HTTPError, URLError, TimeoutError, OSError):
-                    if attempts >= self.settings.max_attempts:
+                    if attempts >= max_attempts:
                         raise
             if response is None:
                 raise RuntimeError("AI transport returned no response")

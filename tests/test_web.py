@@ -360,6 +360,38 @@ def test_ai_batch_api_queues_and_worker_generates_sequential_drafts(tmp_path: Pa
     assert all(item["selected_source"] == "deterministic_template" for item in updated)
 
 
+def test_auto_batches_skip_normal_monitoring_images(tmp_path: Path) -> None:
+    from omni_healthcheck.ai_batch import AIDraftBatchStore
+    from omni_healthcheck.section_workflow import WorkflowMedia
+
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'vision-filter.db'}")
+    metadata.create_schema_for_test()
+    client = TestClient(create_app(data_root=tmp_path / "jobs", metadata_store=metadata))
+    job_id = client.post("/api/jobs", json=_config()).json()["job_id"]
+    sections = SectionWorkflowStore(engine=metadata.engine)
+    workflow = build_section_workflow(assessment_document())
+    normal_image = workflow.items[0].model_copy(update={
+        "section_key": "4.2:primary:normal-image", "section_id": "4.2",
+        "check_id": "monitoring_cpu", "status": "normal",
+        "media": WorkflowMedia(type="image", path="/tmp/normal.png", media_type="image/png"),
+    }, deep=True)
+    attention_image = normal_image.model_copy(update={
+        "section_key": "4.2:primary:attention-image", "status": "attention",
+    }, deep=True)
+    sections.persist_baseline(job_id, workflow.model_copy(
+        update={"items": [normal_image, attention_image]}, deep=True
+    ))
+    batches = AIDraftBatchStore(engine=metadata.engine, vision_include_normal=False)
+    created = batches.create_all_generated(job_id, "system:auto-ai")
+    assert len(created) == 1
+    assert created[0]["total_items"] == 1
+    attention_id = next(
+        row["item_id"] for row in sections.list_items(job_id)
+        if row["section_key"] == "4.2:primary:attention-image"
+    )
+    assert created[0]["items"][0]["item_id"] == attention_id
+
+
 def test_bulk_approval_promotes_every_ai_draft(tmp_path: Path) -> None:
     metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'bulk-approval.db'}")
     metadata.create_schema_for_test()

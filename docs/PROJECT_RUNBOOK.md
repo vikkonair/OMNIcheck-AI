@@ -3,7 +3,7 @@
 最後更新：2026-08-12
 適用 Repository：`codex-handoff`  
 目前正式版本：M10.1
-目前開發進度：M14.5 AI 完整交付流程開發中；Job 必須等全部適用 Section 的 Gemma 草稿、最終 DOCX／PDF 與 QA 完成後才顯示 succeeded。初版報告採 `approved → ai_draft → deterministic`，工程師下載後仍可修改、核准及重新產報
+目前開發進度：M14.5 AI 完整交付流程已完成並部署；Job 必須等全部適用 Section 的 Gemma 草稿、最終 DOCX／PDF 與 QA 完成後才顯示 succeeded。初版報告採 `approved → ai_draft → deterministic`，工程師下載後仍可修改、核准及重新產報
 
 ## 1. 文件目的
 
@@ -59,6 +59,10 @@
 2026-08-12 M14.4 Gemma／UI 正式部署：公司 App VM `current` 已切至 release `4c755b7`，Web／Worker active，health 顯示 EDB metadata、external worker、AI enabled；環境檔備份為 `/etc/omnicheck-ai/omnicheck.env.pre-4c755b7`，application rollback 為 `33d02b1`。公司 release 124 tests 通過。實際 Gateway request `3ea01317c5194e4f843ffeed1da41bfd` 使用 `gemma4:26b` 將 CPU PEM 圖保存為 `ai_drafted` revision 2，selected source 仍為 deterministic。Chrome 實機驗收確認案件列表預設收合；展開後才載入案件；結果區顯示 Job ID、PDF／DOCX，12 個內部產物保持收合。
 
 2026-08-12 M14.5 開始：使用者確認 AI 建議必須是報告生成的一環，不接受「Pipeline 先成功、AI 背景補草稿」的流程。實作方向固定為同步等待全部 AI batches、個別失敗 deterministic fallback、以 approved／AI draft／deterministic 優先順序產生初版報告，最後才將 Job 標示 succeeded。本變更不調整 Primary、Scope、Rules 或 V4 版面，也不新增 migration。規格見 `docs/M14_5_AI_COMPLETE_DELIVERY.md`。
+
+2026-08-12 M14.5 公司正式部署與實機驗收：main release `e6e31f2` 已以獨立 venv 與 deployment lock 切入公司 App VM，Web／Worker／EDB／AI Gateway health 正常；application rollback 為 `4c755b7`，無 migration。舊流程遺留且已 completed 的 AI batch 在切換時以可稽核 fallback 收斂，不刪除既有草稿或客戶輸入。全新 Job `2c0d700694d4472c8c218e79d40e52a4` 使用既有 13 份 immutable input 的獨立副本，執行期間維持 `running`、outputs 為空、PDF endpoint 回 HTTP 409；全部 batch 終止、最終 render／QA 後才於 16:15 轉為 `succeeded` 並產生 DOCX／PDF。25 個 V4 Section 皆成功對位：21 個使用 AI observation、4 個為 deterministic fallback；`renderer_uses_ai=true`、QA 與 V4 QA 均允許交付。本機／VM 均通過 125 tests。
+
+2026-08-12 M14.6 效能調校開始：不含客戶資料的 Ollama JSON benchmark 顯示 `gpt-oss:20b` 12.3 秒、`gemma4:26b` 12.2 秒、`nemotron-3-ultra:cloud` 37.3 秒，三者格式均合格；預設文字保留 `gpt-oss:20b`，Vision 使用 Gemma。候選程式將 Vision timeout／retry 獨立為 35 秒／1 次、記憶體內縮圖 JPEG、正常圖略過與最多兩張圖片並行；不改變原始證據、確定性規則與 M14.5 完成條件。本機完整 127 tests 通過，待公司新 Job 效能驗收。
 
 ## 3. 目前整體架構
 

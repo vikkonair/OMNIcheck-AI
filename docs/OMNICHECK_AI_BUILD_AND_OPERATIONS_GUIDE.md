@@ -1,10 +1,10 @@
 # OMNIcheck AI 建置、部署與維運主手冊
 
 文件編號：OMNI-OPS-001  
-文件版本：0.14.4-candidate
+文件版本：0.14.5
 最後更新：2026-08-12
-適用程式基準：M14.3 本機候選；正式公司基準仍以已部署 release 為準
-正式可回復基準：`m10.1`；前一個 application rollback 點為 `m10`
+適用程式基準：M14.5 公司正式 release `e6e31f2`
+正式可回復基準：`m10.1`；前一個 application rollback 點為 `4c755b7`
 文件擁有者：Omniwaresoft Tech  
 機密等級：內部使用
 
@@ -25,7 +25,8 @@
 
 | 版本 | 日期 | 變更 | 驗證狀態 |
 |---|---|---|---|
-| 0.14.5-candidate | 2026-08-12 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才顯示 PDF／DOCX | 本機 125 tests；公司實際案件與 PDF／DOCX 待部署驗證 |
+| 0.14.6-candidate | 2026-08-12 | 文字／Vision 模型分流、Vision 縮圖、正常圖略過、35 秒 timeout 與最多 2 張並行 | 本機 127 tests；Ollama 無客戶資料 benchmark：gpt-oss 12.3 秒、Gemma 12.2 秒、Nemotron 37.3 秒；公司新 Job 待驗證 |
+| 0.14.5 | 2026-08-12 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才顯示 PDF／DOCX | release `e6e31f2`；本機／公司 125 tests；實機 Job `2c0d700694d4472c8c218e79d40e52a4` 21 AI draft、4 fallback、QA/V4 QA、DOCX/PDF 通過；rollback `4c755b7` |
 | 0.14.4 | 2026-08-12 | 全 Section Evidence-to-Ollama、Gemma 文字／PEM Vision、收合式案件與產物 UI、additive Workflow rollback 相容、每 release 原生 venv | 124 tests；台灣行動支付 20/20 文字 Evidence Snapshot、QA/V4 QA；`gemma4:26b` 通過 filesystem 文字與 CPU／Memory／Disk／Process 圖片測試 |
 | 0.14.3-candidate | 2026-08-12 | 全 V4 可見 Section 自動 AI 批次、PEM 圖片 Vision 分流、整批核准與一鍵重新產報 | release `a18c7cd`；本機／公司 115 tests、台灣行動支付 29/29 Workflow、5 張圖片、Ruleset 2026.2、QA/V4 QA、DOCX/PDF 通過；待使用者與 Vision 驗收 |
 | 0.14.2.2-candidate | 2026-08-12 | Ruleset 2026.2：filesystem 50/70、bloat 前十名敘述契約、罕用索引 10 筆、系統角色排除 | 本機測試通過；實際客戶資料與公司部署待驗證 |

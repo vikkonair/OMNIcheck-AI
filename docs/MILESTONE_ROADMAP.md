@@ -2,7 +2,7 @@
 
 最後更新：2026-08-12
 
-目前狀態：M14.5 AI 完整交付流程進行中。新案件必須完成全部適用 Section 的文字／PEM Vision 草稿、最終 DOCX／PDF 與 QA 後才顯示 succeeded；初版報告使用 AI draft，個別失敗項目回退 deterministic，工程師下載後再覆核與核准。
+目前狀態：M14.5 AI 完整交付流程已完成並部署。新案件必須完成全部適用 Section 的文字／PEM Vision 草稿、最終 DOCX／PDF 與 QA 後才顯示 succeeded；初版報告使用 AI draft，個別失敗項目回退 deterministic，工程師下載後再覆核與核准。
 
 ## 固定基礎
 
@@ -21,7 +21,8 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 | M13.2 | Version Matcher | Product／Version Parser、確定性 CVE 適用性、fixed／pending 狀態 |
 | M13.3 | CVE V4 Section | 環球晶圓方向版面、Quality Gate、來源與 matcher version |
 | M14 | Ollama AI Gateway | 繁中翻譯、觀察／建議草稿、主管摘要、歷史摘要、Prompt／Model／輸出稽核與 fallback |
-| M14.5 | AI 完整交付 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才提供 PDF／DOCX |
+| M14.5 | 完成、公司實機驗收 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才提供 PDF／DOCX |
+| M14.6 | 效能調校中 | 文字／Vision 模型分流、圖片縮圖、短 Vision timeout、正常圖略過、有限圖片並行 |
 
 M14 分段：M14.1 已完成單一 Section 草稿、安全遮蔽、稽核與 fallback；M14.2 已完成前端批次操作、EDB durable queue、逐筆 rate limit 與人工審核體驗；M14.3／M14.4 完成全 Section Evidence 與 Gemma Vision；M14.5 將 AI 納入 Job 完成條件與初版報告。主管摘要、歷史摘要及問答留在後續階段。
 | M15 | 正式環境強化 | VIP／EFM、TLS、Backup／Restore、Monitoring、Reverse Proxy、資源隔離與故障演練 |

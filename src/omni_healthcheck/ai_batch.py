@@ -16,6 +16,7 @@ from omni_healthcheck.section_persistence import (
     SectionRevisionConflictError, SectionWorkflowStore, section_workflow_items,
     section_workflows,
 )
+from omni_healthcheck.section_workflow import SectionWorkflowItem
 
 
 ai_draft_batches = Table(
@@ -62,11 +63,15 @@ def _serialize(row) -> dict:
 
 
 class AIDraftBatchStore:
-    def __init__(self, *, engine: Engine, max_items: int = 5):
+    def __init__(
+        self, *, engine: Engine, max_items: int = 5,
+        vision_include_normal: bool = False,
+    ):
         if max_items < 1 or max_items > 20:
             raise ValueError("AI batch max items must be between 1 and 20")
         self.engine = engine
         self.max_items = max_items
+        self.vision_include_normal = vision_include_normal
 
     def create(self, job_id: str, actor: str, items: list[dict]) -> dict:
         if not actor.strip():
@@ -116,6 +121,7 @@ class AIDraftBatchStore:
                 select(
                     section_workflow_items.c.item_id,
                     section_workflow_items.c.current_revision,
+                    section_workflow_items.c.payload,
                 )
                 .join(section_workflows)
                 .where(
@@ -124,10 +130,19 @@ class AIDraftBatchStore:
                 )
                 .order_by(section_workflow_items.c.section_id, section_workflow_items.c.section_key)
             ).mappings().all()
-        items = [
-            {"item_id": row["item_id"], "expected_revision": row["current_revision"]}
-            for row in rows
-        ]
+        items = []
+        for row in rows:
+            item = SectionWorkflowItem.model_validate(row["payload"])
+            if (
+                item.media is not None
+                and item.status == "normal"
+                and not self.vision_include_normal
+            ):
+                continue
+            items.append({
+                "item_id": row["item_id"],
+                "expected_revision": row["current_revision"],
+            })
         return [
             self.create(job_id, actor, items[start : start + self.max_items])
             for start in range(0, len(items), self.max_items)

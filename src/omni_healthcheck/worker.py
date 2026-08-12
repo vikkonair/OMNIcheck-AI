@@ -8,6 +8,7 @@ import signal
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from omni_healthcheck.artifact_lifecycle import ArtifactRegistry
@@ -29,15 +30,19 @@ def run_ai_batch_once(
     worker_id: str,
     *,
     min_interval_seconds: float = 1.0,
+    vision_concurrency: int = 1,
 ) -> bool:
-    """Process one durable batch sequentially; failures retain deterministic text."""
+    """Process one durable batch; Vision can use a small bounded concurrency."""
+
+    if vision_concurrency < 1 or vision_concurrency > 4:
+        raise ValueError("vision_concurrency must be between 1 and 4")
 
     batch = batch_store.claim_next(worker_id)
     if batch is None:
         return False
-    for index, queued in enumerate(batch["items"]):
+    def process_item(queued: dict) -> None:
         if queued["status"] in {"ai_drafted", "fallback", "conflict"}:
-            continue
+            return
         try:
             item = section_store.get_item(batch["job_id"], queued["item_id"])
             if item.revision != queued["expected_revision"]:
@@ -45,7 +50,7 @@ def run_ai_batch_once(
                     batch["batch_id"], queued["batch_item_id"], status="conflict",
                     error=f"revision changed from {queued['expected_revision']} to {item.revision}",
                 )
-                continue
+                return
             result = gateway.generate(
                 job_id=batch["job_id"], item_id=queued["item_id"], item=item,
                 requested_by=batch["actor"],
@@ -88,8 +93,20 @@ def run_ai_batch_once(
                 batch["batch_id"], queued["batch_item_id"], status="fallback",
                 error=f"{type(exc).__name__}: {exc}",
             )
-        if index + 1 < len(batch["items"]) and min_interval_seconds > 0:
+    text_items, vision_items = [], []
+    for queued in batch["items"]:
+        if queued["status"] in {"ai_drafted", "fallback", "conflict"}:
+            continue
+        item = section_store.get_item(batch["job_id"], queued["item_id"])
+        (vision_items if item.media is not None else text_items).append(queued)
+
+    for index, queued in enumerate(text_items):
+        process_item(queued)
+        if index + 1 < len(text_items) and min_interval_seconds > 0:
             time.sleep(min(min_interval_seconds, 30.0))
+    if vision_items:
+        with ThreadPoolExecutor(max_workers=min(vision_concurrency, len(vision_items))) as executor:
+            list(executor.map(process_item, vision_items))
     batch_store.finalize(batch["job_id"], batch["batch_id"])
     return True
 
@@ -107,6 +124,7 @@ def run_once(
     ai_batch_store: AIDraftBatchStore | None = None,
     ai_gateway: OllamaGateway | None = None,
     ai_min_interval_seconds: float = 1.0,
+    ai_vision_concurrency: int = 1,
     auto_ai_draft_all: bool = False,
     auto_ai_actor: str = "system:auto-ai",
 ) -> bool:
@@ -177,6 +195,7 @@ def run_once(
                         ai_gateway,
                         worker_id,
                         min_interval_seconds=ai_min_interval_seconds,
+                        vision_concurrency=ai_vision_concurrency,
                     )
                     pending_batch_ids = {
                         batch_id for batch_id in pending_batch_ids
@@ -257,11 +276,17 @@ def main() -> None:
     ai_batches = AIDraftBatchStore(
         engine=metadata_store.engine,
         max_items=int(os.environ.get("OMNICHECK_AI_BATCH_MAX_ITEMS", "5")),
+        vision_include_normal=os.environ.get(
+            "OMNICHECK_AI_VISION_INCLUDE_NORMAL", "false"
+        ).lower() in {"1", "true", "yes"},
     )
     ai_batches.recover_stale(stale_seconds)
     section_store = SectionWorkflowStore(engine=metadata_store.engine)
     ai_min_interval = float(
         os.environ.get("OMNICHECK_AI_MIN_INTERVAL_SECONDS", "1")
+    )
+    ai_vision_concurrency = int(
+        os.environ.get("OMNICHECK_AI_VISION_CONCURRENCY", "2")
     )
     auto_ai_draft_all = (
         ai_settings.enabled
@@ -291,12 +316,14 @@ def main() -> None:
             ai_batch_store=ai_batches,
             ai_gateway=ai_gateway,
             ai_min_interval_seconds=ai_min_interval,
+            ai_vision_concurrency=ai_vision_concurrency,
             auto_ai_draft_all=auto_ai_draft_all,
         )
         if not processed:
             processed = run_ai_batch_once(
                 ai_batches, section_store, ai_gateway, worker_id,
                 min_interval_seconds=ai_min_interval,
+                vision_concurrency=ai_vision_concurrency,
             )
         if not processed:
             time.sleep(poll_seconds)
