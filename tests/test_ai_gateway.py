@@ -38,7 +38,13 @@ def setup_stores(tmp_path: Path):
                 "結論：目前無容量風險。"
             ),
             recommendation="請通知 dba@example.com 並持續監控。",
-        )
+        ),
+        "evidence_snapshot": {
+            "type": "table",
+            "headers": ["host", "value"],
+            "rows": [["db-primary", "192.168.1.50 password=secret"]],
+            "path": "/customer/private/output.txt",
+        },
     })
     sections.persist_baseline(
         job_id, document.model_copy(update={"items": [sensitive]})
@@ -87,6 +93,11 @@ def test_prompt_minimizes_and_redacts_infrastructure_data(tmp_path: Path) -> Non
     assert "192.168.1.50" not in encoded
     assert "password=secret" not in encoded
     assert "dba@example.com" not in encoded
+    assert "/customer/private/output.txt" not in encoded
+    assert "visible_output" in encoded
+    assert "[NODE]" in encoded
+    assert "[IP]" in encoded
+    assert "password=[REDACTED]" in encoded
 
     result = gateway.generate(
         job_id=job_id, item_id=row["item_id"], item=item,

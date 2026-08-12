@@ -110,6 +110,46 @@ def sanitize_text(value: str, *, node: str) -> str:
     return value
 
 
+def _sanitize_evidence(value: object, *, node: str) -> object:
+    if isinstance(value, str):
+        return sanitize_text(value, node=node)
+    if isinstance(value, list):
+        return [_sanitize_evidence(item, node=node) for item in value]
+    if isinstance(value, dict):
+        return {
+            str(key): _sanitize_evidence(item, node=node)
+            for key, item in value.items()
+            if str(key).casefold() not in {"path", "image_base64", "data"}
+        }
+    return value
+
+
+def _bounded_evidence(value: dict | None, *, node: str) -> dict | None:
+    if not value:
+        return None
+    sanitized = _sanitize_evidence(value, node=node)
+    if not isinstance(sanitized, dict):
+        return None
+    encoded = json.dumps(sanitized, ensure_ascii=False)
+    if len(encoded) <= 48_000:
+        return sanitized
+    bounded = dict(sanitized)
+    rows = bounded.get("rows")
+    if isinstance(rows, list):
+        kept = rows[:40]
+        if len(rows) > 50:
+            kept += rows[-10:]
+        bounded["rows"] = kept
+        bounded["evidence_truncated"] = True
+        bounded["original_row_count"] = len(rows)
+        bounded["included_row_count"] = len(kept)
+    content = bounded.get("content")
+    if isinstance(content, str) and len(content) > 40_000:
+        bounded["content"] = content[:32_000] + "\n...[受控截斷]...\n" + content[-8_000:]
+        bounded["evidence_truncated"] = True
+    return bounded
+
+
 def build_sanitized_prompt(item: SectionWorkflowItem) -> dict:
     facts = {
         "section_id": item.section_id,
@@ -119,14 +159,19 @@ def build_sanitized_prompt(item: SectionWorkflowItem) -> dict:
         "recommendation": sanitize_text(
             item.deterministic.recommendation, node=item.node
         ),
+        "visible_output": _bounded_evidence(
+            item.evidence_snapshot, node=item.node
+        ),
     }
     return {
         "messages": [
             {
                 "role": "system",
                 "content": (
-                    "你是資料庫健檢報告文字助理。只能改寫提供的文字，不得改變狀態、"
-                    "數值或事實，不得新增未提供的證據。使用繁體中文。觀察必須先說明"
+                    "你是資料庫健檢報告分析助理。請分析 visible_output，並以 deterministic "
+                    "內容作為不可違反的狀態與規則基準，自行提出觀察與建議。不得改變狀態、"
+                    "數值或事實，不得新增未提供的證據。若證據不足必須明確寫待確認，不得猜測。"
+                    "使用繁體中文。觀察必須先說明"
                     "已提供資訊，再換行寫『結論：』。建議必須簡短且可執行。"
                     "若資料列出膨脹物件及 VACUUM FULL 或 REINDEX，必須逐一保留所有"
                     "物件名稱與對應處置，不得省略、合併或自行增加物件。"

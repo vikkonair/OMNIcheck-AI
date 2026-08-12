@@ -24,7 +24,9 @@ NarrativeSource = Literal["deterministic_template", "ai", "engineer"]
 
 
 class WorkflowModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Workflow payloads are persisted as JSON. Ignore future additive fields so
+    # an application rollback can still read jobs created by a newer release.
+    model_config = ConfigDict(extra="ignore")
 
 
 class Narrative(WorkflowModel):
@@ -55,6 +57,7 @@ class SectionWorkflowItem(WorkflowModel):
         "deterministic_template"
     )
     evidence_refs: list[EvidenceReference] = Field(min_length=1)
+    evidence_snapshot: dict | None = None
     trace: RuleTrace
     media: WorkflowMedia | None = None
 
@@ -175,6 +178,11 @@ def build_v4_section_workflow(v4_report: dict, ruleset_version: str) -> SectionW
                             ".tif": "image/tiff", ".tiff": "image/tiff",
                         }.get(suffix, "image/png"),
                     )
+                evidence_snapshot = {
+                    key: value
+                    for key, value in evidence.items()
+                    if key not in {"path", "image_base64", "data"}
+                }
                 items.append(SectionWorkflowItem(
                     section_key=_v4_section_key(str(section["number"]), ordinal, title),
                     section_id=str(section["number"]),
@@ -191,6 +199,7 @@ def build_v4_section_workflow(v4_report: dict, ruleset_version: str) -> SectionW
                         node=str(report_item.get("node") or "all-nodes"),
                         evidence_sha256=digest,
                     )],
+                    evidence_snapshot=evidence_snapshot,
                     trace=RuleTrace(
                         rule_id="report.v4.visible_section.v1",
                         rule_version=ruleset_version,

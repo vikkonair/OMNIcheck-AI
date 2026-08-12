@@ -14,6 +14,7 @@
 6. AI 草稿仍不會直接進正式報告。工程師可個別修改，或使用整批核准動作後重新產報。
 7. Renderer 只選取 approved 內容；其他狀態一律使用 deterministic 內容。
 8. 大型資料表、SLRU、Dead Tuple 先由確定性規則整理可見事實，再交由 AI 改寫觀察與建議；AI 不得省略物件名稱、容量、計數或比率，也不得把 SLRU 單次累積快照描述成趨勢。
+9. M14.4 起，所有非資訊型文字 Section 都將遮蔽後的 V4 可見 Output 一併送入 Ollama，由 AI 依證據分析，不再只改寫 deterministic 文字；完整契約見 `docs/M14_4_EVIDENCE_DRIVEN_SECTION_AI.md`。
 
 純資訊清冊不屬於健檢判斷：`主機與作業系統組態彙整`、`版本資訊`、`Extension 清單`、`資料庫清單`只顯示標題與 Output，不顯示狀態／觀察／建議，也不建立 Workflow 或進入 AI batch。`PEM / EFM 服務摘要`採條件式處理：沒有明確異常時維持純資訊；Output 出現 error／failed／fatal 等明確異常時，必須產生確定性評估、建立 Workflow 並進入 AI batch。Quality Gate 仍驗證所有項目必須有可見 Output。
 

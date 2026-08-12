@@ -156,9 +156,11 @@ def test_v4_workflow_covers_visible_text_and_monitoring_image(tmp_path) -> None:
     workflow = build_v4_section_workflow(report, "2026.2")
     assert len(workflow.items) == 2
     assert workflow.items[0].check_id == "table_bloat"
+    assert workflow.items[0].evidence_snapshot == {"rows": []}
     assert workflow.items[1].check_id == "monitoring_cpu"
     assert workflow.items[1].media is not None
     assert workflow.items[1].media.path == str(image)
+    assert workflow.items[1].evidence_snapshot == {"type": "image"}
 
     approved = approve_review(review_draft(
         workflow.items[0], observation="覆核觀察。", recommendation="覆核建議。"
