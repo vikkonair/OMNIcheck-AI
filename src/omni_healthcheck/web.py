@@ -44,6 +44,11 @@ class SectionApprovalRequest(BaseModel):
     actor: str = Field(min_length=1, max_length=128)
 
 
+class BulkSectionApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: str = Field(min_length=1, max_length=128)
+
+
 class SectionAIDraftRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_revision: int = Field(ge=1)
@@ -419,6 +424,16 @@ def create_app(
     @app.post("/api/jobs/{job_id}/sections/{item_id}/approve")
     def approve_section(job_id: str, item_id: str, body: SectionApprovalRequest) -> dict:
         return transition_section(job_id, item_id, "approved", body)
+
+    @app.post("/api/jobs/{job_id}/sections/approve-all")
+    def approve_all_sections(job_id: str, body: BulkSectionApprovalRequest) -> dict:
+        metadata = job_or_404(job_id)
+        if metadata["status"] != "succeeded":
+            raise HTTPException(status_code=409, detail="job output is not ready")
+        try:
+            return sections_or_503().approve_all_ai_drafts(job_id, body.actor)
+        except SectionRevisionConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/jobs/{job_id}/sections/render")
     def render_approved_sections(job_id: str) -> dict:

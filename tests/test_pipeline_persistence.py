@@ -113,6 +113,32 @@ def test_worker_persists_scoped_job_before_success(tmp_path: Path) -> None:
     )) == 3
 
 
+def test_worker_auto_queues_all_visible_sections_after_baseline(tmp_path: Path) -> None:
+    _, _, jobs, _, _, job = foundation(tmp_path)
+    paths = jobs.paths(job["job_id"])
+    for source in sorted((FIXTURE / "input").rglob("*")):
+        if source.is_file():
+            destination = paths["input"] / source.relative_to(FIXTURE / "input")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(source.read_bytes())
+    jobs.update(job["job_id"], input_files=3, status="queued")
+
+    class BatchRecorder:
+        calls = []
+
+        def create_all_generated(self, job_id: str, actor: str):
+            self.calls.append((job_id, actor))
+            return []
+
+    batches = BatchRecorder()
+    assert run_once(
+        jobs, "m143-worker", ROOT / "config/rules.default.yaml",
+        retry_seconds=0, heartbeat_seconds=0,
+        ai_batch_store=batches, auto_ai_draft_all=True,
+    ) is True
+    assert batches.calls == [(job["job_id"], "system:auto-ai")]
+
+
 def test_legacy_unscoped_worker_remains_compatible(tmp_path: Path) -> None:
     url = f"sqlite+pysqlite:///{tmp_path / 'legacy.sqlite'}"
     metadata = DatabaseMetadataStore(url)

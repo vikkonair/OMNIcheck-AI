@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from collections import Counter
+import hashlib
+import json
+import re
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -29,6 +33,12 @@ class Narrative(WorkflowModel):
     recommendation: str = Field(min_length=1)
 
 
+class WorkflowMedia(WorkflowModel):
+    type: Literal["image"]
+    path: str = Field(min_length=1)
+    media_type: str = Field(pattern=r"^image/")
+
+
 class SectionWorkflowItem(WorkflowModel):
     section_key: str = Field(min_length=1)
     section_id: str = Field(min_length=1)
@@ -46,6 +56,7 @@ class SectionWorkflowItem(WorkflowModel):
     )
     evidence_refs: list[EvidenceReference] = Field(min_length=1)
     trace: RuleTrace
+    media: WorkflowMedia | None = None
 
     @model_validator(mode="after")
     def workflow_is_fail_closed(self) -> "SectionWorkflowItem":
@@ -82,6 +93,126 @@ class SectionWorkflowDocument(WorkflowModel):
     ai_enabled: bool = False
     renderer_uses_ai: bool = False
     items: list[SectionWorkflowItem]
+
+
+V4_STATUS = {"正常": "normal", "注意": "attention", "異常": "critical", "待確認": "pending"}
+
+
+def _v4_check_id(title: str) -> str:
+    aliases = {
+        "主機與作業系統組態彙整": "system_configuration_summary",
+        "檔案系統容量": "filesystem_usage",
+        "版本資訊": "database_version",
+        "Extension 清單": "extensions",
+        "資料庫清單": "database_inventory",
+        "Checkpoint 狀態": "checkpoint_activity",
+        "SLRU 狀態": "slru_status",
+        "資料量與大型資料表": "largest_tables",
+        "Schema Default Privileges": "schema_default_privileges",
+        "PEM / EFM 服務摘要": "pem_efm_summary",
+        "Primary 設定檔": "primary_configuration",
+        "資料庫連線設定": "database_connections",
+        "Transaction ID 年齡": "transaction_id_age",
+        "Lock 狀態": "lock_status",
+        "Dead Tuples": "dead_tuples",
+        "Table Bloat": "table_bloat",
+        "Index Bloat": "index_bloat",
+        "罕用索引": "rarely_used_indexes",
+        "同步狀態": "replication_status",
+        "Roles Privileges": "roles_privileges",
+        "Schema Privileges": "schema_privileges",
+        "備份狀態": "backup_status",
+    }
+    if title in aliases:
+        return aliases[title]
+    monitoring_aliases = {
+        "CPU": "monitoring_cpu",
+        "Memory": "monitoring_memory",
+        "Disk": "monitoring_disk",
+        "Process": "monitoring_process",
+        "Commit": "monitoring_commit_rollback",
+        "Transaction": "monitoring_transaction",
+        "記憶體": "monitoring_memory",
+        "磁碟": "monitoring_disk",
+        "程序": "monitoring_process",
+        "交易": "monitoring_transaction",
+    }
+    for prefix, check_id in monitoring_aliases.items():
+        if title.casefold().startswith(prefix.casefold()):
+            return check_id
+    value = re.sub(r"[^a-z0-9]+", "_", title.casefold()).strip("_")
+    return value or "report_section"
+
+
+def _v4_section_key(section_number: str, ordinal: int, title: str) -> str:
+    return f"v4:{section_number}:{ordinal}:{_v4_check_id(title)}"
+
+
+def build_v4_section_workflow(v4_report: dict, ruleset_version: str) -> SectionWorkflowDocument:
+    """Create one workflow item for every customer-visible V4 report item."""
+    items = []
+    for chapter in v4_report.get("chapters", []):
+        for section in chapter.get("sections", []):
+            for ordinal, report_item in enumerate(section.get("items", [])):
+                title = str(report_item.get("title") or "Report Section")
+                evidence = report_item.get("evidence") or {}
+                digest = hashlib.sha256(
+                    json.dumps(evidence, ensure_ascii=False, sort_keys=True).encode()
+                ).hexdigest()
+                media = None
+                if evidence.get("type") == "image" and evidence.get("path"):
+                    suffix = Path(str(evidence["path"])).suffix.casefold()
+                    media = WorkflowMedia(
+                        type="image",
+                        path=str(evidence["path"]),
+                        media_type={
+                            ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                            ".png": "image/png", ".webp": "image/webp",
+                            ".tif": "image/tiff", ".tiff": "image/tiff",
+                        }.get(suffix, "image/png"),
+                    )
+                items.append(SectionWorkflowItem(
+                    section_key=_v4_section_key(str(section["number"]), ordinal, title),
+                    section_id=str(section["number"]),
+                    check_id=_v4_check_id(title),
+                    node=str(report_item.get("node") or "all-nodes"),
+                    status=V4_STATUS.get(str(report_item.get("status")), "pending"),
+                    deterministic=Narrative(
+                        source="deterministic_template",
+                        observation=str(report_item.get("observation") or "已彙整當期 Output。\n結論：本項仍待確認"),
+                        recommendation=str(report_item.get("recommendation") or "確認 Output 後完成覆核"),
+                    ),
+                    evidence_refs=[EvidenceReference(
+                        check_id=_v4_check_id(title),
+                        node=str(report_item.get("node") or "all-nodes"),
+                        evidence_sha256=digest,
+                    )],
+                    trace=RuleTrace(
+                        rule_id="report.v4.visible_section.v1",
+                        rule_version=ruleset_version,
+                    ),
+                    media=media,
+                ))
+    return SectionWorkflowDocument(ruleset_version=ruleset_version, items=items)
+
+
+def apply_workflow_to_v4_report(v4_report: dict, workflow: SectionWorkflowDocument) -> dict:
+    """Overlay approved narratives onto the exact visible V4 items only."""
+    updated = json.loads(json.dumps(v4_report, ensure_ascii=False))
+    by_key = {item.section_key: item for item in workflow.items}
+    for chapter in updated.get("chapters", []):
+        for section in chapter.get("sections", []):
+            for ordinal, report_item in enumerate(section.get("items", [])):
+                key = _v4_section_key(
+                    str(section["number"]), ordinal, str(report_item.get("title") or "Report Section")
+                )
+                item = by_key.get(key)
+                if item is None:
+                    continue
+                narrative = item.selected_narrative
+                report_item["observation"] = narrative.observation
+                report_item["recommendation"] = narrative.recommendation
+    return updated
 
 
 def build_section_workflow(assessment: AssessmentDocument) -> SectionWorkflowDocument:

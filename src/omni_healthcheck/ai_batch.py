@@ -109,6 +109,30 @@ class AIDraftBatchStore:
             ])
         return self.get(job_id, batch_id)
 
+    def create_all_generated(self, job_id: str, actor: str) -> list[dict]:
+        """Queue every generated visible Section in bounded durable batches."""
+        with self.engine.connect() as connection:
+            rows = connection.execute(
+                select(
+                    section_workflow_items.c.item_id,
+                    section_workflow_items.c.current_revision,
+                )
+                .join(section_workflows)
+                .where(
+                    section_workflows.c.job_id == job_id,
+                    section_workflow_items.c.workflow_status == "generated",
+                )
+                .order_by(section_workflow_items.c.section_id, section_workflow_items.c.section_key)
+            ).mappings().all()
+        items = [
+            {"item_id": row["item_id"], "expected_revision": row["current_revision"]}
+            for row in rows
+        ]
+        return [
+            self.create(job_id, actor, items[start : start + self.max_items])
+            for start in range(0, len(items), self.max_items)
+        ]
+
     def get(self, job_id: str, batch_id: str) -> dict:
         with self.engine.connect() as connection:
             batch = connection.execute(select(ai_draft_batches).where(

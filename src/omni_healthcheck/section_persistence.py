@@ -316,3 +316,33 @@ class SectionWorkflowStore:
                 .values(updated_at=_now(), renderer_uses_ai=False)
             )
         return {"item_id": item_id, **payload}
+
+    def approve_all_ai_drafts(self, job_id: str, actor: str) -> dict:
+        """Promote all current AI drafts through review and approval in one action."""
+        approved = 0
+        skipped = 0
+        for row in self.list_items(job_id):
+            item = SectionWorkflowItem.model_validate(
+                {key: value for key, value in row.items() if key != "item_id"}
+            )
+            if item.workflow_status != "ai_drafted" or item.ai_draft is None:
+                skipped += 1
+                continue
+            reviewed = self.transition(
+                job_id,
+                row["item_id"],
+                expected_revision=item.revision,
+                action="reviewed",
+                actor=actor,
+                observation=item.ai_draft.observation,
+                recommendation=item.ai_draft.recommendation,
+            )
+            self.transition(
+                job_id,
+                row["item_id"],
+                expected_revision=reviewed["revision"],
+                action="approved",
+                actor=actor,
+            )
+            approved += 1
+        return {"job_id": job_id, "approved": approved, "skipped": skipped}

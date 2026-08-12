@@ -10,7 +10,11 @@ from omni_healthcheck.ai_gateway import (
 from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.section_persistence import SectionWorkflowStore
-from omni_healthcheck.section_workflow import Narrative, build_section_workflow
+from omni_healthcheck.section_workflow import (
+    Narrative,
+    WorkflowMedia,
+    build_section_workflow,
+)
 from test_section_workflow import assessment_document
 
 
@@ -168,4 +172,49 @@ def test_disabled_gateway_does_not_require_a_valid_endpoint(tmp_path: Path) -> N
         requested_by="engineer-a",
     )
     assert result.status == "disabled"
+    assert audit.list_for_job(job_id) == []
+
+
+def test_image_uses_vision_model_but_audit_does_not_store_image(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    image = tmp_path / "monitor.png"
+    image.write_bytes(b"image-bytes")
+    item = sections.get_item(job_id, row["item_id"]).model_copy(update={
+        "media": WorkflowMedia(type="image", path=str(image), media_type="image/png")
+    })
+    captured = {}
+
+    def transport(_endpoint, payload, _headers, _timeout):
+        captured.update(payload)
+        return {"choices": [{"message": {"content": (
+            '{"observation":"圖表顯示趨勢平穩。\\n結論：未見明顯異常。",'
+            '"recommendation":"持續監控並保留歷史基準。"}'
+        )}}]}
+
+    configured = settings().__class__(
+        **{**settings().__dict__, "vision_model": "qwen2.5vl:7b"}
+    )
+    result = OllamaGateway(configured, audit, transport=transport).generate(
+        job_id=job_id, item_id=row["item_id"], item=item, requested_by="engineer-a"
+    )
+    assert result.status == "succeeded"
+    assert captured["model"] == "qwen2.5vl:7b"
+    content = captured["messages"][1]["content"]
+    assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")
+    record = audit.list_for_job(job_id)[0]
+    assert "base64" not in str(record["sanitized_prompt"])
+
+
+def test_image_without_vision_model_retains_deterministic_fallback(tmp_path: Path) -> None:
+    _, sections, audit, job_id, row = setup_stores(tmp_path)
+    item = sections.get_item(job_id, row["item_id"]).model_copy(update={
+        "media": WorkflowMedia(
+            type="image", path=str(tmp_path / "missing.png"), media_type="image/png"
+        )
+    })
+    result = OllamaGateway(settings(), audit).generate(
+        job_id=job_id, item_id=row["item_id"], item=item, requested_by="engineer-a"
+    )
+    assert result.status == "fallback"
+    assert result.request_id is None
     assert audit.list_for_job(job_id) == []

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
 import os
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -42,6 +44,7 @@ class AIGatewaySettings:
     timeout_seconds: float = 120.0
     max_attempts: int = 2
     api_key: str | None = None
+    vision_model: str | None = None
 
     @classmethod
     def from_env(cls) -> "AIGatewaySettings":
@@ -53,6 +56,7 @@ class AIGatewaySettings:
                 "http://127.0.0.1:11434/v1/chat/completions",
             ),
             model=os.environ.get("OMNICHECK_AI_MODEL", "gpt-oss:20b"),
+            vision_model=os.environ.get("OMNICHECK_AI_VISION_MODEL") or None,
             timeout_seconds=float(os.environ.get("OMNICHECK_AI_TIMEOUT_SECONDS", "120")),
             max_attempts=int(os.environ.get("OMNICHECK_AI_MAX_ATTEMPTS", "2")),
             api_key=os.environ.get("OMNICHECK_AI_API_KEY") or None,
@@ -140,6 +144,42 @@ def build_sanitized_prompt(item: SectionWorkflowItem) -> dict:
     }
 
 
+def _model_prompt(item: SectionWorkflowItem, audit_prompt: dict) -> dict:
+    if item.media is None:
+        return audit_prompt
+    path = Path(item.media.path)
+    payload = path.read_bytes()
+    if len(payload) > 12 * 1024 * 1024:
+        raise ValueError("monitoring image exceeds 12 MiB vision limit")
+    user = audit_prompt["messages"][1]
+    return {
+        "messages": [
+            {
+                **audit_prompt["messages"][0],
+                "content": (
+                    audit_prompt["messages"][0]["content"]
+                    + "請分析附圖可見的期間、趨勢、尖峰與異常；看不清楚的數值必須標示待確認，禁止猜測。"
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user["content"]},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": "data:"
+                            + item.media.media_type
+                            + ";base64,"
+                            + base64.b64encode(payload).decode("ascii")
+                        },
+                    },
+                ],
+            },
+        ]
+    }
+
+
 def _urllib_transport(
     endpoint: str, payload: dict, headers: dict[str, str], timeout: float
 ) -> dict:
@@ -203,10 +243,18 @@ class OllamaGateway:
                 status="disabled", request_id=None, draft=None,
                 error="AI Gateway is disabled",
             )
+        if item.media is not None and not self.settings.vision_model:
+            return AIGatewayResult(
+                status="fallback", request_id=None, draft=None,
+                error="Vision model is not configured; deterministic image narrative retained",
+            )
         prompt = build_sanitized_prompt(item)
+        selected_model = (
+            self.settings.vision_model if item.media is not None else self.settings.model
+        )
         request_id = self.audit_store.start(
             job_id=job_id, item_id=item_id, provider="ollama",
-            model=self.settings.model, prompt_version=PROMPT_VERSION,
+            model=str(selected_model), prompt_version=PROMPT_VERSION,
             requested_by=requested_by,
             prompt_sha256=_sha(prompt), sanitized_prompt=prompt,
         )
@@ -214,8 +262,8 @@ class OllamaGateway:
         if self.settings.api_key:
             headers["Authorization"] = f"Bearer {self.settings.api_key}"
         payload = {
-            "model": self.settings.model,
-            **prompt,
+            "model": selected_model,
+            **_model_prompt(item, prompt),
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
         }

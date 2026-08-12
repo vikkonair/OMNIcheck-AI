@@ -143,6 +143,7 @@ INTEGRATED_INDEX_HTML = (
     <div id="sectionCards"><p class="muted">尚未載入 Section。</p></div>
     <div class="actions">
       <button type="button" class="primary" id="renderApproved">依核准內容重新產報</button>
+      <button type="button" class="primary" id="approveAllAndRender">整批核准 AI 草稿並產報</button>
     </div>
   </section>
 </main>""",
@@ -215,9 +216,19 @@ async function renderApproved() {
   try { const result=await api(`/api/jobs/${jobId}/sections/render`,{method:'POST'}); reviewMessage(`重新產報完成：${result.policy}`,'ok'); showResult(await api(`/api/jobs/${jobId}`)); }
   catch(error) { reviewMessage(error.message,'error'); }
 }
+async function approveAllAndRender() {
+  const jobId=el('reviewJobId').value.trim(); const actor=el('reviewActor').value.trim();
+  if (!jobId || !actor) { reviewMessage('請輸入 Job ID 與審核者。','error'); return; }
+  try {
+    const result=await api(`/api/jobs/${jobId}/sections/approve-all`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actor})});
+    await api(`/api/jobs/${jobId}/sections/render`,{method:'POST'});
+    await loadSections(); reviewMessage(`已整批核准 ${result.approved} 個 AI 草稿並重新產報。`,'ok'); showResult(await api(`/api/jobs/${jobId}`));
+  } catch(error) { reviewMessage(error.message,'error'); }
+}
 el('loadSections').addEventListener('click',loadSections);
 el('batchAIDrafts').addEventListener('click',createAIBatch);
 el('renderApproved').addEventListener('click',renderApproved);
+el('approveAllAndRender').addEventListener('click',approveAllAndRender);
 </script>""",
     )
     .replace(

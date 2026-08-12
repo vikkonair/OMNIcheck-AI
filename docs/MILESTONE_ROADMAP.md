@@ -1,8 +1,8 @@
 # OMNIcheck AI 後續 Milestone Roadmap
 
-最後更新：2026-08-11
+最後更新：2026-08-12
 
-目前狀態：M14.2 已完成公司候選部署：Section 審核工作台、0010 durable batch、既有 Worker 逐筆執行、批次上限／最小間隔、進度與 fallback／conflict。公司既有 Golden Job 只有一個 eligible Section，單項真實 `gpt-oss:20b` E2E 已通過；下一步是建立含 2～3 個 generated Sections 的測試 Job 完成多項批次驗收。
+目前狀態：M14.3 已完成本機候選實作。新案件會將全部 V4 可見項目自動排入既有 EDB durable batch；PEM 圖片透過選配 Vision model 分流，未設定時使用 deterministic fallback。台灣行動支付唯讀資料驗證為 29 個 V4 可見項目、29 個 Workflow 項目及 5 個圖片項目；待公司部署與實際 Ollama／Vision 驗收。
 
 ## 固定基礎
 
@@ -22,7 +22,7 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 | M13.3 | CVE V4 Section | 環球晶圓方向版面、Quality Gate、來源與 matcher version |
 | M14 | Ollama AI Gateway | 繁中翻譯、觀察／建議草稿、主管摘要、歷史摘要、Prompt／Model／輸出稽核與 fallback |
 
-M14 分段：M14.1 已完成單一 Section 草稿、安全遮蔽、稽核與 fallback；M14.2 已完成前端批次操作、EDB durable queue、逐筆 rate limit 與人工審核體驗（公司待驗證）；主管摘要、歷史摘要及問答留在後續階段。
+M14 分段：M14.1 已完成單一 Section 草稿、安全遮蔽、稽核與 fallback；M14.2 已完成前端批次操作、EDB durable queue、逐筆 rate limit 與人工審核體驗；M14.3 自動涵蓋全部 V4 可見 Section、圖片 Vision 分流及整批核准目前為本機候選。主管摘要、歷史摘要及問答留在後續階段。
 | M15 | 正式環境強化 | VIP／EFM、TLS、Backup／Restore、Monitoring、Reverse Proxy、資源隔離與故障演練 |
 
 ## 不可跨越的責任邊界

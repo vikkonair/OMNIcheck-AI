@@ -60,7 +60,14 @@ def run_ai_batch_once(
                     section_store.transition(
                         batch["job_id"], queued["item_id"],
                         expected_revision=queued["expected_revision"], action="ai_drafted",
-                        actor=f"ai:ollama:{gateway.settings.model}",
+                        actor=(
+                            "ai:ollama:"
+                            + str(
+                                gateway.settings.vision_model
+                                if item.media is not None
+                                else gateway.settings.model
+                            )
+                        ),
                         observation=result.draft.observation,
                         recommendation=result.draft.recommendation,
                     )
@@ -97,6 +104,9 @@ def run_once(
     persist_results: bool = True,
     register_artifacts: bool = True,
     artifact_retention_days: int = 365,
+    ai_batch_store: AIDraftBatchStore | None = None,
+    auto_ai_draft_all: bool = False,
+    auto_ai_actor: str = "system:auto-ai",
 ) -> bool:
     job = store.claim_next(worker_id)
     if job is None:
@@ -136,9 +146,16 @@ def run_once(
             workflow = SectionWorkflowDocument.model_validate(
                 json.loads((paths["output"] / "section-workflow.json").read_text(encoding="utf-8"))
             )
-            SectionWorkflowStore(engine=store.metadata_store.engine).persist_baseline(
+            section_store = SectionWorkflowStore(engine=store.metadata_store.engine)
+            persisted = section_store.persist_baseline(
                 job_id, workflow
             )
+            if (
+                auto_ai_draft_all
+                and ai_batch_store is not None
+                and persisted["created"]
+            ):
+                ai_batch_store.create_all_generated(job_id, auto_ai_actor)
         if register_artifacts and customer_id and system_id:
             ArtifactRegistry(engine=store.metadata_store.engine).register_outputs(
                 job_id=job_id,
@@ -209,6 +226,11 @@ def main() -> None:
     ai_min_interval = float(
         os.environ.get("OMNICHECK_AI_MIN_INTERVAL_SECONDS", "1")
     )
+    auto_ai_draft_all = (
+        ai_settings.enabled
+        and os.environ.get("OMNICHECK_AI_AUTO_DRAFT_ALL", "true").lower()
+        not in {"0", "false", "no"}
+    )
 
     stopping = False
 
@@ -229,6 +251,8 @@ def main() -> None:
             persist_results=persist_results,
             register_artifacts=register_artifacts,
             artifact_retention_days=artifact_retention_days,
+            ai_batch_store=ai_batches,
+            auto_ai_draft_all=auto_ai_draft_all,
         )
         if not processed:
             processed = run_ai_batch_once(

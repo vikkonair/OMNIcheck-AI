@@ -21,7 +21,7 @@ AI must remain optional and replaceable.
 - Never display source filenames, Drive paths, or a data-source field.
 - Omit last AutoVacuum and last AutoAnalyze history.
 - Limit schema privilege rows to 20.
-- Prioritize `idx_scan = 0` and limit rarely used indexes to 20 rows.
+- Prioritize `idx_scan = 0` and limit rarely used indexes to 10 rows.
 - Render complete current `pg_hba.conf` and `postgresql.auto.conf` inventories.
 - A first health check still assesses current security and configuration risks.
 - Put every non-normal result in section 5.2.

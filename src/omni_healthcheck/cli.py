@@ -20,7 +20,8 @@ from omni_healthcheck.rules import RulesConfigError, evaluate_rules, load_rules
 from omni_healthcheck.section_workflow import (
     SectionWorkflowDocument,
     apply_approved_narratives,
-    build_section_workflow,
+    apply_workflow_to_v4_report,
+    build_v4_section_workflow,
 )
 from omni_healthcheck.topology import build_scope_ledger, build_topology
 from omni_healthcheck.v4_adapter import build_v4_report
@@ -65,8 +66,11 @@ def run_generate(
         configuration_comparison,
         load_rules(rules_path),
     )
-    section_workflow = section_workflow_override or build_section_workflow(assessment)
-    report_assessment = apply_approved_narratives(assessment, section_workflow)
+    report_assessment = (
+        apply_approved_narratives(assessment, section_workflow_override)
+        if section_workflow_override is not None
+        else assessment
+    )
     coverage = build_coverage_ledger(job, normalized, assessment)
     qa_result = build_qa_result(
         job, inventory, scope_ledger, normalized, assessment, coverage
@@ -75,6 +79,10 @@ def run_generate(
         job, topology, normalized, report_assessment, coverage, configuration_comparison
     )
     v4_report = build_v4_report(report_model, scope_ledger, input_dir)
+    section_workflow = section_workflow_override or build_v4_section_workflow(
+        v4_report, assessment.ruleset_version
+    )
+    v4_report = apply_workflow_to_v4_report(v4_report, section_workflow)
     v4_qa = validate_v4_report(
         v4_report, scope_ledger, raise_on_failure=False
     )

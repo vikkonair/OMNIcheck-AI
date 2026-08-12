@@ -188,7 +188,7 @@ def test_web_discovers_topology_without_persisting_samples(tmp_path: Path) -> No
         ],
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     body = response.json()
     assert body["confirmation_required"] is True
     assert body["can_confirm"] is True
@@ -352,6 +352,36 @@ def test_ai_batch_api_queues_and_worker_generates_sequential_drafts(tmp_path: Pa
     updated = client.get(f"/api/jobs/{job_id}/sections").json()[:2]
     assert all(item["workflow_status"] == "ai_drafted" for item in updated)
     assert all(item["selected_source"] == "deterministic_template" for item in updated)
+
+
+def test_bulk_approval_promotes_every_ai_draft(tmp_path: Path) -> None:
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'bulk-approval.db'}")
+    metadata.create_schema_for_test()
+    client = TestClient(create_app(
+        data_root=tmp_path / "jobs", metadata_store=metadata,
+    ))
+    job_id = client.post("/api/jobs", json=_config()).json()["job_id"]
+    metadata.update(job_id, status="succeeded")
+    sections = SectionWorkflowStore(engine=metadata.engine)
+    sections.persist_baseline(job_id, build_section_workflow(assessment_document()))
+    row = sections.list_items(job_id)[0]
+    sections.transition(
+        job_id, row["item_id"], expected_revision=row["revision"],
+        action="ai_drafted", actor="ai:test",
+        observation="AI 整批草稿。\n結論：仍需工程師核准。",
+        recommendation="確認後採用。",
+    )
+
+    response = client.post(
+        f"/api/jobs/{job_id}/sections/approve-all",
+        json={"actor": "engineer-a"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["approved"] == 1
+    approved = sections.list_items(job_id)[0]
+    assert approved["workflow_status"] == "approved"
+    assert approved["selected_source"] == "approved"
+    assert approved["approved"]["observation"].startswith("AI 整批草稿")
 
 
 def test_ai_batch_rejects_disabled_gateway_and_stale_revision(tmp_path: Path) -> None:

@@ -13,7 +13,9 @@ from omni_healthcheck.section_workflow import (
     approve_review,
     attach_ai_draft,
     apply_approved_narratives,
+    apply_workflow_to_v4_report,
     build_section_workflow,
+    build_v4_section_workflow,
     review_draft,
 )
 
@@ -125,3 +127,40 @@ def test_renderer_overlay_uses_only_approved_or_deterministic() -> None:
     rendered = apply_approved_narratives(assessment, approved_document)
     assert rendered.assessments[0].observation == "工程師觀察"
     assert rendered.assessments[0].recommendation == "工程師建議"
+
+
+def test_v4_workflow_covers_visible_text_and_monitoring_image(tmp_path) -> None:
+    image = tmp_path / "cpu.png"
+    image.write_bytes(b"not-real-image")
+    report = {"chapters": [{"sections": [{
+        "number": "3.8",
+        "items": [
+            {
+                "title": "Table Bloat", "status": "注意", "node": "primary",
+                "observation": "原始觀察。\n結論：需要處理。",
+                "recommendation": "執行 VACUUM FULL。", "evidence": {"rows": []},
+            },
+            {
+                "title": "CPU 使用率", "status": "待確認", "node": "primary",
+                "observation": "已納入圖表。\n結論：待確認。",
+                "recommendation": "確認趨勢。",
+                "evidence": {"type": "image", "path": str(image)},
+            },
+        ],
+    }]}]}
+
+    workflow = build_v4_section_workflow(report, "2026.2")
+    assert len(workflow.items) == 2
+    assert workflow.items[0].check_id == "table_bloat"
+    assert workflow.items[1].check_id == "monitoring_cpu"
+    assert workflow.items[1].media is not None
+    assert workflow.items[1].media.path == str(image)
+
+    approved = approve_review(review_draft(
+        workflow.items[0], observation="覆核觀察。", recommendation="覆核建議。"
+    ))
+    updated = apply_workflow_to_v4_report(
+        report, workflow.model_copy(update={"items": [approved, workflow.items[1]]})
+    )
+    assert updated["chapters"][0]["sections"][0]["items"][0]["observation"] == "覆核觀察。"
+    assert updated["chapters"][0]["sections"][0]["items"][1]["observation"] == "已納入圖表。\n結論：待確認。"
