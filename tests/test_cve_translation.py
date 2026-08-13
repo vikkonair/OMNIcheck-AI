@@ -32,7 +32,9 @@ def test_cve_translation_only_adds_chinese_presentation_text() -> None:
         "cvss_score": "7.5", "fixed_version": "16.5",
     }]}]}
 
-    translated = translate_cve_report(report, job_id="a" * 32, gateway=gateway)
+    translated = translate_cve_report(
+        report, job_id="a" * 32, item_id="b" * 32, gateway=gateway
+    )
     cve = translated["version_updates"][0]["cves"][0]
     assert cve["summary"] == "Fix a security issue in database server."
     assert cve["summary_zh"] == "修正資料庫伺服器的安全性問題"

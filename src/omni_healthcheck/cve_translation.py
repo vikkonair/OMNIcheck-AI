@@ -33,7 +33,7 @@ def _content(response: dict[str, Any]) -> dict[str, Any]:
 
 
 def translate_cve_report(
-    report: dict[str, Any], *, job_id: str, gateway: OllamaGateway
+    report: dict[str, Any], *, job_id: str, item_id: str, gateway: OllamaGateway
 ) -> dict[str, Any]:
     """Add Chinese repair summaries in bounded, auditable batches.
 
@@ -70,7 +70,7 @@ def translate_cve_report(
         }
         request_id = gateway.audit_store.start(
             job_id=job_id,
-            item_id=f"cve-translation-{offset // 20 + 1}",
+            item_id=item_id,
             provider="ollama",
             model=gateway.settings.model,
             prompt_version="cve-repair-translation-v1",

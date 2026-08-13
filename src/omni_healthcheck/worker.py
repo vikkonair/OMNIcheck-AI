@@ -230,10 +230,6 @@ def run_once(
             cve_report = cve_store.report_section(
                 job_id=job_id, stale_after_days=cve_stale_after_days,
             )
-            if ai_gateway is not None:
-                cve_report = translate_cve_report(
-                    cve_report, job_id=job_id, gateway=ai_gateway
-                )
             if not cve_report["delivery_allowed"]:
                 raise RuntimeError("CVE quality gate failed: " + cve_report["message"])
             mark_stage("cve_matching_and_translation", stage_started)
@@ -248,6 +244,18 @@ def run_once(
             persisted = section_store.persist_baseline(
                 job_id, workflow
             )
+            # The AI audit table intentionally requires a real section item.
+            # Translate CVE presentation text only after the baseline has been
+            # persisted; facts, matching and CVSS remain deterministic.
+            if cve_report is not None and ai_gateway is not None:
+                workflow_items = section_store.list_items(job_id)
+                if workflow_items:
+                    cve_report = translate_cve_report(
+                        cve_report,
+                        job_id=job_id,
+                        item_id=str(workflow_items[0]["item_id"]),
+                        gateway=ai_gateway,
+                    )
             delivery_batches = []
             if auto_ai_draft_all and ai_batch_store is not None:
                 if ai_gateway is None:
