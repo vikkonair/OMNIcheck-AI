@@ -375,7 +375,27 @@ class CVECacheStore:
             latest = self._latest_same_major(connection, str(rows[0]["product_id"]), current)
         current_version, latest_version = _version(current), _version(latest) if latest else None
         is_current = bool(current_version and latest_version and current_version >= latest_version)
-        cves = [] if is_current else [{"id": row["cve_id"], "summary": row["summary"], "cvss_score": str(row["cvss_score"] or "未公布／待確認"), "severity": row["severity"] or "未公布／待確認", "cvss_version": row["cvss_version"] or "未公布／待確認", "vector": row["cvss_vector"] or "未公布／待確認", "score_source": row["match_evidence"].get("source_url", "未提供"), "match_status": row["match_status"], "affected_version": f">= {row['match_evidence'].get('affected_from') or '-'}，< {row['match_evidence'].get('affected_before') or '-'}", "fixed_version": "、".join(row["match_evidence"].get("fixed_versions") or []) or "待確認", "source": row["match_evidence"].get("source_url", "未提供"), "component": "核心資料庫" } for row in applicable]
+        cves = [] if is_current else [{
+            "id": row["cve_id"],
+            "summary": row["summary"],
+            # Numeric zero is a valid published CVSS value.  Never use a
+            # truthiness fallback here, otherwise 0.0 is rendered as unknown.
+            "cvss_score": (
+                str(row["cvss_score"])
+                if row["cvss_score"] is not None
+                else "未公布／待確認"
+            ),
+            "severity": row["severity"] or "未公布／待確認",
+            "cvss_version": row["cvss_version"] or "未公布／待確認",
+            "vector": row["cvss_vector"] or "未公布／待確認",
+            "score_source": row["match_evidence"].get("source_url", "未提供"),
+            "match_status": row["match_status"],
+            "affected_version": f">= {row['match_evidence'].get('affected_from') or '-'}，< {row['match_evidence'].get('affected_before') or '-'}",
+            "fixed_version": "、".join(row["match_evidence"].get("fixed_versions") or []) or "待確認",
+            "source": row["match_evidence"].get("source_url", "未提供"),
+            "component": "核心資料庫",
+            "summary_zh": str((row["raw"] or {}).get("summary_zh") or ""),
+        } for row in applicable]
         status = "stale" if stale else "ready"
         eol_message = _eol_message(str(rows[0]["product_id"]), current)
         latest_display = _display_version(latest)

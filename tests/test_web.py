@@ -74,6 +74,22 @@ def test_web_job_lifecycle_runs_existing_pipeline(tmp_path: Path) -> None:
     assert json.loads(qa.content)["delivery_allowed"] is True
 
 
+def test_web_returns_execution_profile_for_completed_job(tmp_path: Path) -> None:
+    app = create_app(data_root=tmp_path / "jobs")
+    client = TestClient(app)
+    job_id = client.post("/api/jobs", json=_config()).json()["job_id"]
+    store = app.state.job_store
+    store.update(job_id, status="succeeded")
+    store.paths(job_id)["output"].joinpath("execution-profile.json").write_text(
+        json.dumps({"total_duration_ms": 1234, "stages": [
+            {"name": "deterministic_pipeline", "duration_ms": 900},
+        ]}), encoding="utf-8"
+    )
+    response = client.get(f"/api/jobs/{job_id}/execution-profile")
+    assert response.status_code == 200
+    assert response.json()["stages"][0]["duration_ms"] == 900
+
+
 def test_web_rejects_path_traversal_and_empty_run(tmp_path: Path) -> None:
     app = create_app(
         data_root=tmp_path / "jobs",

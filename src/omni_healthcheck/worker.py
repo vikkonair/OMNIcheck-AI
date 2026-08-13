@@ -18,6 +18,7 @@ from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.cve import CVECacheStore
+from omni_healthcheck.cve_translation import translate_cve_report
 from omni_healthcheck.history import build_job_history
 from omni_healthcheck.job_store import JobStore
 from omni_healthcheck.pipeline_persistence import PipelineResultStore
@@ -148,13 +149,38 @@ def run_once(
     if heartbeat_seconds > 0:
         heartbeat_thread = threading.Thread(target=heartbeat, daemon=True)
         heartbeat_thread.start()
+    profile_started = time.monotonic()
+    profile: dict = {"schema_version": "1.0", "stages": []}
+    paths: dict | None = None
+
+    def mark_stage(name: str, started: float) -> None:
+        profile["stages"].append({
+            "name": name,
+            "duration_ms": round((time.monotonic() - started) * 1000),
+        })
+
+    def write_profile(status: str, error: str | None = None) -> None:
+        if paths is None:
+            return
+        profile["status"] = status
+        profile["total_duration_ms"] = round((time.monotonic() - profile_started) * 1000)
+        if error:
+            profile["error"] = error
+        (paths["output"] / "execution-profile.json").write_text(
+            json.dumps(profile, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
     try:
         paths = store.paths(job_id)
         # A metadata-backed job gets a durable comparison result below.  Keep
         # the report contract explicit for lightweight/local worker callers.
         history: dict = {"status": "no_prior_baseline", "changes": [], "summary": {}}
+        stage_started = time.monotonic()
         run_generate(paths["job"], paths["input"], paths["output"], rules_path)
+        mark_stage("deterministic_pipeline", stage_started)
         if store.metadata_store is not None:
+            stage_started = time.monotonic()
             history = build_job_history(
                 current_job=job, current_output_dir=paths["output"],
                 jobs=store.metadata_store.list(),
@@ -163,6 +189,7 @@ def run_once(
                 json.dumps(history, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
+            mark_stage("historical_comparison", stage_started)
         customer_id = job.get("customer_id")
         system_id = job.get("system_id")
         if (persist_results or register_artifacts) and (customer_id or system_id):
@@ -171,12 +198,14 @@ def run_once(
             if store.metadata_store is None:
                 raise RuntimeError("Pipeline results require database metadata")
         if persist_results and customer_id and system_id:
+            stage_started = time.monotonic()
             PipelineResultStore(engine=store.metadata_store.engine).persist(
                 job_id=job_id,
                 customer_id=str(customer_id),
                 system_id=str(system_id),
                 output_dir=paths["output"],
             )
+            mark_stage("pipeline_result_persistence", stage_started)
         cve_report = None
         # CVE applicability is scoped by immutable Job evidence and the
         # authoritative Cache, not by a tenant identity.  The classic UI is
@@ -192,6 +221,7 @@ def run_once(
             and store.metadata_store is not None
             and normalized_path.is_file()
         ):
+            stage_started = time.monotonic()
             normalized = NormalizedDocument.model_validate(json.loads(
                 normalized_path.read_text(encoding="utf-8")
             ))
@@ -200,9 +230,15 @@ def run_once(
             cve_report = cve_store.report_section(
                 job_id=job_id, stale_after_days=cve_stale_after_days,
             )
+            if ai_gateway is not None:
+                cve_report = translate_cve_report(
+                    cve_report, job_id=job_id, gateway=ai_gateway
+                )
             if not cve_report["delivery_allowed"]:
                 raise RuntimeError("CVE quality gate failed: " + cve_report["message"])
+            mark_stage("cve_matching_and_translation", stage_started)
         if persist_results:
+            stage_started = time.monotonic()
             if store.metadata_store is None:
                 raise RuntimeError("Section Workflow persistence requires database metadata")
             workflow = SectionWorkflowDocument.model_validate(
@@ -266,7 +302,10 @@ def run_once(
                     paths["job"], paths["input"], paths["output"], rules_path,
                     cve_report=cve_report, history_report=history,
                 )
+            mark_stage("section_workflow_ai_and_final_report", stage_started)
+        write_profile("succeeded")
         if register_artifacts and customer_id and system_id:
+            stage_started = time.monotonic()
             ArtifactRegistry(engine=store.metadata_store.engine).register_outputs(
                 job_id=job_id,
                 customer_id=str(customer_id),
@@ -275,7 +314,10 @@ def run_once(
                 data_root=store.root.parent,
                 retention_days=artifact_retention_days,
             )
+            mark_stage("artifact_registration", stage_started)
+            write_profile("succeeded")
     except Exception as exc:
+        write_profile("failed", str(exc))
         store.fail(
             job_id,
             worker_id,

@@ -29,6 +29,7 @@ RED = "C00000"
 GRAY = "7F7F7F"
 WHITE = "FFFFFF"
 CJK_FONT = "Microsoft JhengHei"
+LOGO_PATH = Path(__file__).parents[1] / "assets" / "omniwaresoft-logo.png"
 VALID_STATUSES = {"正常", "注意", "待確認", "異常", "資料不足", "不適用"}
 STATUS_COLOR = {
     "正常": GREEN,
@@ -178,6 +179,39 @@ def add_page_number(paragraph) -> None:
     format_run(run, size=8, color=GRAY)
 
 
+def _bookmark_name(number: str) -> str:
+    """Return a stable Word bookmark identifier for a numbered heading."""
+    safe = re.sub(r"[^A-Za-z0-9_]", "_", number.strip().strip("."))
+    return f"toc_{safe or 'root'}"
+
+
+def add_bookmark(paragraph, name: str) -> None:
+    start = OxmlElement("w:bookmarkStart")
+    start.set(qn("w:id"), str(abs(hash(name)) % 2_000_000_000))
+    start.set(qn("w:name"), name)
+    end = OxmlElement("w:bookmarkEnd")
+    end.set(qn("w:id"), start.get(qn("w:id")))
+    paragraph._p.insert(0, start)
+    paragraph._p.append(end)
+
+
+def add_page_reference(paragraph, bookmark: str) -> None:
+    run = paragraph.add_run()
+    begin = OxmlElement("w:fldChar")
+    begin.set(qn("w:fldCharType"), "begin")
+    instruction = OxmlElement("w:instrText")
+    instruction.set(qn("xml:space"), "preserve")
+    instruction.text = f" PAGEREF {bookmark} \\h "
+    separate = OxmlElement("w:fldChar")
+    separate.set(qn("w:fldCharType"), "separate")
+    placeholder = OxmlElement("w:t")
+    placeholder.text = "?"
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    run._r.extend([begin, instruction, separate, placeholder, end])
+    format_run(run, size=10, color=GRAY)
+
+
 def configure_document(doc: Document) -> None:
     section = doc.sections[0]
     section.page_width = Cm(21)
@@ -293,8 +327,15 @@ def validate_cve_metadata(data: dict[str, Any]) -> None:
 
 
 def add_cover(doc: Document, data: dict[str, Any]) -> None:
-    for _ in range(3):
+    # Logo and the additional top spacing intentionally move the complete
+    # existing cover composition lower, leaving the bottom less empty.
+    for _ in range(2):
         doc.add_paragraph()
+    if LOGO_PATH.is_file():
+        logo = doc.add_paragraph()
+        logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        logo.paragraph_format.space_after = Pt(12)
+        logo.add_run().add_picture(str(LOGO_PATH), width=Cm(7.2))
     product = data.get("product", {})
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -357,7 +398,9 @@ def add_cover(doc: Document, data: dict[str, Any]) -> None:
 
 def add_heading(doc: Document, number: str, title: str, level: int) -> None:
     text = f"{number} {title}".strip()
-    doc.add_heading(text, level=level)
+    paragraph = doc.add_heading(text, level=level)
+    if number.strip():
+        add_bookmark(paragraph, _bookmark_name(number))
 
 
 def report_prose(value: Any) -> str:
@@ -474,17 +517,38 @@ def complete_summary(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 def add_contents(doc: Document, data: dict[str, Any]) -> None:
     add_heading(doc, "", "目錄", 1)
-    entries = [("1", "專案說明"), ("2", "系統架構與環境")]
+    entries = [
+        ("1.", "專案說明", 1),
+        ("1.1", "專案背景與目的", 2),
+        ("1.2", "維護週期與健檢頻率", 2),
+        ("2.", "系統架構與環境", 1),
+        ("2.1", "架構總覽", 2),
+        ("2.2", "軟體與網路架構", 2),
+    ]
     for chapter in data.get("chapters", []):
-        entries.append((str(chapter.get("number", "")), chapter.get("title", "")))
-    next_number = max([int(n) for n, _ in entries if n.isdigit()] or [2]) + 1
+        chapter_number = str(chapter.get("number", ""))
+        entries.append((f"{chapter_number}.", chapter.get("title", ""), 1))
+        for section in chapter.get("sections", []):
+            entries.append((str(section.get("number", "")), section.get("title", ""), 2))
+    next_number = max([int(str(number).strip(".")) for number, _, _ in entries if str(number).strip(".").isdigit()] or [2]) + 1
+    if (data.get("history_comparison") or {}).get("status") == "ready":
+        entries.append((f"{next_number}.", "歷史健檢比較", 1))
+        if (data.get("history_comparison") or {}).get("changes"):
+            entries.append((f"{next_number}.1", "重要差異明細", 2))
+        next_number += 1
     if data.get("version_updates") or complete_summary(data):
-        entries.append((str(next_number), "更新與建議"))
-    for number, title in entries:
+        entries.append((f"{next_number}.", "更新與建議", 1))
+        if data.get("version_updates"):
+            entries.append((f"{next_number}.1", "版本更新資訊摘要", 2))
+        if complete_summary(data):
+            entries.append((f"{next_number}.2", "健檢結論與優化建議", 2))
+    for number, title, level in entries:
         p = doc.add_paragraph()
-        p.paragraph_format.left_indent = Cm(0.4)
-        r = p.add_run(f"{number}. {title}")
-        format_run(r, size=11, bold=True, color=BLUE)
+        p.paragraph_format.left_indent = Cm(0.35 if level == 1 else 0.85)
+        r = p.add_run(f"{str(number).rstrip('.')}. {title}")
+        format_run(r, size=10.5 if level == 1 else 9.5, bold=level == 1, color=BLUE)
+        p.add_run(" " + "." * 34 + " ")
+        add_page_reference(p, _bookmark_name(number))
     doc.add_page_break()
 
 
@@ -865,31 +929,27 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
                     vector or "未公布／待確認",
                     str(cve.get("score_source", "未公布／待確認")),
                 ]
-                cve_rows.append(
-                    (
-                        cve.get("fixed_version", "待確認"),
-                        cve.get("id", ""),
-                        cve.get("severity", "未公布／待確認"),
-                        cvss,
-                        cve.get("component", "核心資料庫"),
-                        cve.get("summary", ""),
-                    )
-                )
+                cve_rows.append((
+                    cve.get("fixed_version", "待確認"),
+                    cve.get("id", ""),
+                    cvss,
+                    cve.get("component", "核心資料庫"),
+                    cve.get("summary_zh") or cve.get("summary", ""),
+                ))
         if cve_rows:
             p = doc.add_paragraph()
             r = p.add_run("可修正 CVE 清單")
             format_run(r, size=10, bold=True, color=BLUE)
-            cve_table = doc.add_table(rows=1, cols=6)
-            for index, value in enumerate(("版本", "CVE", "嚴重程度", "CVSS", "元件", "修正內容")):
+            cve_table = doc.add_table(rows=1, cols=5)
+            for index, value in enumerate(("版本", "CVE", "CVSS", "元件", "修正內容")):
                 cve_table.rows[0].cells[index].text = value
-            for version, cve_id, severity, cvss, component, cve_summary in cve_rows:
+            for version, cve_id, cvss, component, cve_summary in cve_rows:
                 cells = cve_table.add_row().cells
                 cells[0].text = str(version)
                 cells[1].text = str(cve_id)
-                cells[2].text = str(severity)
-                cells[3].text = str(cvss)
-                cells[4].text = str(component)
-                cells[5].text = report_prose(cve_summary)
+                cells[2].text = str(cvss)
+                cells[3].text = str(component)
+                cells[4].text = report_prose(cve_summary)
             style_table(cve_table)
     if summary:
         add_heading(doc, f"{number}.2", "健檢結論與優化建議", 2)

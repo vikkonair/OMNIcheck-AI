@@ -246,7 +246,7 @@ def test_adapter_passes_deterministic_cve_cache_to_v4_contract(tmp_path: Path) -
 
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
-    assert digest == "f5d71b770657b87db3aac7b8ff85c31966de08b56331c882fe1014fa511183bd"
+    assert digest == "cff4dede7b4199d82659335dab453772f65d6255ea924ceef302ea669bb29c0d"
 
 
 def test_renderer_finds_vendor_from_release_working_directory(tmp_path: Path, monkeypatch) -> None:

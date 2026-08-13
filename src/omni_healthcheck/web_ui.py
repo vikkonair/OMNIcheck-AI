@@ -67,6 +67,9 @@ INDEX_HTML = r"""<!doctype html>
     .download-list { display:grid; gap:8px; margin-top:12px; }
     .download-list a { display:flex; justify-content:space-between; padding:10px 12px;
       border:1px solid var(--line); border-radius:7px; color:var(--brand-dark); text-decoration:none; }
+    .timing-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin:12px 0; }
+    .timing-item { padding:10px 12px; border-radius:7px; background:#f4f8fa; border:1px solid var(--line); }
+    .timing-item span { display:block; color:var(--muted); font-size:12px; margin-bottom:3px; }
     .job-identity { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0 14px;
       padding:9px 11px; border-radius:7px; background:#f4f8fa; }
     .job-identity code { overflow-wrap:anywhere; color:var(--brand-dark); }
@@ -149,6 +152,7 @@ INDEX_HTML = r"""<!doctype html>
     <div id="resultSummary"></div>
     <div class="job-identity"><strong>Job ID</strong><code id="resultJobId"></code>
       <button type="button" class="secondary" id="copyJobId">複製</button></div>
+    <h3>執行時間</h3><div class="timing-list" id="executionTiming"><div class="timing-item">載入中…</div></div>
     <div class="download-list" id="reportDownloads"></div>
     <details class="disclosure" id="optionalOutputs">
       <summary>工程師進階檔案（JSON／QA／內部產物）</summary>
@@ -350,6 +354,7 @@ function showResult(job) {
   el('resultSection').classList.remove('hidden'); el('step4').classList.add('active');
   el('resultSummary').textContent = `${job.customer}｜${job.period}｜狀態：${job.status}`;
   el('resultJobId').textContent=job.job_id; state.jobId=job.job_id;
+  loadExecutionProfile(job.job_id);
   const reports=el('reportDownloads'); const technical=el('technicalDownloads'); reports.replaceChildren(); technical.replaceChildren();
   (job.outputs || []).forEach(output => {
     const link=document.createElement('a'); link.href=`/api/jobs/${job.job_id}/outputs/${encodeURIComponent(output.name)}`;
@@ -359,6 +364,29 @@ function showResult(job) {
   });
   el('optionalOutputs').classList.toggle('hidden',technical.children.length===0);
   el('resultSection').scrollIntoView({behavior:'smooth'});
+}
+function durationText(milliseconds) {
+  const seconds=Number(milliseconds || 0)/1000;
+  return seconds >= 60 ? `${Math.floor(seconds/60)} 分 ${Math.round(seconds%60)} 秒` : `${seconds.toFixed(1)} 秒`;
+}
+const TIMING_LABELS={
+  deterministic_pipeline:'資料解析、規則與初版報告',
+  historical_comparison:'歷史健檢比較',
+  pipeline_result_persistence:'結果寫入 EDB',
+  cve_matching_and_translation:'CVE 比對與中文翻譯',
+  section_workflow_ai_and_final_report:'AI 草稿與正式報告',
+  artifact_registration:'報告封存',
+};
+async function loadExecutionProfile(jobId) {
+  const target=el('executionTiming');
+  try {
+    const profile=await api(`/api/jobs/${jobId}/execution-profile`); target.replaceChildren();
+    (profile.stages || []).forEach(stage => { const card=document.createElement('div'); card.className='timing-item';
+      const label=document.createElement('span'); label.textContent=TIMING_LABELS[stage.name] || stage.name;
+      const value=document.createElement('strong'); value.textContent=durationText(stage.duration_ms); card.append(label,value); target.append(card); });
+    const total=document.createElement('div'); total.className='timing-item';
+    total.innerHTML=`<span>總執行時間</span><strong>${durationText(profile.total_duration_ms)}</strong>`; target.append(total);
+  } catch(error) { target.textContent='本次案件尚無各階段時間資料。'; }
 }
 async function refreshJobs() {
   try {

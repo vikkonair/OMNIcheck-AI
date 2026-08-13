@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
@@ -290,6 +291,17 @@ def create_app(
         if metadata["status"] != "succeeded":
             raise HTTPException(status_code=409, detail="job output is not ready")
         return store.outputs(job_id)
+
+    @app.get("/api/jobs/{job_id}/execution-profile")
+    def execution_profile(job_id: str) -> dict:
+        metadata = job_or_404(job_id)
+        if metadata["status"] not in {"succeeded", "failed"}:
+            raise HTTPException(status_code=409, detail="execution profile is not ready")
+        try:
+            path = store.output_path(job_id, "execution-profile.json")
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="execution profile is unavailable") from exc
+        return json.loads(path.read_text(encoding="utf-8"))
 
     @app.get("/api/jobs/{job_id}/sections")
     def list_sections(job_id: str) -> list[dict]:
