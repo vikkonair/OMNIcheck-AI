@@ -82,6 +82,8 @@
 
 2026-08-13 M12 公司 E2E 完成：release `46bd7e4` 已部署至公司 App VM，application rollback=`14fe797`，無 migration。Worker 以同 customer／system_name／product 與較早 created_at 尋找最新成功 Job；比較僅讀兩期 immutable `normalized.json`、`assessment.json`，產生 `history-comparison.json`，再以 V4 report JSON 將 ready 結果輸出為「歷史健檢比較」章節。隔離驗證 Job `d654d97f9a7f41ee8e3b28ef81982479` 由既有 `6310338ddc054beebdd523a3e7211dac` 的 immutable input 複本建立，成功找到 prior Job `6310338ddc054beebdd523a3e7211dac`，差異統計為新增／移除／改善／惡化／證據變更皆 0；`v4-qa-result.json.delivery_allowed=true`，PDF 文字層含「6. 歷史健檢比較」。建立驗證副本時曾因 root 擁有目錄使 Worker 無法寫入，僅修正該驗證 Job 的 owner 後重排；部署與一般 UI 建立 Job 均以 `omnicheck` 使用者寫入。此功能不呼叫 AI、不改變當期 Rule 結果、Primary-only scope 或 UI 的無登入模式。
 
+2026-08-13 報告交付與可觀測性更新：release `5f629d8` 已部署，application rollback=`e3b9c83`，無 migration。Worker 在每個 Job 輸出 `execution-profile.json`，記錄 deterministic pipeline、歷史比較、EDB persistence、CVE 比對／中文翻譯、AI 草稿／正式報告與 artifact registration 的 duration；Web 結果畫面於成功或失敗後以 API 顯示各階段與總耗時。V4 封面採 repository 受版控的 `vendor/omni-v4-renderer/assets/omniwaresoft-logo.png`（SHA-256 `44e83d4b…6578821`），既有元件下移；目錄列出章節與子章節，使用 Word `PAGEREF` 欄位取得 PDF 實際頁碼。CVE 表格移除嚴重程度欄位，改為版本／CVE／CVSS／元件／修正內容；CVSS `0.0` 亦不得被誤判為未公布。官方英文 CVE 修正內容由可選 Ollama 翻譯為繁中 presentation text，原文、CVE ID、版本、CVSS、來源與適用性仍由 deterministic cache／matcher 決定；翻譯失敗即回退原文。因舊 EDB official advisory cache 有些缺少 lower bound，僅對同 Major、EDB official、具 fixed version 的項目推論 `Major.0` 下界，並在 match evidence 記錄 `affected_from_inferred=true`；不放寬 NVD／generic source。隔離 EPAS 16.4 驗證 Job `c39f0c08e37949ab93c007a803c2c4e5` 成功：18 CVE、首筆 CVSS=4.2、修正內容為繁中、V4 QA allowed、DOCX／PDF 產出；execution profile 總計 93.4 秒（deterministic 4.5 秒、history 0.01 秒、CVE 0.17 秒、AI＋正式報告 88.7 秒）。
+
 ## 3. 目前整體架構
 
 ```text
