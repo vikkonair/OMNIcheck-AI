@@ -88,6 +88,25 @@ def test_epas_upstream_postgresql_cve_is_not_reported_as_confirmed(tmp_path) -> 
     assert "EDB" in matches[0]["match_reason"]
 
 
+def test_edb_official_legacy_upper_bound_infers_same_major_floor(tmp_path) -> None:
+    store = CVECacheStore(f"sqlite+pysqlite:///{tmp_path / 'edb-floor.sqlite'}")
+    store.create_schema_for_test()
+    store.import_snapshot(
+        product_id="epas", source_key="edb_security",
+        releases=[{"version": "16.14", "source_url": "https://example.invalid/16.14"}],
+        cves=[{
+            "cve_id": "CVE-2026-9999", "summary": "official EDB advisory",
+            "affected_major": "16", "affected_from": None,
+            "affected_before": "16.14", "fixed_versions": ["16.14"],
+            "cvss_score": 7.5,
+        }],
+    )
+    matches = store.match_job(job_id="d" * 32, normalized=normalized("16.4"))
+    assert matches[0]["match_status"] == "applicable"
+    assert matches[0]["match_evidence"]["affected_from"] == "16.0"
+    assert matches[0]["match_evidence"]["affected_from_inferred"] is True
+
+
 def test_latest_minor_suppresses_historical_cves_and_ignores_generic_nvd(tmp_path) -> None:
     store = CVECacheStore(f"sqlite+pysqlite:///{tmp_path / 'latest.sqlite'}")
     store.create_schema_for_test()

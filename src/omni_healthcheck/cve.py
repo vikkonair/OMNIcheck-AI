@@ -322,14 +322,28 @@ class CVECacheStore:
                 allowed_sources = ["edb_security"] if product.product_id == "epas" else ["postgresql_security"]
                 if product.product_id == "epas":
                     allowed_sources.append("postgresql_security")
-                impacts = connection.execute(select(cve_product_impacts, cve_entries, cve_sources).join(cve_entries, cve_entries.c.cve_id == cve_product_impacts.c.cve_id).join(cve_sources, cve_sources.c.source_id == cve_product_impacts.c.source_id).where(and_(cve_product_impacts.c.product_id.in_(candidate_products), cve_product_impacts.c.component_id.is_(None), cve_product_impacts.c.affected_major.in_([installed_major, "__all__"]), cve_sources.c.source_key.in_(allowed_sources), cve_product_impacts.c.affected_from.is_not(None), cve_product_impacts.c.affected_before.is_not(None))).order_by(cve_product_impacts.c.source_priority)).mappings().all()
+                impacts = connection.execute(select(cve_product_impacts, cve_entries, cve_sources).join(cve_entries, cve_entries.c.cve_id == cve_product_impacts.c.cve_id).join(cve_sources, cve_sources.c.source_id == cve_product_impacts.c.source_id).where(and_(cve_product_impacts.c.product_id.in_(candidate_products), cve_product_impacts.c.component_id.is_(None), cve_product_impacts.c.affected_major.in_([installed_major, "__all__"]), cve_sources.c.source_key.in_(allowed_sources), cve_product_impacts.c.affected_before.is_not(None))).order_by(cve_product_impacts.c.source_priority)).mappings().all()
                 impacts.sort(key=lambda item: (0 if item["product_id"] == product.product_id else 1, item["source_priority"]))
                 seen: set[str] = set()
                 for impact in impacts:
                     cve_id = str(impact["cve_id"])
                     if cve_id in seen: continue
                     seen.add(cve_id)
-                    in_range = _in_range(product.installed_version, impact["affected_from"], impact["affected_before"])
+                    affected_from = impact["affected_from"]
+                    affected_before = impact["affected_before"]
+                    # Older EDB official cache rows can state only "prior to
+                    # 16.14".  For the same EPAS Major this is a bounded,
+                    # auditable range from Major.0—not a generic NVD guess.
+                    inferred_lower = False
+                    if (
+                        not affected_from
+                        and impact["source_key"] == "edb_security"
+                        and str(impact["product_id"]) in {"edb", "epas"}
+                        and str(affected_before).split(".", 1)[0] == installed_major
+                    ):
+                        affected_from = f"{installed_major}.0"
+                        inferred_lower = True
+                    in_range = _in_range(product.installed_version, affected_from, affected_before)
                     if impact["rejected"]: status, reason = "not_applicable", "CVE 已被權威來源標示為 rejected"
                     elif in_range is None: status, reason = "pending_confirmation", "版本範圍格式不足以確定比對結果"
                     elif in_range and product.product_id == "epas" and impact["product_id"] == "postgresql":
@@ -337,7 +351,7 @@ class CVECacheStore:
                     elif in_range: status, reason = "applicable", "安裝版本位於權威來源定義的影響範圍內"
                     else: status, reason = "fixed", "安裝版本不在影響範圍內，已達修補版本或不受影響"
                     sync_at = impact["fetched_at"] or now
-                    match = dict(job_cve_match_id=_id(), job_id=job_id, cve_id=cve_id, product_id=product.product_id, component_id=None, installed_version=product.installed_version, match_status=status, match_reason=reason, match_evidence={"product_version_evidence": product.evidence, "affected_from": impact["affected_from"], "affected_before": impact["affected_before"], "fixed_versions": impact["fixed_versions"], "source_url": impact["source_url"], "source_key": impact["source_key"], "source_product": impact["product_id"]}, matcher_version=MATCHER_VERSION, source_snapshot_at=sync_at, cve_sync_run_id=impact["sync_run_id"], review_status="unreviewed", created_at=now)
+                    match = dict(job_cve_match_id=_id(), job_id=job_id, cve_id=cve_id, product_id=product.product_id, component_id=None, installed_version=product.installed_version, match_status=status, match_reason=reason, match_evidence={"product_version_evidence": product.evidence, "affected_from": affected_from, "affected_before": affected_before, "affected_from_inferred": inferred_lower, "fixed_versions": impact["fixed_versions"], "source_url": impact["source_url"], "source_key": impact["source_key"], "source_product": impact["product_id"]}, matcher_version=MATCHER_VERSION, source_snapshot_at=sync_at, cve_sync_run_id=impact["sync_run_id"], review_status="unreviewed", created_at=now)
                     connection.execute(delete(job_cve_matches).where(and_(job_cve_matches.c.job_id == job_id, job_cve_matches.c.cve_id == cve_id, job_cve_matches.c.product_id == product.product_id, job_cve_matches.c.component_id.is_(None))))
                     connection.execute(insert(job_cve_matches).values(**match)); results.append(match)
         return results
