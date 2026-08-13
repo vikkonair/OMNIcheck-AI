@@ -18,6 +18,7 @@ from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.database import DatabaseMetadataStore
 from omni_healthcheck.cve import CVECacheStore
+from omni_healthcheck.history import build_job_history
 from omni_healthcheck.job_store import JobStore
 from omni_healthcheck.pipeline_persistence import PipelineResultStore
 from omni_healthcheck.section_persistence import SectionWorkflowStore
@@ -150,6 +151,15 @@ def run_once(
     try:
         paths = store.paths(job_id)
         run_generate(paths["job"], paths["input"], paths["output"], rules_path)
+        if store.metadata_store is not None:
+            history = build_job_history(
+                current_job=job, current_output_dir=paths["output"],
+                jobs=store.metadata_store.list(),
+            )
+            (paths["output"] / "history-comparison.json").write_text(
+                json.dumps(history, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
         customer_id = job.get("customer_id")
         system_id = job.get("system_id")
         if (persist_results or register_artifacts) and (customer_id or system_id):

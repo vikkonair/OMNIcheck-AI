@@ -7,6 +7,7 @@ assessment output only.  It never uses AI and never changes current findings.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from omni_healthcheck.rules import AssessmentDocument
@@ -85,3 +86,56 @@ def load_history_inputs(output_dir) -> tuple[NormalizedDocument, AssessmentDocum
         (output_dir / "assessment.json").read_text(encoding="utf-8")
     ))
     return normalized, assessment
+
+
+def build_job_history(
+    *,
+    current_job: dict[str, Any],
+    current_output_dir: Path,
+    jobs: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Compare a Job with the newest compatible completed predecessor.
+
+    The classic UI has intentionally no Customer/System selector.  Until
+    internal identities are backfilled, matching is deliberately conservative:
+    exact customer and system name, same product, completed predecessor only.
+    """
+    customer = str(current_job.get("customer") or "").strip().casefold()
+    system = str(current_job.get("system_name") or "").strip().casefold()
+    product = str(current_job.get("product") or "").strip().casefold()
+    created_at = str(current_job.get("created_at") or "")
+    candidates = [
+        item for item in jobs
+        if item.get("job_id") != current_job.get("job_id")
+        and item.get("status") == "succeeded"
+        and str(item.get("customer") or "").strip().casefold() == customer
+        and str(item.get("system_name") or "").strip().casefold() == system
+        and str(item.get("product") or "").strip().casefold() == product
+        and str(item.get("created_at") or "") < created_at
+    ]
+    if not candidates:
+        return {
+            "schema_version": "1.0", "comparison_version": "m12.history.v1",
+            "status": "no_prior_baseline", "message": "尚無同客戶、系統與產品的前期完成案件可供比較。",
+            "changes": [], "summary": {},
+        }
+    prior = max(candidates, key=lambda item: str(item.get("created_at") or ""))
+    prior_output = current_output_dir.parent.parent / str(prior["job_id"]) / "output"
+    required = (prior_output / "normalized.json", prior_output / "assessment.json")
+    if not all(path.is_file() for path in required):
+        return {
+            "schema_version": "1.0", "comparison_version": "m12.history.v1",
+            "status": "prior_artifacts_unavailable", "message": "已找到前期案件，但其 Canonical 歷史產物不完整。",
+            "prior_job_id": prior["job_id"], "changes": [], "summary": {},
+        }
+    current_normalized, current_assessment = load_history_inputs(current_output_dir)
+    prior_normalized, prior_assessment = load_history_inputs(prior_output)
+    return {
+        "status": "ready",
+        "message": "已完成與前一期相同客戶／系統／產品案件的 deterministic 比較。",
+        **compare_snapshots(
+            current_normalized=current_normalized, current_assessment=current_assessment,
+            prior_normalized=prior_normalized, prior_assessment=prior_assessment,
+            prior_job_id=str(prior["job_id"]), prior_period=str(prior.get("period") or ""),
+        ),
+    }

@@ -34,3 +34,20 @@ def test_history_comparison_reports_status_direction_and_evidence_change() -> No
     assert result["summary"]["improved"] == 1
     assert result["changes"][0]["check_id"] == "filesystem_usage"
     assert result["changes"][0]["prior_status"] == "critical"
+
+
+def test_job_history_requires_exact_identity_and_uses_newest_prior(tmp_path) -> None:
+    from omni_healthcheck.history import build_job_history
+    current = tmp_path / "jobs" / ("b" * 32) / "output"
+    prior = tmp_path / "jobs" / ("a" * 32) / "output"
+    current.mkdir(parents=True); prior.mkdir(parents=True)
+    for target, normalized, assessment in ((current, _normalized("65%"), _assessment("attention")), (prior, _normalized("85%"), _assessment("critical"))):
+        (target / "normalized.json").write_text(normalized.model_dump_json(), encoding="utf-8")
+        (target / "assessment.json").write_text(assessment.model_dump_json(), encoding="utf-8")
+    result = build_job_history(
+        current_job={"job_id": "b" * 32, "customer": "Customer", "system_name": "System", "product": "EPAS", "created_at": "2026-08-02"},
+        current_output_dir=current,
+        jobs=[{"job_id": "a" * 32, "customer": "Customer", "system_name": "System", "product": "EPAS", "status": "succeeded", "period": "2026-H1", "created_at": "2026-08-01"}],
+    )
+    assert result["status"] == "ready"
+    assert result["prior_job_id"] == "a" * 32
