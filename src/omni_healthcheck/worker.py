@@ -165,9 +165,22 @@ def run_once(
                 output_dir=paths["output"],
             )
         cve_report = None
-        if cve_enabled and customer_id and system_id and store.metadata_store is not None:
+        # CVE applicability is scoped by immutable Job evidence and the
+        # authoritative Cache, not by a tenant identity.  The classic UI is
+        # intentionally usable without Login/RBAC, so do not silently omit
+        # CVE output for its unscoped Jobs.
+        # Some isolated test/integration callers substitute the baseline
+        # renderer and intentionally emit only a section workflow.  A real
+        # pipeline run always has normalized.json; without it there is no
+        # immutable version evidence on which a CVE decision may be made.
+        normalized_path = paths["output"] / "normalized.json"
+        if (
+            cve_enabled
+            and store.metadata_store is not None
+            and normalized_path.is_file()
+        ):
             normalized = NormalizedDocument.model_validate(json.loads(
-                (paths["output"] / "normalized.json").read_text(encoding="utf-8")
+                normalized_path.read_text(encoding="utf-8")
             ))
             cve_store = CVECacheStore(engine=store.metadata_store.engine)
             cve_store.match_job(job_id=job_id, normalized=normalized)

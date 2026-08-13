@@ -18,6 +18,7 @@ from omni_healthcheck.ai_gateway import AIGatewaySettings, OllamaGateway
 from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.section_persistence import SectionWorkflowStore
 from omni_healthcheck.section_workflow import build_section_workflow
+from omni_healthcheck.cve import CVECacheStore
 
 from test_section_workflow import assessment_document
 
@@ -219,9 +220,25 @@ def test_legacy_unscoped_worker_remains_compatible(tmp_path: Path) -> None:
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(source.read_bytes())
     jobs.update(job["job_id"], input_files=3, status="queued")
+    CVECacheStore(engine=metadata.engine).import_snapshot(
+        product_id="epas", source_key="edb_security", releases=[], cves=[{
+            "cve_id": "CVE-2026-3000",
+            "summary": "unscoped worker validation",
+            "affected_from": "16.0",
+            "affected_before": "16.15",
+            "fixed_versions": ["16.15"],
+            "cvss_score": 7.5,
+            "severity": "HIGH",
+            "cvss_version": "3.1",
+            "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+        }],
+    )
 
     run_once(jobs, "legacy-worker", ROOT / "config/rules.default.yaml", retry_seconds=0)
     assert jobs.get(job["job_id"])["status"] == "succeeded"
+    cve = json.loads((paths["output"] / "cve-result.json").read_text(encoding="utf-8"))
+    assert cve["status"] == "ready"
+    assert cve["version_updates"][0]["cves"][0]["id"] == "CVE-2026-3000"
 
 
 def test_persistence_failure_prevents_success(tmp_path: Path, monkeypatch) -> None:
