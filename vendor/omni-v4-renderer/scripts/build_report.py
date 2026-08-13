@@ -859,11 +859,7 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
         cve_rows = []
         for update in updates:
             for cve in update.get("cves") or []:
-                cvss_lines = [
-                    str(cve.get("cvss_score", "未公布／待確認")),
-                    str(cve.get("severity", "未公布／待確認")),
-                    str(cve.get("cvss_version", "未公布／待確認")),
-                ]
+                cvss = str(cve.get("cvss_score", "未公布／待確認"))
                 vector = str(cve.get("vector", "")).strip()
                 vector_source = [
                     vector or "未公布／待確認",
@@ -874,7 +870,7 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
                         cve.get("fixed_version", "待確認"),
                         cve.get("id", ""),
                         cve.get("severity", "未公布／待確認"),
-                        "\n".join(cvss_lines),
+                        cvss,
                         cve.get("component", "核心資料庫"),
                         cve.get("summary", ""),
                     )

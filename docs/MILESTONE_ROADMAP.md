@@ -19,7 +19,7 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 | M12 | 歷史健檢比較 | 同客戶／系統跨期差異、改善／惡化、拓撲與設定變化、歷史摘要資料 |
 | M13.1 | 公司 Cache 同步完成 | PostgreSQL Release／Security、EDB Advisory、NVD 補強入口、來源快照、sync run 與 stale policy；公司批次 NVD 排程待補 |
 | M13.2 | 公司 E2E 驗收完成 | Primary-only Product／Version Parser、確定性 matcher、fixed／pending 狀態；EPAS Golden Job 產生 46 個 CVE |
-| M13.3 | 公司 E2E 驗收完成 | V4 `version_updates`、CVE metadata gate、CVE artifact；23 頁 DOCX/PDF、V4 QA 通過；無登入 UI Job 同樣產生 CVE |
+| M13.3 | 公司 E2E 驗收完成 | V4 `version_updates`、CVE metadata gate、CVE artifact；23 頁 DOCX/PDF、V4 QA 通過；無登入 UI Job 同樣產生 CVE；僅顯示同 Major minor 更新路徑可修正 CVE |
 | M14 | Ollama AI Gateway | 繁中翻譯、觀察／建議草稿、主管摘要、歷史摘要、Prompt／Model／輸出稽核與 fallback |
 | M14.5 | 完成、公司實機驗收 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才提供 PDF／DOCX |
 | M14.6 | 完成、公司效能驗收 | 文字／Vision 模型分流、圖片縮圖、短 Vision timeout、正常圖略過、有限圖片並行；實測約 6 分鐘 |

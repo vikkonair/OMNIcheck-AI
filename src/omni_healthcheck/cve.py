@@ -185,6 +185,16 @@ def _version(value: str) -> tuple[int, ...] | None:
     return tuple(int(part or 0) for part in match.groups())
 
 
+def _display_version(value: str | None) -> str | None:
+    parsed = _version(value or "")
+    if parsed is None:
+        return value
+    parts = list(parsed)
+    while len(parts) > 2 and parts[-1] == 0:
+        parts.pop()
+    return ".".join(str(part) for part in parts)
+
+
 def _in_range(installed: str, affected_from: str | None, affected_before: str | None) -> bool | None:
     current = _version(installed)
     lower = _version(affected_from) if affected_from else None
@@ -368,15 +378,16 @@ class CVECacheStore:
         cves = [] if is_current else [{"id": row["cve_id"], "summary": row["summary"], "cvss_score": str(row["cvss_score"] or "未公布／待確認"), "severity": row["severity"] or "未公布／待確認", "cvss_version": row["cvss_version"] or "未公布／待確認", "vector": row["cvss_vector"] or "未公布／待確認", "score_source": row["match_evidence"].get("source_url", "未提供"), "match_status": row["match_status"], "affected_version": f">= {row['match_evidence'].get('affected_from') or '-'}，< {row['match_evidence'].get('affected_before') or '-'}", "fixed_version": "、".join(row["match_evidence"].get("fixed_versions") or []) or "待確認", "source": row["match_evidence"].get("source_url", "未提供"), "component": "核心資料庫" } for row in applicable]
         status = "stale" if stale else "ready"
         eol_message = _eol_message(str(rows[0]["product_id"]), current)
+        latest_display = _display_version(latest)
         if stale:
             message = "CVE data stale：權威資料快取已超過政策期限；請完成同步後再正式交付。"
         elif latest is None:
             message = f"已依 {product_name} {current} 的權威快取完成 CVE 比對；尚未取得同 Major 官方最新版本資料。"
         elif is_current:
-            message = f"目前已是 {current.split('.', 1)[0]} Major 的最新維護版本 {latest}；無需進行同 Major minor 更新。"
+            message = f"目前已是 {current.split('.', 1)[0]} Major 的最新維護版本 {latest_display}；無需進行同 Major minor 更新。"
         else:
-            message = f"目前版本 {current} 可更新至同 Major 最新維護版本 {latest}；下列為此更新路徑中可修正的 CVE。"
+            message = f"目前版本 {current} 可更新至同 Major 最新維護版本 {latest_display}；下列為此更新路徑中可修正的 CVE。"
         if eol_message:
             message = f"{message}\n{eol_message}"
-        recommended = f"{product_name} {latest}" if latest else "同 Major 最新維護版本待確認"
+        recommended = f"{product_name} {latest_display}" if latest_display else "同 Major 最新維護版本待確認"
         return {"status": status, "delivery_allowed": not stale, "message": message, "source_snapshot_at": snapshot_at.isoformat(), "matcher_version": MATCHER_VERSION, "version_updates": [{"current": f"{product_name} {current}", "recommended": recommended, "summary": message, "cves": cves, "eol_message": eol_message}], "quality_gate": {"status": "failed" if stale else "passed", "reason": "cve_data_stale" if stale else "current"}}

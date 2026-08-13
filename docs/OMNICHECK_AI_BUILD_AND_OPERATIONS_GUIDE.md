@@ -1140,6 +1140,8 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 
 - CVE 無登入模式 hotfix（2026-08-13）：目前內網 UI 不啟用 Login/RBAC，使用者建立的 Job 可沒有 Customer／System 綁定；這不應影響 CVE。release `dffcb98` 已改為只要求 immutable `normalized.json` 中的 Primary database version evidence 與公司官方 CVE Cache，才執行 matcher；它不會讀取其他 Job 或租戶資料，也不會在缺少版本證據時猜測。公司 unscoped Golden 驗證 Job `09c72b615eab45c3a0e39e59dc632efe` 已成功產生 1 個 version update／46 個 CVE，`cve-result.json=ready`、delivery allowed，V4 JSON 有 `version_updates`。current=`dffcb98`，application rollback=`aec3332`，無 migration。
 
+- CVE minor-path／EOL hotfix（2026-08-13）：report version parser 以 normalized canonical product 為準，避免 EPAS 的版本字串含 PostgreSQL 而誤標產品。適用性只可使用 PostgreSQL Security 或 EDB Security Advisory 的同 Major、明確 `affected_from`／`affected_before` 範圍；NVD 僅可補 CVSS／CWE，絕不可當作產品適用性來源。報告將客戶版本與同 Major 最新 minor 比較：落後時只列該更新路徑可修正 CVE，已是最新時不顯示 CVE 明細。CVE 表格欄位為版本、CVE、嚴重程度、CVSS、元件、修正內容。PostgreSQL 相容 Major 已 EOL 或 365 天內 EOL 時於摘要加註提醒；EPAS 必須同時人工確認 EDB 支援期限。company current=`14fe797`，application rollback=`dffcb98`，無 migration。
+
 ## 附錄 A：官方與專案依據
 
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>

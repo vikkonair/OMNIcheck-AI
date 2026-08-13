@@ -76,6 +76,8 @@
 
 2026-08-13 CVE 無登入模式 hotfix：一般 UI 建立的 Job 目前不綁定 Customer／System；舊 Worker 卻把此綁定誤當成 CVE Matcher 的前置條件，因而不產生 `cve-result.json`／V4 `version_updates`。修正 `dffcb98` 改以 immutable Job 的 Primary version evidence 與官方 CVE Cache 作為唯一前置條件；沒有 `normalized.json` 則不執行 Match，避免在無版本證據時推測。公司 release 已原子切至 `dffcb98`，application rollback 為 `aec3332`，無 migration。獨立 unscoped Golden Job `09c72b615eab45c3a0e39e59dc632efe` 完成：`cve-result.json=ready`、1 個 version update、46 個 CVE、delivery allowed，V4 `version_updates` 已存在。Web／Worker 均 active。
 
+2026-08-13 CVE minor-path 修正：台灣行動支付 Job `2d67d8aaf0834d608a15fca1c696247a` 發現版本 evidence 的 canonical product=`EPAS`，但 `select version()` 顯示 PostgreSQL 字樣，舊 parser 因文字覆蓋 canonical product 而誤標為 PostgreSQL。另發現 generic NVD／其他非原廠 PostgreSQL 或 EDB CVE catalogue 的無版本範圍項目被錯判為 applicable。release `14fe797` 已修正為保留 canonical EPAS、NVD 僅供 CVSS/CWE 補強且不可作適用性依據、只採同 Major 明確版本範圍的原廠 EDB／PostgreSQL CVE。報表只列客戶 minor 到同 Major 最新 minor 的可修正 CVE；若已為最新 minor，僅顯示已是最新而無 CVE 明細；CVE 表格改為版本、CVE、嚴重程度、CVSS、元件、修正內容。PostgreSQL 相容 Major 已 EOL 或一年內 EOL 時會在摘要提醒（EPAS 同時要求確認 EDB 支援期限）。company current=`14fe797`，application rollback=`dffcb98`，無 migration。
+
 ## 3. 目前整體架構
 
 ```text
