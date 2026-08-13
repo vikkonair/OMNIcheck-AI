@@ -51,6 +51,7 @@ def run_generate(
     output_dir: Path,
     rules_path: Path = Path("config/rules.default.yaml"),
     section_workflow_override: SectionWorkflowDocument | None = None,
+    cve_report: dict | None = None,
 ) -> int:
     job = load_job(job_path)
     inventory = build_inventory(input_dir, job)
@@ -76,7 +77,8 @@ def run_generate(
         job, inventory, scope_ledger, normalized, assessment, coverage
     )
     report_model = build_report_model(
-        job, topology, normalized, report_assessment, coverage, configuration_comparison
+        job, topology, normalized, report_assessment, coverage, configuration_comparison,
+        cve=cve_report,
     )
     v4_report = build_v4_report(report_model, scope_ledger, input_dir)
     section_workflow = section_workflow_override or build_v4_section_workflow(
@@ -100,6 +102,7 @@ def run_generate(
         "report-model.json": report_model.model_dump(mode="json"),
         "v4-report.json": v4_report,
         "v4-qa-result.json": v4_qa,
+        "cve-result.json": report_model.cve,
     }
     for filename, content in outputs.items():
         (output_dir / filename).write_text(

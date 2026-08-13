@@ -17,10 +17,12 @@ from omni_healthcheck.ai_gateway import AIGatewaySettings, OllamaGateway
 from omni_healthcheck.ai_persistence import AIGatewayAuditStore
 from omni_healthcheck.cli import run_generate
 from omni_healthcheck.database import DatabaseMetadataStore
+from omni_healthcheck.cve import CVECacheStore
 from omni_healthcheck.job_store import JobStore
 from omni_healthcheck.pipeline_persistence import PipelineResultStore
 from omni_healthcheck.section_persistence import SectionWorkflowStore
 from omni_healthcheck.section_workflow import SectionWorkflowDocument
+from omni_healthcheck.schema import NormalizedDocument
 
 
 def run_ai_batch_once(
@@ -127,6 +129,8 @@ def run_once(
     ai_vision_concurrency: int = 1,
     auto_ai_draft_all: bool = False,
     auto_ai_actor: str = "system:auto-ai",
+    cve_enabled: bool = True,
+    cve_stale_after_days: int = 14,
 ) -> bool:
     job = store.claim_next(worker_id)
     if job is None:
@@ -160,6 +164,18 @@ def run_once(
                 system_id=str(system_id),
                 output_dir=paths["output"],
             )
+        cve_report = None
+        if cve_enabled and customer_id and system_id and store.metadata_store is not None:
+            normalized = NormalizedDocument.model_validate(json.loads(
+                (paths["output"] / "normalized.json").read_text(encoding="utf-8")
+            ))
+            cve_store = CVECacheStore(engine=store.metadata_store.engine)
+            cve_store.match_job(job_id=job_id, normalized=normalized)
+            cve_report = cve_store.report_section(
+                job_id=job_id, stale_after_days=cve_stale_after_days,
+            )
+            if not cve_report["delivery_allowed"]:
+                raise RuntimeError("CVE quality gate failed: " + cve_report["message"])
         if persist_results:
             if store.metadata_store is None:
                 raise RuntimeError("Section Workflow persistence requires database metadata")
@@ -208,9 +224,20 @@ def run_once(
                         )
             if auto_ai_draft_all and ai_gateway is not None:
                 workflow = section_store.document(job_id)
+                if cve_report is None:
+                    run_generate(
+                        paths["job"], paths["input"], paths["output"], rules_path,
+                        section_workflow_override=workflow,
+                    )
+                else:
+                    run_generate(
+                        paths["job"], paths["input"], paths["output"], rules_path,
+                        section_workflow_override=workflow, cve_report=cve_report,
+                    )
+            elif cve_report is not None:
                 run_generate(
                     paths["job"], paths["input"], paths["output"], rules_path,
-                    section_workflow_override=workflow,
+                    cve_report=cve_report,
                 )
         if register_artifacts and customer_id and system_id:
             ArtifactRegistry(engine=store.metadata_store.engine).register_outputs(
@@ -293,6 +320,10 @@ def main() -> None:
         and os.environ.get("OMNICHECK_AI_AUTO_DRAFT_ALL", "true").lower()
         not in {"0", "false", "no"}
     )
+    cve_enabled = os.environ.get("OMNICHECK_CVE_ENABLED", "true").lower() not in {
+        "0", "false", "no",
+    }
+    cve_stale_after_days = int(os.environ.get("OMNICHECK_CVE_STALE_AFTER_DAYS", "14"))
 
     stopping = False
 
@@ -318,6 +349,8 @@ def main() -> None:
             ai_min_interval_seconds=ai_min_interval,
             ai_vision_concurrency=ai_vision_concurrency,
             auto_ai_draft_all=auto_ai_draft_all,
+            cve_enabled=cve_enabled,
+            cve_stale_after_days=cve_stale_after_days,
         )
         if not processed:
             processed = run_ai_batch_once(

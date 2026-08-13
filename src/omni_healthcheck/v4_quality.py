@@ -24,6 +24,16 @@ def validate_v4_report(
         failures.append(f"scope.pending_evidence={pending}")
 
     primary = report.get("database_source_hostname")
+    for update in report.get("version_updates") or []:
+        for cve in update.get("cves") or []:
+            required = ("id", "cvss_score", "severity", "cvss_version", "vector", "score_source", "match_status", "fixed_version", "source")
+            missing = [key for key in required if not str(cve.get(key, "")).strip()]
+            if missing:
+                failures.append(
+                    f"cve.missing_authoritative_metadata={cve.get('id', 'unknown')}:{','.join(missing)}"
+                )
+            if cve.get("match_status") not in {"applicable", "fixed", "not_applicable", "potentially_applicable", "pending_confirmation"}:
+                failures.append(f"cve.invalid_match_status={cve.get('id', 'unknown')}")
     for chapter in report.get("chapters") or []:
         database_chapter = chapter.get("source_scope") == "database"
         for section in chapter.get("sections") or []:

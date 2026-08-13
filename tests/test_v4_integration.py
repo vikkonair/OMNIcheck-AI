@@ -203,6 +203,31 @@ def test_v4_quality_blocks_pending_scope() -> None:
         validate_v4_report(report, ledger)
 
 
+def test_v4_quality_requires_authoritative_cve_fields() -> None:
+    report = build_v4_report(_model(), {"evidence": []}, ROOT)
+    report["version_updates"] = [{"current": "PostgreSQL 16.4", "recommended": "16.5", "summary": "測試", "cves": [{"id": "CVE-2026-1"}]}]
+    result = validate_v4_report(report, {"evidence": []}, raise_on_failure=False)
+    assert result["delivery_allowed"] is False
+    assert any(item.startswith("cve.missing_authoritative_metadata") for item in result["failed_gates"])
+
+
+def test_adapter_passes_deterministic_cve_cache_to_v4_contract(tmp_path: Path) -> None:
+    model = _model().model_copy(update={"cve": {
+        "status": "ready", "version_updates": [{
+            "current": "EDB Postgres Advanced Server 15.7", "recommended": "15.8",
+            "summary": "權威快取比對完成。", "cves": [{
+                "id": "CVE-2026-0001", "summary": "測試", "cvss_score": "8.1",
+                "severity": "HIGH", "cvss_version": "3.1", "vector": "CVSS:3.1/AV:N",
+                "score_source": "https://vendor.example/advisory", "match_status": "applicable",
+                "fixed_version": "15.8", "source": "https://vendor.example/advisory",
+            }],
+        }],
+    }})
+    report = build_v4_report(model, {"evidence": []}, tmp_path)
+    assert report["version_updates"][0]["cves"][0]["match_status"] == "applicable"
+    assert validate_v4_report(report, {"evidence": []})["delivery_allowed"] is True
+
+
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
     assert digest == "10f4bb156df66955981f4dfaf99ef868a62389222bad2a7976984f6307944775"

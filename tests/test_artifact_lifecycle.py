@@ -46,15 +46,15 @@ def test_registers_output_versions_relations_and_events_idempotently(tmp_path: P
     first = registry.register_outputs(**arguments)
     second = registry.register_outputs(**arguments)
 
-    assert len(first) == 12
+    assert len(first) == 13
     assert {item["artifact_id"] for item in second} == {
         item["artifact_id"] for item in first
     }
     assert {item["artifact_version"] for item in first} == {1}
     assert len(application.list_artifacts(
         customer["customer_id"], system["system_id"], job["job_id"]
-    )) == 12
-    assert len(registry.list_relations(customer["customer_id"], job["job_id"])) == 3
+    )) == 13
+    assert len(registry.list_relations(customer["customer_id"], job["job_id"])) == 4
     assert all(
         registry.list_events(customer["customer_id"], item["artifact_id"])[0]["event_type"]
         == "registered"

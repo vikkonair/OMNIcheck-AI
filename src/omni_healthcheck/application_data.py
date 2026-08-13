@@ -290,6 +290,9 @@ class ApplicationDataStore:
         self.engine = engine or create_database_engine(str(database_url))
 
     def create_schema_for_test(self) -> None:
+        # Keep standalone application-data fixtures aligned with the complete
+        # metadata contract used by the queue worker.
+        import omni_healthcheck.cve  # noqa: F401
         metadata.create_all(self.engine)
 
     def _get(self, table: Table, id_column: Column, value: str, customer_id: str) -> dict:

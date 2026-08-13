@@ -90,6 +90,7 @@ def build_report_model(
     assessment: AssessmentDocument,
     coverage: dict,
     configuration_comparison: dict,
+    cve: dict | None = None,
 ) -> ReportModel:
     checks = {(c.node.casefold(), c.check_id): c for c in normalized.checks}
     assessments = {}
@@ -410,7 +411,7 @@ def build_report_model(
         sections=sections,
         findings=findings,
         coverage=coverage["summary"],
-        cve={
+        cve=cve or {
             "status": "pending",
             "version_summary": [],
             "fixable": [],

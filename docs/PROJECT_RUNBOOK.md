@@ -66,6 +66,10 @@
 
 2026-08-12 M14.6 公司效能驗收：main release `01ba901` 已切入公司 App VM，rollback 為 `e6e31f2`，無 migration。新 Job `453916431f454b84a05789ba23ee4bc2` 使用不可變 input 的獨立副本，約 6 分鐘才轉為 succeeded 並提供 14 個正式產物，較 M14.5 約 25 分鐘大幅下降；DOCX／PDF、QA、V4 QA 均通過。25 個 Section 中 15 個套用 AI draft、10 個 fallback，符合「AI 終止後才完成」語意。AI audit：gpt-oss 14 success／6 failed、Gemma Vision 1 success／4 failed；所有失敗安全回退 deterministic。下一步是改善 gpt-oss JSON／事實保留失敗率與 Vision 模型能力，而不放寬事實／規則 gate。
 
+2026-08-12 M13 開始：沿用公司既存的 additive `0006_m13`／`0007_m13_catalog` schema，新增固定來源 Cache import、Primary-only PostgreSQL／EPAS version parser、確定性 version matcher、stale gate、`cve-result.json` artifact 與 V4 `version_updates` 資料契約。報告本身不連外；沒有可辨識版本時只輸出 pending confirmation，不將其宣稱為漏洞。正式排程、公司 EDB sync、V4 PDF 與實際客戶資料驗收尚未執行，詳見 `docs/M13_CVE_IMPLEMENTATION.md`。
+
+2026-08-13 M13.1 官方來源 parser 本機驗證：PostgreSQL 官方 Security 成功萃取 109 筆 core-server CVE Major-specific affected/fixed ranges；EDB 官方 Advisory 成功萃取 11 筆 direct EPAS CVE ranges；NVD 成功補強一筆已存在 CVE 的 CVSS/CWE。新增 migration `0011_m13_cve_major`，以 `affected_major` 保留同一 CVE 在不同 PostgreSQL Major 的不同 fixed minor，防止跨 Major 誤判。尚未執行公司 migration、正式同步、Worker Job 或 PDF 驗收；不能視為公司環境完成。
+
 ## 3. 目前整體架構
 
 ```text

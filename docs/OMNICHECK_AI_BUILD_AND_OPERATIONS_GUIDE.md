@@ -91,6 +91,7 @@
 | M10.3.2 | 完成、公司 E2E 通過 | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
 | M14.1 | 完成、公司真實模型 E2E 通過 | Ollama Section draft、遮蔽、audit、fallback；feature flag 可立即停用 |
 | M14.2 | 公司候選完成、待多項批次／使用者驗收 | Section 審核工作台、EDB durable batch、逐筆限流、進度與人工核准 |
+| M13.1～M13.3 | 開發中、本機驗證 | 固定來源 Cache import、Primary version parser、確定性 matcher、stale gate、V4 CVE contract；待公司 sync／E2E |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
 `main`／`m10.1` 是目前正式可回復版本；`m10` 保留為 M10.1 前的 application rollback 點。正式重建應 checkout `m10.1`，不得部署 floating branch HEAD。
@@ -1135,8 +1136,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M10 可對標準搜集包提出角色候選；非標準檔名、缺少 EFM／OS 訊號或衝突時仍需使用者指定，且所有案件都必須人工確認。
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
-- 同仁 UI Adapter 已進入候選驗證；Section persistence/API、歷史比較、CVE cache 與 Ollama AI Gateway 尚未完成，順序與責任邊界見 `docs/MILESTONE_ROADMAP.md`。
-- EDB 中心化與 CVE 自動化方向已核准；Application Data foundation、M9.5 Persistence Adapter 與 M9.6 Artifact lifecycle 已實作，CVE tables 尚未實作。
+- M13 開發中：既有 `0006_m13`／`0007_m13_catalog` schema 已接入固定來源 Cache import、PostgreSQL 官方 Release catalog／Security CVE downloader、EDB direct EPAS Advisory downloader、NVD CVSS/CWE 補強、Primary-only Version Parser、確定性 matcher、stale gate、`cve-result.json` artifact 與 V4 metadata gate。先升級到 `0011_m13_cve_major`，再以 `omni-healthcheck-cve-import --sync-postgresql-releases`、`--sync-postgresql-cves`、`--sync-edb-advisories` 和指定 `--sync-nvd --cve-id` 維護快取；所有下載都必須保存 snapshot，且報告 Worker 不可連外。正式排程、公司 EDB sync 與實際客戶資料 PDF 驗收尚未完成。操作與 rollback 見 `docs/M13_CVE_IMPLEMENTATION.md`。
 
 ## 附錄 A：官方與專案依據
 

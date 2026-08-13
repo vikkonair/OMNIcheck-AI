@@ -17,9 +17,9 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 | M10.3.2 | 完成、公司 E2E 通過 | 相容 0005～0007 migration chain；EDB current state＋append-only revisions；Section review／approval API；approved-only Renderer |
 | M11 | 選配身份與權限 | 預設內網單一使用模式；需要時再加入 API token、登入、RBAC、客戶隔離與 Audit |
 | M12 | 歷史健檢比較 | 同客戶／系統跨期差異、改善／惡化、拓撲與設定變化、歷史摘要資料 |
-| M13.1 | 官方 CVE／Release Sync | 固定官方來源、排程同步、EDB Cache、來源快照與 stale policy |
-| M13.2 | Version Matcher | Product／Version Parser、確定性 CVE 適用性、fixed／pending 狀態 |
-| M13.3 | CVE V4 Section | 環球晶圓方向版面、Quality Gate、來源與 matcher version |
+| M13.1 | 開發中、本機官方來源驗證完成 | PostgreSQL Release／Security、EDB Advisory、NVD 補強、來源快照、sync run 與 stale policy；正式排程待公司部署 |
+| M13.2 | 開發中 | Primary-only Product／Version Parser、確定性 matcher、fixed／pending 狀態 |
+| M13.3 | 開發中 | V4 `version_updates`、CVE metadata gate、CVE artifact；待公司 E2E／PDF 驗收 |
 | M14 | Ollama AI Gateway | 繁中翻譯、觀察／建議草稿、主管摘要、歷史摘要、Prompt／Model／輸出稽核與 fallback |
 | M14.5 | 完成、公司實機驗收 | AI batch 納入 Job 完成條件；初版報告採 approved／AI draft／deterministic；完成後才提供 PDF／DOCX |
 | M14.6 | 完成、公司效能驗收 | 文字／Vision 模型分流、圖片縮圖、短 Vision timeout、正常圖略過、有限圖片並行；實測約 6 分鐘 |

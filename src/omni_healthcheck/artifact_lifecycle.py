@@ -105,6 +105,7 @@ OUTPUT_TYPES = {
     "report-model.json": "report-model-json",
     "v4-report.json": "v4-report-json",
     "v4-qa-result.json": "v4-qa-json",
+    "cve-result.json": "cve-result-json",
     "report.docx": "report-docx",
     "report.pdf": "report-pdf",
 }
@@ -113,6 +114,7 @@ DERIVATIONS = (
     ("assessment-json", "section-workflow-json"),
     ("canonical-json", "report-model-json"),
     ("report-model-json", "v4-report-json"),
+    ("cve-result-json", "v4-report-json"),
     ("v4-report-json", "report-docx"),
     ("report-docx", "report-pdf"),
 )

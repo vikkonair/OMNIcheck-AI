@@ -167,6 +167,7 @@ class DatabaseMetadataStore:
         import omni_healthcheck.section_persistence  # noqa: F401
         import omni_healthcheck.ai_persistence  # noqa: F401
         import omni_healthcheck.ai_batch  # noqa: F401
+        import omni_healthcheck.cve  # noqa: F401
 
         metadata.create_all(self.engine)
 

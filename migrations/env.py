@@ -15,6 +15,7 @@ import omni_healthcheck.artifact_lifecycle  # noqa: F401 - registers M9.6 tables
 import omni_healthcheck.section_persistence  # noqa: F401 - registers M10.3 tables
 import omni_healthcheck.ai_persistence  # noqa: F401 - registers M14.1 tables
 import omni_healthcheck.ai_batch  # noqa: F401 - registers M14.2 tables
+import omni_healthcheck.cve  # noqa: F401 - registers existing M13 cache tables
 
 
 config = context.config

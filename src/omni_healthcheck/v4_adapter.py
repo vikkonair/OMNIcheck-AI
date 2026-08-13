@@ -399,6 +399,8 @@ def build_v4_report(
         "show_components": False,
         "architecture_image": None,
         "chapters": chapters,
-        "version_updates": [],
+        # This is deterministic cache output.  It is deliberately passed as
+        # report data rather than queried by the renderer.
+        "version_updates": list(model.cve.get("version_updates") or []),
         "summary": [],
     }

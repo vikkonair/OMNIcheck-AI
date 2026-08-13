@@ -115,10 +115,10 @@ def test_worker_persists_scoped_job_before_success(tmp_path: Path) -> None:
     assert row["system_id"] == system["system_id"]
     assert len(app.list_artifacts(
         customer["customer_id"], system["system_id"], job["job_id"]
-    )) == 12
+    )) == 13
     assert len(ArtifactRegistry(url).list_relations(
         customer["customer_id"], job["job_id"]
-    )) == 3
+    )) == 4
 
 
 def test_worker_auto_queues_all_visible_sections_after_baseline(tmp_path: Path) -> None:
