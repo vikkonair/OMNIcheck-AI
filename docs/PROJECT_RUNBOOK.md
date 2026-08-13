@@ -74,6 +74,8 @@
 
 2026-08-13 M13.2／M13.3 公司 E2E：使用 tenant-scoped Golden V4 的既有 3 份不可變測試輸入建立獨立 Job `3cd0eb11ded54825a6d6089f4e06f004`；首次由 root 建立的驗收目錄使 Worker 無法寫入，僅修正該測試 Job 目錄 owner 後重排，最終成功（不影響其他案件）。EPAS matcher 產生 1 個 version update／46 個 CVE，`cve-result.json` 為 ready、delivery allowed，V4 QA passed。驗收用相同輸入與 CVE 結果在獨立暫存輸出產生 23 頁 A4 DOCX／PDF（54 KB／219 KB）；公司端使用 Noto Sans CJK TC、Poppler `pdftoppm` 產生 23 頁 PNG，文字層無 replacement glyph、含 46 個 CVE 與 EPAS 產品名稱。另發現 isolated release 的 V4 renderer 原先從 site-packages 相對路徑尋找 vendor template；hotfix `aec3332` 改為優先由 release working directory 載入，已完成本機完整 tests、公司 health 及上述 PDF 驗收。company current=`aec3332`，application rollback=`abd8e69`，無 migration。
 
+2026-08-13 CVE 無登入模式 hotfix：一般 UI 建立的 Job 目前不綁定 Customer／System；舊 Worker 卻把此綁定誤當成 CVE Matcher 的前置條件，因而不產生 `cve-result.json`／V4 `version_updates`。修正 `dffcb98` 改以 immutable Job 的 Primary version evidence 與官方 CVE Cache 作為唯一前置條件；沒有 `normalized.json` 則不執行 Match，避免在無版本證據時推測。公司 release 已原子切至 `dffcb98`，application rollback 為 `aec3332`，無 migration。獨立 unscoped Golden Job `09c72b615eab45c3a0e39e59dc632efe` 完成：`cve-result.json=ready`、1 個 version update、46 個 CVE、delivery allowed，V4 `version_updates` 已存在。Web／Worker 均 active。
+
 ## 3. 目前整體架構
 
 ```text

@@ -1138,6 +1138,8 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
 - M13 公司 E2E 已完成：Cache schema 為 `0011_m13_cve_major`，首次同步保存 PostgreSQL Release 5 筆、PostgreSQL Security 109 個 CVE range 與 EDB direct EPAS Advisory 11 個 CVE range 的不可變 snapshot。tenant-scoped Golden Job `3cd0eb11ded54825a6d6089f4e06f004` 以不可變輸入產生 46 個 EPAS CVE，`cve-result.json` ready、V4 QA passed，並在獨立暫存輸出驗證 23 頁 DOCX/PDF。M13 具備固定來源 Cache import、PostgreSQL 官方 Release catalog／Security CVE downloader、EDB direct EPAS Advisory downloader、NVD CVSS/CWE 補強、Primary-only Version Parser、確定性 matcher、stale gate、`cve-result.json` artifact 與 V4 metadata gate。以 `omni-healthcheck-cve-import --sync-postgresql-releases`、`--sync-postgresql-cves`、`--sync-edb-advisories` 和指定 `--sync-nvd --cve-id` 維護快取；所有下載都必須保存 snapshot，且報告 Worker 不可連外。公司端 PDF QA 依賴 `poppler-utils`（`pdftoppm`／`pdfinfo`），已安裝；Noto Sans CJK TC 可用。isolated release V4 renderer 路徑 hotfix `aec3332` 已部署，application rollback 為 `abd8e69`；migration 採 additive/forward fix，不建議 production downgrade。操作見 `docs/M13_CVE_IMPLEMENTATION.md`。
 
+- CVE 無登入模式 hotfix（2026-08-13）：目前內網 UI 不啟用 Login/RBAC，使用者建立的 Job 可沒有 Customer／System 綁定；這不應影響 CVE。release `dffcb98` 已改為只要求 immutable `normalized.json` 中的 Primary database version evidence 與公司官方 CVE Cache，才執行 matcher；它不會讀取其他 Job 或租戶資料，也不會在缺少版本證據時猜測。公司 unscoped Golden 驗證 Job `09c72b615eab45c3a0e39e59dc632efe` 已成功產生 1 個 version update／46 個 CVE，`cve-result.json=ready`、delivery allowed，V4 JSON 有 `version_updates`。current=`dffcb98`，application rollback=`aec3332`，無 migration。
+
 ## 附錄 A：官方與專案依據
 
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
