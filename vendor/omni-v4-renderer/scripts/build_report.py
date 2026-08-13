@@ -921,6 +921,38 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
                 paragraph.paragraph_format.keep_with_next = True
 
 
+def add_history_comparison(doc: Document, data: dict[str, Any], number: int) -> int:
+    history = data.get("history_comparison") or {}
+    if history.get("status") != "ready":
+        return number
+    doc.add_page_break()
+    add_heading(doc, f"{number}.", "歷史健檢比較", 1)
+    prior_period = str(history.get("prior_period") or "前一期")
+    add_paragraphs(doc, [f"比較基準：{prior_period} 與本期的同客戶、同系統、同產品 deterministic 健檢結果。"])
+    summary = history.get("summary") or {}
+    table = doc.add_table(rows=1, cols=5)
+    for index, value in enumerate(("改善", "惡化", "證據變更", "新增", "移除")):
+        table.rows[0].cells[index].text = value
+    cells = table.add_row().cells
+    for index, key in enumerate(("improved", "worsened", "evidence_changed", "added", "removed")):
+        cells[index].text = str(summary.get(key, 0))
+    style_table(table)
+    changes = history.get("changes") or []
+    if changes:
+        add_heading(doc, f"{number}.1", "重要差異明細", 2)
+        detail = doc.add_table(rows=1, cols=4)
+        for index, value in enumerate(("節點", "檢查項目", "變化", "狀態")):
+            detail.rows[0].cells[index].text = value
+        for item in changes:
+            cells = detail.add_row().cells
+            cells[0].text = str(item.get("node", ""))
+            cells[1].text = str(item.get("check_id", ""))
+            cells[2].text = str(item.get("change", ""))
+            cells[3].text = f"{item.get('prior_status') or '-'} → {item.get('current_status') or '-'}"
+        style_table(detail)
+    return number + 1
+
+
 def build(data: dict[str, Any], output: Path) -> None:
     engineer_name = str(data.get("engineer_name", "")).strip() or "XXX"
     data = dict(data)
@@ -938,7 +970,8 @@ def build(data: dict[str, Any], output: Path) -> None:
     add_contents(doc, data)
     add_environment(doc, data)
     last_number = add_chapters(doc, data)
-    add_updates_and_summary(doc, data, last_number + 1)
+    updates_number = add_history_comparison(doc, data, last_number + 1)
+    add_updates_and_summary(doc, data, updates_number)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     doc.save(output)

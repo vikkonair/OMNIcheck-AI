@@ -81,6 +81,7 @@ class ReportModel(BaseModel):
     findings: list[dict]
     coverage: dict
     cve: dict
+    history: dict = {}
 
 
 def build_report_model(
@@ -91,6 +92,7 @@ def build_report_model(
     coverage: dict,
     configuration_comparison: dict,
     cve: dict | None = None,
+    history: dict | None = None,
 ) -> ReportModel:
     checks = {(c.node.casefold(), c.check_id): c for c in normalized.checks}
     assessments = {}
@@ -417,4 +419,5 @@ def build_report_model(
             "fixable": [],
             "message": "尚未接入權威 CVE 資料來源，本節保留為待確認。",
         },
+        history=history or {},
     )

@@ -161,7 +161,9 @@ def test_worker_waits_for_ai_and_renders_draft_before_success(
     workflow = build_section_workflow(assessment_document())
     render_calls = []
 
-    def fake_generate(_job, _input, output, _rules, section_workflow_override=None):
+    def fake_generate(
+        _job, _input, output, _rules, section_workflow_override=None, **_kwargs
+    ):
         output.mkdir(parents=True, exist_ok=True)
         document = section_workflow_override or workflow
         (output / "section-workflow.json").write_text(

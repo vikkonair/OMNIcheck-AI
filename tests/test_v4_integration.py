@@ -140,6 +140,22 @@ def test_adapter_preserves_primary_database_and_configuration_observation(
     assert validate_v4_report(report, {"evidence": []})["delivery_allowed"] is True
 
 
+def test_adapter_preserves_ready_history_comparison(tmp_path: Path) -> None:
+    model = _model().model_copy(update={"history": {
+        "status": "ready",
+        "prior_period": "2025-H2",
+        "summary": {"improved": 1, "worsened": 2, "evidence_changed": 0, "added": 3, "removed": 1},
+        "changes": [{
+            "node": "db-primary", "check_id": "filesystem_usage",
+            "change": "worsened", "prior_status": "normal",
+            "current_status": "attention",
+        }],
+    }})
+    report = build_v4_report(model, {"evidence": []}, tmp_path)
+    assert report["history_comparison"]["status"] == "ready"
+    assert report["history_comparison"]["summary"]["worsened"] == 2
+
+
 def test_adapter_applies_requested_report_limits_and_database_columns() -> None:
     inventory = _prepare_unit(
         {
@@ -230,7 +246,7 @@ def test_adapter_passes_deterministic_cve_cache_to_v4_contract(tmp_path: Path) -
 
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
-    assert digest == "de9b00f1ddbc507c7d01e6de925928cfefd5d62c5d2aea08dc784cdeaa3f0392"
+    assert digest == "f5d71b770657b87db3aac7b8ff85c31966de08b56331c882fe1014fa511183bd"
 
 
 def test_renderer_finds_vendor_from_release_working_directory(tmp_path: Path, monkeypatch) -> None:

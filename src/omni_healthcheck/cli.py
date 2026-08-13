@@ -52,6 +52,7 @@ def run_generate(
     rules_path: Path = Path("config/rules.default.yaml"),
     section_workflow_override: SectionWorkflowDocument | None = None,
     cve_report: dict | None = None,
+    history_report: dict | None = None,
 ) -> int:
     job = load_job(job_path)
     inventory = build_inventory(input_dir, job)
@@ -79,6 +80,7 @@ def run_generate(
     report_model = build_report_model(
         job, topology, normalized, report_assessment, coverage, configuration_comparison,
         cve=cve_report,
+        history=history_report,
     )
     v4_report = build_v4_report(report_model, scope_ledger, input_dir)
     section_workflow = section_workflow_override or build_v4_section_workflow(

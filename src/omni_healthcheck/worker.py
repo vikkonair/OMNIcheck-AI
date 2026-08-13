@@ -150,6 +150,9 @@ def run_once(
         heartbeat_thread.start()
     try:
         paths = store.paths(job_id)
+        # A metadata-backed job gets a durable comparison result below.  Keep
+        # the report contract explicit for lightweight/local worker callers.
+        history: dict = {"status": "no_prior_baseline", "changes": [], "summary": {}}
         run_generate(paths["job"], paths["input"], paths["output"], rules_path)
         if store.metadata_store is not None:
             history = build_job_history(
@@ -250,17 +253,18 @@ def run_once(
                 if cve_report is None:
                     run_generate(
                         paths["job"], paths["input"], paths["output"], rules_path,
-                        section_workflow_override=workflow,
+                        section_workflow_override=workflow, history_report=history,
                     )
                 else:
                     run_generate(
                         paths["job"], paths["input"], paths["output"], rules_path,
                         section_workflow_override=workflow, cve_report=cve_report,
+                        history_report=history,
                     )
             elif cve_report is not None:
                 run_generate(
                     paths["job"], paths["input"], paths["output"], rules_path,
-                    cve_report=cve_report,
+                    cve_report=cve_report, history_report=history,
                 )
         if register_artifacts and customer_id and system_id:
             ArtifactRegistry(engine=store.metadata_store.engine).register_outputs(
