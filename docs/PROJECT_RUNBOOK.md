@@ -70,6 +70,8 @@
 
 2026-08-13 M13.1 官方來源 parser 本機驗證：PostgreSQL 官方 Security 成功萃取 109 筆 core-server CVE Major-specific affected/fixed ranges；EDB 官方 Advisory 成功萃取 11 筆 direct EPAS CVE ranges；NVD 成功補強一筆已存在 CVE 的 CVSS/CWE。新增 migration `0011_m13_cve_major`，以 `affected_major` 保留同一 CVE 在不同 PostgreSQL Major 的不同 fixed minor，防止跨 Major 誤判。尚未執行公司 migration、正式同步、Worker Job 或 PDF 驗收；不能視為公司環境完成。
 
+2026-08-13 M13.1 公司部署：release `abd8e69` 已切入 App VM，application rollback 為 `01ba901`；先前 release 建置因缺少 hatchling 在 migration 前停止，已確認舊服務持續 active 後補齊 isolated venv。公司 EDB 已由 `0010_m14_2_batches` 升級至 additive `0011_m13_cve_major`，未刪除資料。首次官方同步成功保存 PostgreSQL Release（5）、PostgreSQL Security（109 CVE range）、EDB direct EPAS Advisory（11 CVE range）snapshot 到 `/data/omnicheck/archive/cve`；Cache 現有 662 releases、409 CVE、837 impacts。Web／Worker health active。NVD 已於本機單筆驗證；公司批次 NVD 排程、客戶 Job CVE V4/PDF E2E 與 stale gate 實機驗收仍待執行。
+
 ## 3. 目前整體架構
 
 ```text

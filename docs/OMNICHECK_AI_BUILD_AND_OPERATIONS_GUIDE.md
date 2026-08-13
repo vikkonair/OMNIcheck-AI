@@ -1136,7 +1136,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M10 可對標準搜集包提出角色候選；非標準檔名、缺少 EFM／OS 訊號或衝突時仍需使用者指定，且所有案件都必須人工確認。
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
-- M13 開發中：既有 `0006_m13`／`0007_m13_catalog` schema 已接入固定來源 Cache import、PostgreSQL 官方 Release catalog／Security CVE downloader、EDB direct EPAS Advisory downloader、NVD CVSS/CWE 補強、Primary-only Version Parser、確定性 matcher、stale gate、`cve-result.json` artifact 與 V4 metadata gate。先升級到 `0011_m13_cve_major`，再以 `omni-healthcheck-cve-import --sync-postgresql-releases`、`--sync-postgresql-cves`、`--sync-edb-advisories` 和指定 `--sync-nvd --cve-id` 維護快取；所有下載都必須保存 snapshot，且報告 Worker 不可連外。正式排程、公司 EDB sync 與實際客戶資料 PDF 驗收尚未完成。操作與 rollback 見 `docs/M13_CVE_IMPLEMENTATION.md`。
+- M13 公司 Cache 已部署：release `abd8e69`、EDB revision `0011_m13_cve_major`，首次同步保存 PostgreSQL Release 5 筆、PostgreSQL Security 109 個 CVE range 與 EDB direct EPAS Advisory 11 個 CVE range 的不可變 snapshot。M13 具備固定來源 Cache import、PostgreSQL 官方 Release catalog／Security CVE downloader、EDB direct EPAS Advisory downloader、NVD CVSS/CWE 補強、Primary-only Version Parser、確定性 matcher、stale gate、`cve-result.json` artifact 與 V4 metadata gate。以 `omni-healthcheck-cve-import --sync-postgresql-releases`、`--sync-postgresql-cves`、`--sync-edb-advisories` 和指定 `--sync-nvd --cve-id` 維護快取；所有下載都必須保存 snapshot，且報告 Worker 不可連外。公司批次 NVD 排程與實際客戶資料 CVE V4/PDF 驗收尚未完成。application rollback 為 `01ba901`；migration 採 additive/forward fix，不建議 production downgrade。操作見 `docs/M13_CVE_IMPLEMENTATION.md`。
 
 ## 附錄 A：官方與專案依據
 
