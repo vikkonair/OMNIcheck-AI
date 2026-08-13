@@ -27,6 +27,13 @@ def test_parser_is_primary_only_and_supports_non_17_versions() -> None:
     assert [(item.product_id, item.installed_version) for item in versions] == [("epas", "15.7")]
 
 
+def test_parser_keeps_canonical_epas_product_when_version_text_says_postgresql() -> None:
+    document = normalized("16.14")
+    document.checks[0].evidence.rows[0][1] = "PostgreSQL 16.14"
+    versions = parse_product_versions(document)
+    assert [(item.product_id, item.installed_version) for item in versions] == [("epas", "16.14")]
+
+
 def test_cache_matcher_is_deterministic_and_report_has_required_cve_metadata(tmp_path) -> None:
     store = CVECacheStore(f"sqlite+pysqlite:///{tmp_path / 'cve.sqlite'}")
     store.create_schema_for_test()
@@ -79,6 +86,52 @@ def test_epas_upstream_postgresql_cve_is_not_reported_as_confirmed(tmp_path) -> 
     matches = store.match_job(job_id="c" * 32, normalized=normalized("15.7"))
     assert matches[0]["match_status"] == "potentially_applicable"
     assert "EDB" in matches[0]["match_reason"]
+
+
+def test_latest_minor_suppresses_historical_cves_and_ignores_generic_nvd(tmp_path) -> None:
+    store = CVECacheStore(f"sqlite+pysqlite:///{tmp_path / 'latest.sqlite'}")
+    store.create_schema_for_test()
+    store.import_snapshot(
+        product_id="epas", source_key="edb_security",
+        releases=[{"version": "16.14"}],
+        cves=[{
+            "cve_id": "CVE-2026-3001", "summary": "old EPAS fix",
+            "affected_from": "16.0", "affected_before": "16.14",
+            "fixed_versions": ["16.14"],
+        }],
+    )
+    # It is valid knowledge data, but NVD is never a server applicability
+    # source.  It intentionally has no version range.
+    store.import_snapshot(
+        product_id="postgresql", source_key="nvd", releases=[], cves=[{
+            "cve_id": "CVE-2026-3999", "summary": "unrelated package",
+            "affected_from": "", "affected_before": "", "fixed_versions": [],
+        }],
+    )
+    store.match_job(job_id="d" * 32, normalized=normalized("16.14"))
+    report = store.report_section(job_id="d" * 32)
+    update = report["version_updates"][0]
+    assert update["current"] == "EDB Postgres Advanced Server 16.14"
+    assert update["recommended"] == "EDB Postgres Advanced Server 16.14"
+    assert update["cves"] == []
+    assert "最新維護版本" in update["summary"]
+
+
+def test_major_eol_within_one_year_is_reported(tmp_path) -> None:
+    store = CVECacheStore(f"sqlite+pysqlite:///{tmp_path / 'eol.sqlite'}")
+    store.create_schema_for_test()
+    store.import_snapshot(
+        product_id="postgresql", source_key="postgresql_security",
+        releases=[{"version": "14.23"}],
+        cves=[{
+            "cve_id": "CVE-2026-4014", "summary": "14 test",
+            "affected_from": "14.0", "affected_before": "14.23",
+            "fixed_versions": ["14.23"],
+        }],
+    )
+    store.match_job(job_id="e" * 32, normalized=normalized("14.23", "PostgreSQL"))
+    report = store.report_section(job_id="e" * 32)
+    assert "EOL" in report["version_updates"][0]["summary"]
 
 
 def test_import_command_rejects_non_policy_source(tmp_path) -> None:

@@ -871,10 +871,11 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
                 ]
                 cve_rows.append(
                     (
+                        cve.get("fixed_version", "待確認"),
                         cve.get("id", ""),
+                        cve.get("severity", "未公布／待確認"),
                         "\n".join(cvss_lines),
-                        "\n".join(vector_source),
-                        update.get("recommended", ""),
+                        cve.get("component", "核心資料庫"),
                         cve.get("summary", ""),
                     )
                 )
@@ -882,16 +883,17 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
             p = doc.add_paragraph()
             r = p.add_run("可修正 CVE 清單")
             format_run(r, size=10, bold=True, color=BLUE)
-            cve_table = doc.add_table(rows=1, cols=5)
-            for index, value in enumerate(("CVE", "修正版本", "CVSS", "CVSS 向量／來源", "修正內容")):
+            cve_table = doc.add_table(rows=1, cols=6)
+            for index, value in enumerate(("版本", "CVE", "嚴重程度", "CVSS", "元件", "修正內容")):
                 cve_table.rows[0].cells[index].text = value
-            for cve_id, cvss, vector_source, version, cve_summary in cve_rows:
+            for version, cve_id, severity, cvss, component, cve_summary in cve_rows:
                 cells = cve_table.add_row().cells
-                cells[0].text = str(cve_id)
-                cells[1].text = str(version)
-                cells[2].text = str(cvss)
-                cells[3].text = str(vector_source)
-                cells[4].text = report_prose(cve_summary)
+                cells[0].text = str(version)
+                cells[1].text = str(cve_id)
+                cells[2].text = str(severity)
+                cells[3].text = str(cvss)
+                cells[4].text = str(component)
+                cells[5].text = report_prose(cve_summary)
             style_table(cve_table)
     if summary:
         add_heading(doc, f"{number}.2", "健檢結論與優化建議", 2)

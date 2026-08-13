@@ -12,7 +12,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Iterable, Literal
 from uuid import uuid4
 
@@ -26,8 +26,8 @@ from omni_healthcheck.database import SCHEMA, create_database_engine, metadata
 from omni_healthcheck.schema import NormalizedDocument
 
 
-PARSER_VERSION = "m13.version-parser.v1"
-MATCHER_VERSION = "m13.version-matcher.v1"
+PARSER_VERSION = "m13.version-parser.v2"
+MATCHER_VERSION = "m13.version-matcher.v2"
 VALID_MATCHES = {
     "applicable", "fixed", "not_applicable", "potentially_applicable",
     "pending_confirmation",
@@ -44,6 +44,16 @@ SOURCE_POLICY = {
     "nvd": {
         "name": "NVD", "url": "https://nvd.nist.gov/", "type": "enrichment", "priority": 30,
     },
+}
+# Official PostgreSQL Versioning Policy support dates.  EPAS is flagged against
+# its PostgreSQL-compatible Major and the report explicitly asks the engineer
+# to confirm the customer's EDB support entitlement.  Cache sync is the long
+# term source of release facts; this compact policy prevents report-time web
+# access while retaining deterministic EOL warnings for supported Majors.
+POSTGRESQL_MAJOR_EOL = {
+    "14": date(2026, 11, 12), "15": date(2027, 11, 11),
+    "16": date(2028, 11, 9), "17": date(2029, 11, 8),
+    "18": date(2030, 11, 14),
 }
 
 
@@ -149,7 +159,17 @@ def parse_product_versions(normalized: NormalizedDocument) -> list[ProductVersio
         match = pattern.search(text)
         if not match:
             continue
-        product = "postgresql" if match.group(1).casefold() == "postgresql" else "epas"
+        # The parser which created normalized.json already classifies the
+        # database product.  EPAS's `select version()` commonly contains the
+        # upstream words "PostgreSQL 16.14", so that free text must not undo
+        # the canonical product identity supplied by the parser.
+        declared = str(check.product or "").casefold()
+        if declared in {"epas", "edb", "edb postgres advanced server"}:
+            product = "epas"
+        elif declared in {"postgresql", "postgres"}:
+            product = "postgresql"
+        else:
+            product = "postgresql" if match.group(1).casefold() == "postgresql" else "epas"
         values.append(ProductVersion(product, match.group(2), {
             "node": check.node, "check_id": check.check_id,
             "evidence_sha256": check.trace.evidence_sha256, "value": match.group(0),
@@ -169,9 +189,28 @@ def _in_range(installed: str, affected_from: str | None, affected_before: str | 
     current = _version(installed)
     lower = _version(affected_from) if affected_from else None
     upper = _version(affected_before) if affected_before else None
-    if current is None or (affected_from and lower is None) or (affected_before and upper is None):
+    # A generic CVE mention with no precise version bounds is not an
+    # applicability decision.  It may be retained in an external knowledge
+    # catalogue, but it must never become a customer report row.
+    if not affected_from or not affected_before:
+        return None
+    if current is None or lower is None or upper is None:
         return None
     return (lower is None or current >= lower) and (upper is None or current < upper)
+
+
+def _eol_message(product_id: str, version: str) -> str | None:
+    major = version.split(".", 1)[0]
+    end = POSTGRESQL_MAJOR_EOL.get(major)
+    if end is None:
+        return None
+    days = (end - _now().date()).days
+    product_note = "；EPAS 請同時向 EDB 確認合約支援期限" if product_id == "epas" else ""
+    if days < 0:
+        return f"注意：PostgreSQL 相容 Major {major} 已於 {end.isoformat()} EOL{product_note}。"
+    if days <= 365:
+        return f"注意：PostgreSQL 相容 Major {major} 將於 {end.isoformat()} EOL（剩餘約 {days} 天）{product_note}。"
+    return None
 
 
 class CVECacheStore:
@@ -266,7 +305,14 @@ class CVECacheStore:
                     # does not prove applicability: EDB may have backported a fix.
                     candidate_products.append("postgresql")
                 installed_major = product.installed_version.split(".", 1)[0]
-                impacts = connection.execute(select(cve_product_impacts, cve_entries, cve_sources).join(cve_entries, cve_entries.c.cve_id == cve_product_impacts.c.cve_id).join(cve_sources, cve_sources.c.source_id == cve_product_impacts.c.source_id).where(and_(cve_product_impacts.c.product_id.in_(candidate_products), cve_product_impacts.c.component_id.is_(None), cve_product_impacts.c.affected_major.in_([installed_major, "__all__"]))).order_by(cve_product_impacts.c.source_priority)).mappings().all()
+                # NVD is enrichment only.  It may supplement CVSS/CWE for a
+                # CVE already accepted by the vendor source, but generic NVD
+                # keyword/CPE results must never be treated as PostgreSQL or
+                # EPAS server applicability evidence.
+                allowed_sources = ["edb_security"] if product.product_id == "epas" else ["postgresql_security"]
+                if product.product_id == "epas":
+                    allowed_sources.append("postgresql_security")
+                impacts = connection.execute(select(cve_product_impacts, cve_entries, cve_sources).join(cve_entries, cve_entries.c.cve_id == cve_product_impacts.c.cve_id).join(cve_sources, cve_sources.c.source_id == cve_product_impacts.c.source_id).where(and_(cve_product_impacts.c.product_id.in_(candidate_products), cve_product_impacts.c.component_id.is_(None), cve_product_impacts.c.affected_major.in_([installed_major, "__all__"]), cve_sources.c.source_key.in_(allowed_sources), cve_product_impacts.c.affected_from.is_not(None), cve_product_impacts.c.affected_before.is_not(None))).order_by(cve_product_impacts.c.source_priority)).mappings().all()
                 impacts.sort(key=lambda item: (0 if item["product_id"] == product.product_id else 1, item["source_priority"]))
                 seen: set[str] = set()
                 for impact in impacts:
@@ -286,6 +332,22 @@ class CVECacheStore:
                     connection.execute(insert(job_cve_matches).values(**match)); results.append(match)
         return results
 
+    def _latest_same_major(self, connection, product_id: str, installed_version: str) -> str | None:
+        """Return the cached official latest minor for the installed Major.
+
+        EPAS shares PostgreSQL's Major/minor baseline.  We prefer an EPAS
+        record when available, and otherwise use the PostgreSQL official
+        release catalogue only for the version path—not for CVE applicability.
+        """
+        major = installed_version.split(".", 1)[0]
+        product_ids = [product_id]
+        if product_id == "epas":
+            product_ids.extend(["edb", "postgresql"])
+        rows = connection.execute(select(product_releases.c.version).where(and_(product_releases.c.product_id.in_(product_ids), product_releases.c.release_family == major, product_releases.c.active.is_(True)))).scalars().all()
+        parsed = [(value, _version(str(value))) for value in rows]
+        parsed = [(value, version) for value, version in parsed if version is not None]
+        return str(max(parsed, key=lambda item: item[1])[0]) if parsed else None
+
     def report_section(self, *, job_id: str, stale_after_days: int = 14) -> dict[str, Any]:
         if stale_after_days < 1: raise ValueError("stale_after_days must be positive")
         with self.engine.connect() as connection:
@@ -296,11 +358,25 @@ class CVECacheStore:
         if snapshot_at.tzinfo is None:
             snapshot_at = snapshot_at.replace(tzinfo=UTC)
         stale = snapshot_at < _now() - timedelta(days=stale_after_days)
-        applicable = [row for row in rows if row["match_status"] in {"applicable", "potentially_applicable", "pending_confirmation"}]
+        applicable = [row for row in rows if row["match_status"] in {"applicable", "potentially_applicable"}]
         current = str(rows[0]["installed_version"])
         product_name = "EDB Postgres Advanced Server" if rows[0]["product_id"] == "epas" else "PostgreSQL"
-        cves = [{"id": row["cve_id"], "summary": row["summary"], "cvss_score": str(row["cvss_score"] or "未公布／待確認"), "severity": row["severity"] or "未公布／待確認", "cvss_version": row["cvss_version"] or "未公布／待確認", "vector": row["cvss_vector"] or "未公布／待確認", "score_source": row["match_evidence"].get("source_url", "未提供"), "match_status": row["match_status"], "affected_version": f">= {row['match_evidence'].get('affected_from') or '-'}，< {row['match_evidence'].get('affected_before') or '-'}", "fixed_version": "、".join(row["match_evidence"].get("fixed_versions") or []) or "待確認", "source": row["match_evidence"].get("source_url", "未提供") } for row in applicable]
+        with self.engine.connect() as connection:
+            latest = self._latest_same_major(connection, str(rows[0]["product_id"]), current)
+        current_version, latest_version = _version(current), _version(latest) if latest else None
+        is_current = bool(current_version and latest_version and current_version >= latest_version)
+        cves = [] if is_current else [{"id": row["cve_id"], "summary": row["summary"], "cvss_score": str(row["cvss_score"] or "未公布／待確認"), "severity": row["severity"] or "未公布／待確認", "cvss_version": row["cvss_version"] or "未公布／待確認", "vector": row["cvss_vector"] or "未公布／待確認", "score_source": row["match_evidence"].get("source_url", "未提供"), "match_status": row["match_status"], "affected_version": f">= {row['match_evidence'].get('affected_from') or '-'}，< {row['match_evidence'].get('affected_before') or '-'}", "fixed_version": "、".join(row["match_evidence"].get("fixed_versions") or []) or "待確認", "source": row["match_evidence"].get("source_url", "未提供"), "component": "核心資料庫" } for row in applicable]
         status = "stale" if stale else "ready"
-        message = ("CVE data stale：權威資料快取已超過政策期限；請完成同步後再正式交付。" if stale else f"已依 {product_name} {current} 的權威快取完成確定性 CVE 比對。")
-        recommended = min((c["fixed_version"] for c in cves if c["fixed_version"] != "待確認"), default="同 Major 最新維護版本")
-        return {"status": status, "delivery_allowed": not stale, "message": message, "source_snapshot_at": snapshot_at.isoformat(), "matcher_version": MATCHER_VERSION, "version_updates": [{"current": f"{product_name} {current}", "recommended": recommended, "summary": message, "cves": cves}], "quality_gate": {"status": "failed" if stale else "passed", "reason": "cve_data_stale" if stale else "current"}}
+        eol_message = _eol_message(str(rows[0]["product_id"]), current)
+        if stale:
+            message = "CVE data stale：權威資料快取已超過政策期限；請完成同步後再正式交付。"
+        elif latest is None:
+            message = f"已依 {product_name} {current} 的權威快取完成 CVE 比對；尚未取得同 Major 官方最新版本資料。"
+        elif is_current:
+            message = f"目前已是 {current.split('.', 1)[0]} Major 的最新維護版本 {latest}；無需進行同 Major minor 更新。"
+        else:
+            message = f"目前版本 {current} 可更新至同 Major 最新維護版本 {latest}；下列為此更新路徑中可修正的 CVE。"
+        if eol_message:
+            message = f"{message}\n{eol_message}"
+        recommended = f"{product_name} {latest}" if latest else "同 Major 最新維護版本待確認"
+        return {"status": status, "delivery_allowed": not stale, "message": message, "source_snapshot_at": snapshot_at.isoformat(), "matcher_version": MATCHER_VERSION, "version_updates": [{"current": f"{product_name} {current}", "recommended": recommended, "summary": message, "cves": cves, "eol_message": eol_message}], "quality_gate": {"status": "failed" if stale else "passed", "reason": "cve_data_stale" if stale else "current"}}
