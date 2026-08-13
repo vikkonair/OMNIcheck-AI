@@ -8,7 +8,7 @@ from docx import Document
 from omni_healthcheck.reporting import ReportModel
 from omni_healthcheck.v4_adapter import _prepare_unit, build_v4_report
 from omni_healthcheck.v4_quality import V4QualityError, validate_v4_report
-from omni_healthcheck.v4_renderer import VENDOR_RENDERER
+from omni_healthcheck.v4_renderer import VENDOR_RENDERER, _vendor_renderer
 from omni_healthcheck.docx_renderer import _font_config_for_platform
 
 
@@ -231,6 +231,15 @@ def test_adapter_passes_deterministic_cve_cache_to_v4_contract(tmp_path: Path) -
 def test_approved_v4_renderer_hash_is_pinned() -> None:
     digest = hashlib.sha256(VENDOR_RENDERER.read_bytes()).hexdigest()
     assert digest == "10f4bb156df66955981f4dfaf99ef868a62389222bad2a7976984f6307944775"
+
+
+def test_renderer_finds_vendor_from_release_working_directory(tmp_path: Path, monkeypatch) -> None:
+    renderer = tmp_path / "vendor/omni-v4-renderer/scripts/build_report.py"
+    renderer.parent.mkdir(parents=True)
+    renderer.write_text("# approved renderer fixture\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OMNICHECK_VENDOR_RENDERER", raising=False)
+    assert _vendor_renderer() == renderer
 
 
 def test_renderer_omits_assessment_block_for_information_only_item() -> None:
