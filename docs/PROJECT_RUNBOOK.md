@@ -84,6 +84,8 @@
 
 2026-08-13 報告交付與可觀測性更新：release `5f629d8` 已部署，application rollback=`e3b9c83`，無 migration。Worker 在每個 Job 輸出 `execution-profile.json`，記錄 deterministic pipeline、歷史比較、EDB persistence、CVE 比對／中文翻譯、AI 草稿／正式報告與 artifact registration 的 duration；Web 結果畫面於成功或失敗後以 API 顯示各階段與總耗時。V4 封面採 repository 受版控的 `vendor/omni-v4-renderer/assets/omniwaresoft-logo.png`（SHA-256 `44e83d4b…6578821`），既有元件下移；目錄列出章節與子章節，使用 Word `PAGEREF` 欄位取得 PDF 實際頁碼。CVE 表格移除嚴重程度欄位，改為版本／CVE／CVSS／元件／修正內容；CVSS `0.0` 亦不得被誤判為未公布。官方英文 CVE 修正內容由可選 Ollama 翻譯為繁中 presentation text，原文、CVE ID、版本、CVSS、來源與適用性仍由 deterministic cache／matcher 決定；翻譯失敗即回退原文。因舊 EDB official advisory cache 有些缺少 lower bound，僅對同 Major、EDB official、具 fixed version 的項目推論 `Major.0` 下界，並在 match evidence 記錄 `affected_from_inferred=true`；不放寬 NVD／generic source。隔離 EPAS 16.4 驗證 Job `c39f0c08e37949ab93c007a803c2c4e5` 成功：18 CVE、首筆 CVSS=4.2、修正內容為繁中、V4 QA allowed、DOCX／PDF 產出；execution profile 總計 93.4 秒（deterministic 4.5 秒、history 0.01 秒、CVE 0.17 秒、AI＋正式報告 88.7 秒）。
 
+2026-08-13 V4 目錄與 CVE 可讀性修正：目錄改採無框雙欄固定寬度，章節名稱在左、`PAGEREF` 頁碼欄固定靠右，不再以變動長度的點線推擠頁碼。CVE 顯示欄位改為版本／CVE／CVSS／修正內容，移除元件欄並將其寬度配置給修正內容；元件、嚴重程度、CVSS version/vector/source 仍保留在 canonical CVE JSON、cache 與 V4 QA，不影響可追溯性。翻譯 prompt 要求一至兩句具體繁中說明，且 validation 會拒絕「更多細節／更多資訊／詳情／請參閱」等空泛字句，拒絕時安全回退官方英文原文。
+
 ## 3. 目前整體架構
 
 ```text

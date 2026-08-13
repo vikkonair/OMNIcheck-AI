@@ -40,3 +40,26 @@ def test_cve_translation_only_adds_chinese_presentation_text() -> None:
     assert cve["summary_zh"] == "修正資料庫伺服器的安全性問題"
     assert cve["cvss_score"] == "7.5"
     assert audit.finished[0][1]["status"] == "succeeded"
+
+
+def test_cve_translation_rejects_empty_generic_detail_phrase() -> None:
+    audit = _Audit()
+    gateway = SimpleNamespace(
+        settings=SimpleNamespace(
+            enabled=True, endpoint="http://ollama.invalid", model="test",
+            timeout_seconds=10,
+        ),
+        audit_store=audit,
+        transport=lambda *_args: {"choices": [{"message": {"content": (
+            '{"translations":[{"id":"CVE-2026-2",'
+            '"summary_zh":"修正安全性問題，更多細節"}]}'
+        )}}]},
+    )
+    report = {"version_updates": [{"cves": [{
+        "id": "CVE-2026-2", "summary": "Fix a specific security problem.",
+    }]}]}
+
+    translated = translate_cve_report(
+        report, job_id="a" * 32, item_id="b" * 32, gateway=gateway
+    )
+    assert "summary_zh" not in translated["version_updates"][0]["cves"][0]

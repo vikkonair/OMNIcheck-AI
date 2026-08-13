@@ -212,6 +212,21 @@ def add_page_reference(paragraph, bookmark: str) -> None:
     format_run(run, size=10, color=GRAY)
 
 
+def remove_table_borders(table) -> None:
+    """Make a layout-only table invisible in the final report."""
+    tbl_pr = table._tbl.tblPr
+    borders = tbl_pr.first_child_found_in("w:tblBorders")
+    if borders is None:
+        borders = OxmlElement("w:tblBorders")
+        tbl_pr.append(borders)
+    for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        element = borders.find(qn(f"w:{edge}"))
+        if element is None:
+            element = OxmlElement(f"w:{edge}")
+            borders.append(element)
+        element.set(qn("w:val"), "nil")
+
+
 def configure_document(doc: Document) -> None:
     section = doc.sections[0]
     section.page_width = Cm(21)
@@ -542,13 +557,22 @@ def add_contents(doc: Document, data: dict[str, Any]) -> None:
             entries.append((f"{next_number}.1", "版本更新資訊摘要", 2))
         if complete_summary(data):
             entries.append((f"{next_number}.2", "健檢結論與優化建議", 2))
+    toc = doc.add_table(rows=0, cols=2)
+    toc.alignment = WD_TABLE_ALIGNMENT.CENTER
+    toc.autofit = False
     for number, title, level in entries:
-        p = doc.add_paragraph()
+        left, right = toc.add_row().cells
+        set_cell_margins(left, top=35, start=0, bottom=35, end=60)
+        set_cell_margins(right, top=35, start=60, bottom=35, end=0)
+        p = left.paragraphs[0]
         p.paragraph_format.left_indent = Cm(0.35 if level == 1 else 0.85)
         r = p.add_run(f"{str(number).rstrip('.')}. {title}")
         format_run(r, size=10.5 if level == 1 else 9.5, bold=level == 1, color=BLUE)
-        p.add_run(" " + "." * 34 + " ")
-        add_page_reference(p, _bookmark_name(number))
+        page = right.paragraphs[0]
+        page.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        add_page_reference(page, _bookmark_name(number))
+    apply_table_widths(toc, [8550, 1310])
+    remove_table_borders(toc)
     doc.add_page_break()
 
 
@@ -924,33 +948,26 @@ def add_updates_and_summary(doc: Document, data: dict[str, Any], number: int) ->
         for update in updates:
             for cve in update.get("cves") or []:
                 cvss = str(cve.get("cvss_score", "未公布／待確認"))
-                vector = str(cve.get("vector", "")).strip()
-                vector_source = [
-                    vector or "未公布／待確認",
-                    str(cve.get("score_source", "未公布／待確認")),
-                ]
                 cve_rows.append((
                     cve.get("fixed_version", "待確認"),
                     cve.get("id", ""),
                     cvss,
-                    cve.get("component", "核心資料庫"),
                     cve.get("summary_zh") or cve.get("summary", ""),
                 ))
         if cve_rows:
             p = doc.add_paragraph()
             r = p.add_run("可修正 CVE 清單")
             format_run(r, size=10, bold=True, color=BLUE)
-            cve_table = doc.add_table(rows=1, cols=5)
-            for index, value in enumerate(("版本", "CVE", "CVSS", "元件", "修正內容")):
+            cve_table = doc.add_table(rows=1, cols=4)
+            for index, value in enumerate(("版本", "CVE", "CVSS", "修正內容")):
                 cve_table.rows[0].cells[index].text = value
-            for version, cve_id, cvss, component, cve_summary in cve_rows:
+            for version, cve_id, cvss, cve_summary in cve_rows:
                 cells = cve_table.add_row().cells
                 cells[0].text = str(version)
                 cells[1].text = str(cve_id)
                 cells[2].text = str(cvss)
-                cells[3].text = str(component)
-                cells[4].text = report_prose(cve_summary)
-            style_table(cve_table)
+                cells[3].text = report_prose(cve_summary)
+            style_table(cve_table, column_widths=[1300, 1800, 1000, 5760])
     if summary:
         add_heading(doc, f"{number}.2", "健檢結論與優化建議", 2)
         headers = ("狀態", "項目", "發現", "建議", "章節")
