@@ -80,6 +80,8 @@
 
 2026-08-13 M12 開始：新增 `history.py` 的 deterministic snapshot comparison core（commit `8a698b5`）。輸入僅限兩期 immutable `normalized.json` 與 `assessment.json`，輸出新增／移除／evidence changed 與 status improved／worsened；不使用 AI，亦不改變當期 Rule 結果。完整 local pytest 通過。下一步是以客戶名稱＋系統名稱安全尋找上一期已完成 Job、輸出 `history-comparison.json`，再接入 V4 報告；目前 UI 不啟用 Login/RBAC，M12 不得重新顯示 Customer/System 授權選項。
 
+2026-08-13 M12 公司 E2E 完成：release `46bd7e4` 已部署至公司 App VM，application rollback=`14fe797`，無 migration。Worker 以同 customer／system_name／product 與較早 created_at 尋找最新成功 Job；比較僅讀兩期 immutable `normalized.json`、`assessment.json`，產生 `history-comparison.json`，再以 V4 report JSON 將 ready 結果輸出為「歷史健檢比較」章節。隔離驗證 Job `d654d97f9a7f41ee8e3b28ef81982479` 由既有 `6310338ddc054beebdd523a3e7211dac` 的 immutable input 複本建立，成功找到 prior Job `6310338ddc054beebdd523a3e7211dac`，差異統計為新增／移除／改善／惡化／證據變更皆 0；`v4-qa-result.json.delivery_allowed=true`，PDF 文字層含「6. 歷史健檢比較」。建立驗證副本時曾因 root 擁有目錄使 Worker 無法寫入，僅修正該驗證 Job 的 owner 後重排；部署與一般 UI 建立 Job 均以 `omnicheck` 使用者寫入。此功能不呼叫 AI、不改變當期 Rule 結果、Primary-only scope 或 UI 的無登入模式。
+
 ## 3. 目前整體架構
 
 ```text

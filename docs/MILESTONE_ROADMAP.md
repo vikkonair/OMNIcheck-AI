@@ -1,6 +1,6 @@
 # OMNIcheck AI 後續 Milestone Roadmap
 
-最後更新：2026-08-12
+最後更新：2026-08-13
 
 目前狀態：M14.5 AI 完整交付流程已完成並部署。新案件必須完成全部適用 Section 的文字／PEM Vision 草稿、最終 DOCX／PDF 與 QA 後才顯示 succeeded；初版報告使用 AI draft，個別失敗項目回退 deterministic，工程師下載後再覆核與核准。
 
@@ -16,7 +16,7 @@ M1～M10.1 Pipeline 與 V4 Renderer 是已驗收基礎，不得因前端或 AI �
 | M10.3.1 | 完成 | 版本化 Section JSON、規則原文、AI 草稿、人工審查／核准狀態與 fail-closed 選文 |
 | M10.3.2 | 完成、公司 E2E 通過 | 相容 0005～0007 migration chain；EDB current state＋append-only revisions；Section review／approval API；approved-only Renderer |
 | M11 | 選配身份與權限 | 預設內網單一使用模式；需要時再加入 API token、登入、RBAC、客戶隔離與 Audit |
-| M12 | 進行中 | Deterministic snapshot comparison core 已完成；接續同系統跨期差異、報告與歷史摘要資料 |
+| M12 | 公司 E2E 驗收完成 | 同客戶、同系統、同產品的 immutable Canonical JSON／deterministic assessment 比較；`history-comparison.json`、V4／PDF 歷史比較章節與 QA 已通過 |
 | M13.1 | 公司 Cache 同步完成 | PostgreSQL Release／Security、EDB Advisory、NVD 補強入口、來源快照、sync run 與 stale policy；公司批次 NVD 排程待補 |
 | M13.2 | 公司 E2E 驗收完成 | Primary-only Product／Version Parser、確定性 matcher、fixed／pending 狀態；EPAS Golden Job 產生 46 個 CVE |
 | M13.3 | 公司 E2E 驗收完成 | V4 `version_updates`、CVE metadata gate、CVE artifact；23 頁 DOCX/PDF、V4 QA 通過；無登入 UI Job 同樣產生 CVE；僅顯示同 Major minor 更新路徑可修正 CVE |

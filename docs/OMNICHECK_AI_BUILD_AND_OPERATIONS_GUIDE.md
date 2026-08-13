@@ -91,6 +91,7 @@
 | M10.3.2 | 完成、公司 E2E 通過 | 相容 migration chain、EDB current/revision persistence、Section API、approved-only Renderer |
 | M14.1 | 完成、公司真實模型 E2E 通過 | Ollama Section draft、遮蔽、audit、fallback；feature flag 可立即停用 |
 | M14.2 | 公司候選完成、待多項批次／使用者驗收 | Section 審核工作台、EDB durable batch、逐筆限流、進度與人工核准 |
+| M12 | 公司 E2E 驗收完成 | 同 customer／system_name／product 的 immutable snapshot 比較、`history-comparison.json`、V4／PDF 歷史比較章節；不需要 AI 或 migration |
 | M13.1～M13.3 | 開發中、本機驗證 | 固定來源 Cache import、Primary version parser、確定性 matcher、stale gate、V4 CVE contract；待公司 sync／E2E |
 | M11～M15 | 已核准、待實作 | 選配權限、歷史、CVE、Ollama AI Gateway 與生產強化 |
 
@@ -1143,6 +1144,8 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - CVE minor-path／EOL hotfix（2026-08-13）：report version parser 以 normalized canonical product 為準，避免 EPAS 的版本字串含 PostgreSQL 而誤標產品。適用性只可使用 PostgreSQL Security 或 EDB Security Advisory 的同 Major、明確 `affected_from`／`affected_before` 範圍；NVD 僅可補 CVSS／CWE，絕不可當作產品適用性來源。報告將客戶版本與同 Major 最新 minor 比較：落後時只列該更新路徑可修正 CVE，已是最新時不顯示 CVE 明細。CVE 表格欄位為版本、CVE、嚴重程度、CVSS、元件、修正內容。PostgreSQL 相容 Major 已 EOL 或 365 天內 EOL 時於摘要加註提醒；EPAS 必須同時人工確認 EDB 支援期限。company current=`14fe797`，application rollback=`dffcb98`，無 migration。
 
 - M12 歷史比較（開始，2026-08-13）：`omni_healthcheck.history.compare_snapshots()` 只讀兩期 immutable Canonical JSON 與 deterministic assessment，輸出 check 新增／移除、evidence changed、status improved／worsened。它不呼叫 AI、不改寫當期 assessment，也不影響 Primary-only scope。後續會由 Job metadata 的客戶名稱＋系統名稱尋找上一期已完成 Job，輸出 `history-comparison.json` 並接入 V4；目前內網 UI 仍不顯示 Customer/System 授權選項。
+
+- M12 歷史比較（公司 E2E 完成，2026-08-13）：release `46bd7e4` 已部署，application rollback=`14fe797`，無 schema migration。Worker 只會挑選同 `customer`、`system_name`、`product` 且早於本次 created_at 的最新 succeeded Job，讀取兩期不可變 `normalized.json` 與 `assessment.json`，輸出 `history-comparison.json`；只有 `status=ready` 時 V4 Renderer 才新增「歷史健檢比較」章節。隔離驗證 Job `d654d97f9a7f41ee8e3b28ef81982479` 成功使用 prior Job `6310338ddc054beebdd523a3e7211dac`，V4 QA delivery allowed，PDF 文字層可見第 6 章。沒有 prior baseline 時報告照常產出而不顯示該章節。建立手動驗證 Job 時必須以 `omnicheck:omnicheck` 擁有 `/data/omnicheck/jobs/<job_id>`；勿以 root 建立後直接讓 Worker 執行。
 
 ## 附錄 A：官方與專案依據
 
