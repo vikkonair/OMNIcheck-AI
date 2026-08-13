@@ -72,6 +72,8 @@
 
 2026-08-13 M13.1 公司部署：release `abd8e69` 已切入 App VM，application rollback 為 `01ba901`；先前 release 建置因缺少 hatchling 在 migration 前停止，已確認舊服務持續 active 後補齊 isolated venv。公司 EDB 已由 `0010_m14_2_batches` 升級至 additive `0011_m13_cve_major`，未刪除資料。首次官方同步成功保存 PostgreSQL Release（5）、PostgreSQL Security（109 CVE range）、EDB direct EPAS Advisory（11 CVE range）snapshot 到 `/data/omnicheck/archive/cve`；Cache 現有 662 releases、409 CVE、837 impacts。Web／Worker health active。NVD 已於本機單筆驗證；公司批次 NVD 排程、客戶 Job CVE V4/PDF E2E 與 stale gate 實機驗收仍待執行。
 
+2026-08-13 M13.2／M13.3 公司 E2E：使用 tenant-scoped Golden V4 的既有 3 份不可變測試輸入建立獨立 Job `3cd0eb11ded54825a6d6089f4e06f004`；首次由 root 建立的驗收目錄使 Worker 無法寫入，僅修正該測試 Job 目錄 owner 後重排，最終成功（不影響其他案件）。EPAS matcher 產生 1 個 version update／46 個 CVE，`cve-result.json` 為 ready、delivery allowed，V4 QA passed。驗收用相同輸入與 CVE 結果在獨立暫存輸出產生 23 頁 A4 DOCX／PDF（54 KB／219 KB）；公司端使用 Noto Sans CJK TC、Poppler `pdftoppm` 產生 23 頁 PNG，文字層無 replacement glyph、含 46 個 CVE 與 EPAS 產品名稱。另發現 isolated release 的 V4 renderer 原先從 site-packages 相對路徑尋找 vendor template；hotfix `aec3332` 改為優先由 release working directory 載入，已完成本機完整 tests、公司 health 及上述 PDF 驗收。company current=`aec3332`，application rollback=`abd8e69`，無 migration。
+
 ## 3. 目前整體架構
 
 ```text

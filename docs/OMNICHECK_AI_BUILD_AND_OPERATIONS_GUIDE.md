@@ -224,13 +224,13 @@ dnf list available '*noto*cjk*' '*source*han*'
 若 `python3.12` 可用：
 
 ```bash
-dnf install -y git python3.12 python3.12-pip fontconfig libreoffice google-noto-sans-cjk-ttc-fonts
+dnf install -y git python3.12 python3.12-pip fontconfig libreoffice google-noto-sans-cjk-ttc-fonts poppler-utils
 python3.12 --version
 libreoffice --version
 fc-list | head
 ```
 
-公司實測版本為 Python 3.12.13、LibreOffice 7.1.8.1、Noto Sans CJK TC。若 repository 沒有上述套件，停止並由 OS 管理員提供核准 repository／RPM；不可臨時從不明網站下載，也不可用系統 Python 3.9 代替。
+公司實測版本為 Python 3.12.13、LibreOffice 7.1.8.1、Noto Sans CJK TC 與 poppler-utils 21.01.0。若 repository 沒有上述套件，停止並由 OS 管理員提供核准 repository／RPM；不可臨時從不明網站下載，也不可用系統 Python 3.9 代替。
 
 ### 6.3 中文字型
 
@@ -1136,7 +1136,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 - M10 可對標準搜集包提出角色候選；非標準檔名、缺少 EFM／OS 訊號或衝突時仍需使用者指定，且所有案件都必須人工確認。
 - Barman 真實 wrapper fixture 待提供。
 - Python dependency 目前為 version ranges，正式 reproducible build 尚需 lock／wheelhouse。
-- M13 公司 Cache 已部署：release `abd8e69`、EDB revision `0011_m13_cve_major`，首次同步保存 PostgreSQL Release 5 筆、PostgreSQL Security 109 個 CVE range 與 EDB direct EPAS Advisory 11 個 CVE range 的不可變 snapshot。M13 具備固定來源 Cache import、PostgreSQL 官方 Release catalog／Security CVE downloader、EDB direct EPAS Advisory downloader、NVD CVSS/CWE 補強、Primary-only Version Parser、確定性 matcher、stale gate、`cve-result.json` artifact 與 V4 metadata gate。以 `omni-healthcheck-cve-import --sync-postgresql-releases`、`--sync-postgresql-cves`、`--sync-edb-advisories` 和指定 `--sync-nvd --cve-id` 維護快取；所有下載都必須保存 snapshot，且報告 Worker 不可連外。公司批次 NVD 排程與實際客戶資料 CVE V4/PDF 驗收尚未完成。application rollback 為 `01ba901`；migration 採 additive/forward fix，不建議 production downgrade。操作見 `docs/M13_CVE_IMPLEMENTATION.md`。
+- M13 公司 E2E 已完成：Cache schema 為 `0011_m13_cve_major`，首次同步保存 PostgreSQL Release 5 筆、PostgreSQL Security 109 個 CVE range 與 EDB direct EPAS Advisory 11 個 CVE range 的不可變 snapshot。tenant-scoped Golden Job `3cd0eb11ded54825a6d6089f4e06f004` 以不可變輸入產生 46 個 EPAS CVE，`cve-result.json` ready、V4 QA passed，並在獨立暫存輸出驗證 23 頁 DOCX/PDF。M13 具備固定來源 Cache import、PostgreSQL 官方 Release catalog／Security CVE downloader、EDB direct EPAS Advisory downloader、NVD CVSS/CWE 補強、Primary-only Version Parser、確定性 matcher、stale gate、`cve-result.json` artifact 與 V4 metadata gate。以 `omni-healthcheck-cve-import --sync-postgresql-releases`、`--sync-postgresql-cves`、`--sync-edb-advisories` 和指定 `--sync-nvd --cve-id` 維護快取；所有下載都必須保存 snapshot，且報告 Worker 不可連外。公司端 PDF QA 依賴 `poppler-utils`（`pdftoppm`／`pdfinfo`），已安裝；Noto Sans CJK TC 可用。isolated release V4 renderer 路徑 hotfix `aec3332` 已部署，application rollback 為 `abd8e69`；migration 採 additive/forward fix，不建議 production downgrade。操作見 `docs/M13_CVE_IMPLEMENTATION.md`。
 
 ## 附錄 A：官方與專案依據
 
