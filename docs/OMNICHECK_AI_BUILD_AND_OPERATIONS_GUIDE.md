@@ -1142,6 +1142,8 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 
 - CVE minor-path／EOL hotfix（2026-08-13）：report version parser 以 normalized canonical product 為準，避免 EPAS 的版本字串含 PostgreSQL 而誤標產品。適用性只可使用 PostgreSQL Security 或 EDB Security Advisory 的同 Major、明確 `affected_from`／`affected_before` 範圍；NVD 僅可補 CVSS／CWE，絕不可當作產品適用性來源。報告將客戶版本與同 Major 最新 minor 比較：落後時只列該更新路徑可修正 CVE，已是最新時不顯示 CVE 明細。CVE 表格欄位為版本、CVE、嚴重程度、CVSS、元件、修正內容。PostgreSQL 相容 Major 已 EOL 或 365 天內 EOL 時於摘要加註提醒；EPAS 必須同時人工確認 EDB 支援期限。company current=`14fe797`，application rollback=`dffcb98`，無 migration。
 
+- M12 歷史比較（開始，2026-08-13）：`omni_healthcheck.history.compare_snapshots()` 只讀兩期 immutable Canonical JSON 與 deterministic assessment，輸出 check 新增／移除、evidence changed、status improved／worsened。它不呼叫 AI、不改寫當期 assessment，也不影響 Primary-only scope。後續會由 Job metadata 的客戶名稱＋系統名稱尋找上一期已完成 Job，輸出 `history-comparison.json` 並接入 V4；目前內網 UI 仍不顯示 Customer/System 授權選項。
+
 ## 附錄 A：官方與專案依據
 
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
