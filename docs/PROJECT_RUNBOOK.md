@@ -648,6 +648,8 @@ M11 不更動 M1～M10 Pipeline、Canonical JSON、V4 Renderer 或 Worker scope�
 
 啟用時帳密使用 stdlib scrypt 雜湊；session 僅保存 SHA-256 hash，瀏覽器以 HttpOnly、SameSite strict cookie 加 CSRF header 使用。平台管理者可藉一次性 bootstrap token 建立第一個 admin，再建立使用者與 Customer membership。新案件必須選擇被授權 Customer＋System；所有 Job／下載／Section／AI API 都由後端檢查 membership，legacy unscoped Job 只有 platform admin 可讀。正式啟用前需設高熵 bootstrap token、完成 Customer/System 建檔、在 staging 驗證未登入 401、跨 Customer 403、CSRF 403 與 audit event，並在 HTTPS reverse proxy 後將 `OMNICHECK_AUTH_COOKIE_SECURE=true`。Git/application rollback 可將開關關閉，不得為此執行 EDB downgrade。
 
+公司 App VM 已於 2026-08-14 部署 release `b1de455`；當時 Alembic 為 `0011_m13_cve_major (head)`、無 queued/running Job、Web／Worker／`/api/health` 均正常。未設定 `OMNICHECK_AUTH_ENABLED`，故採預設 false，不會改變現行內網無登入操作。application rollback=`33f6e41`；無新增 migration 或 EDB 變更。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |
