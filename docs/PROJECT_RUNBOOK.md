@@ -650,6 +650,8 @@ M11 不更動 M1～M10 Pipeline、Canonical JSON、V4 Renderer 或 Worker scope�
 
 公司 App VM 已於 2026-08-14 部署 release `b1de455`；當時 Alembic 為 `0011_m13_cve_major (head)`、無 queued/running Job、Web／Worker／`/api/health` 均正常。未設定 `OMNICHECK_AUTH_ENABLED`，故採預設 false，不會改變現行內網無登入操作。application rollback=`33f6e41`；無新增 migration 或 EDB 變更。
 
+測試例外（2026-08-14）：`OMNICHECK_AUTH_MIN_PASSWORD_LENGTH` 的預設為 12；僅在明確設定時可降低最低長度。公司測試帳號若暫時設為短密碼，必須於正式啟用前移除此環境設定、設回預設並強制更換為高強度密碼；不可將此例外當作正式安全基準。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |

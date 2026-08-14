@@ -65,3 +65,17 @@ def test_auth_bootstrap_only_allows_first_platform_admin(tmp_path, monkeypatch) 
     assert created.status_code == 201
     assert created.json()["platform_role"] == "platform_admin"
     assert client.post("/api/auth/bootstrap", json=body).status_code == 409
+
+
+def test_auth_password_length_can_only_be_lowered_by_explicit_environment(monkeypatch) -> None:
+    from omni_healthcheck.auth import hash_password, verify_password
+
+    monkeypatch.delenv("OMNICHECK_AUTH_MIN_PASSWORD_LENGTH", raising=False)
+    try:
+        hash_password("victor")
+    except ValueError as exc:
+        assert "12" in str(exc)
+    else:
+        raise AssertionError("default password policy must remain at least 12 characters")
+    monkeypatch.setenv("OMNICHECK_AUTH_MIN_PASSWORD_LENGTH", "1")
+    assert verify_password("victor", hash_password("victor"))

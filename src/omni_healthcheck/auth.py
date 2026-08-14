@@ -78,8 +78,9 @@ def _token_hash(token: str) -> str:
 
 
 def hash_password(password: str) -> str:
-    if len(password) < 12:
-        raise ValueError("password must be at least 12 characters")
+    minimum = max(1, int(os.environ.get("OMNICHECK_AUTH_MIN_PASSWORD_LENGTH", "12")))
+    if len(password) < minimum:
+        raise ValueError(f"password must be at least {minimum} characters")
     salt = secrets.token_bytes(16)
     derived = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
     return f"scrypt$16384$8$1${salt.hex()}${derived.hex()}"

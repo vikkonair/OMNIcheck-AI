@@ -1163,6 +1163,8 @@ M11 不更動既有 Pipeline、Canonical JSON 或 V4 Renderer；只在 Web API �
 6. 驗證未登入 API 回 401、跨 Customer Job 不可列出或下載、legacy unscoped Job 僅 admin 可讀、缺 CSRF 的 cookie POST 回 403，且登入／拒絕登入／帳號與授權異動都寫入 audit。
 7. 公司驗收後才啟用正式環境。若需 application rollback，先將開關關閉；不可用 Git rollback 取代 EDB schema downgrade。
 
+密碼政策預設最低 12 碼。僅供測試時可明確設定 `OMNICHECK_AUTH_MIN_PASSWORD_LENGTH=1`；正式環境不得設定此值，應移除設定並要求所有帳號換成高強度密碼。
+
 公司部署紀錄（2026-08-14）：release `b1de455` 已安裝於公司 App VM，登入功能維持預設 disabled；Alembic `0011_m13_cve_major (head)`、Web／Worker、`/api/health` 均通過。application rollback=`33f6e41`，無 migration。
 
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
