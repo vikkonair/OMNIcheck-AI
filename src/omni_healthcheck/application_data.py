@@ -8,6 +8,7 @@ later persistence milestones project into.
 from __future__ import annotations
 
 import re
+import hashlib
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from uuid import uuid4
@@ -338,6 +339,42 @@ class ApplicationDataStore:
         if row is None:
             raise KeyError(customer_id)
         return _serialize(row)
+
+    def ensure_customer_system(
+        self, *, customer_name: str, system_name: str, product: str | None
+    ) -> tuple[dict, dict]:
+        """Idempotently create a scope for a platform-admin initiated Job.
+
+        Names are UI-facing and may contain Traditional Chinese, so immutable
+        internal keys use a short SHA-256 suffix rather than lossy transliteration.
+        """
+        customer_name = _required(customer_name, "customer_name")
+        system_name = _required(system_name, "system_name")
+        with self.engine.connect() as connection:
+            customer_row = connection.execute(
+                select(customers).where(customers.c.name == customer_name)
+            ).mappings().first()
+        if customer_row is None:
+            tenant_key = f"customer-{hashlib.sha256(customer_name.encode()).hexdigest()[:16]}"
+            customer = self.create_customer(tenant_key=tenant_key, name=customer_name)
+        else:
+            customer = _serialize(customer_row)
+        with self.engine.connect() as connection:
+            system_row = connection.execute(
+                select(systems).where(
+                    systems.c.customer_id == customer["customer_id"],
+                    systems.c.name == system_name,
+                )
+            ).mappings().first()
+        if system_row is None:
+            system_key = f"system-{hashlib.sha256(system_name.encode()).hexdigest()[:16]}"
+            system = self.create_system(
+                customer["customer_id"], system_key=system_key, name=system_name,
+                environment="unspecified", product=product,
+            )
+        else:
+            system = _serialize(system_row)
+        return customer, system
 
     def create_system(
         self,

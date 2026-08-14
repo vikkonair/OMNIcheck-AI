@@ -67,6 +67,20 @@ def test_auth_bootstrap_only_allows_first_platform_admin(tmp_path, monkeypatch) 
     assert client.post("/api/auth/bootstrap", json=body).status_code == 409
 
 
+def test_platform_admin_can_provision_new_customer_system_on_first_job(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("OMNICHECK_AUTH_ENABLED", "true")
+    metadata = DatabaseMetadataStore(f"sqlite:///{tmp_path / 'admin-create.db'}")
+    metadata.create_schema_for_test()
+    auth = AuthStore(engine=metadata.engine, enabled=True)
+    admin = auth.create_user(username="admin", display_name="管理者", password="correct-horse-battery", platform_admin=True)
+    client = TestClient(create_app(data_root=tmp_path / "jobs", metadata_store=metadata))
+    assert client.post("/api/auth/login", json={"username": admin["username"], "password": "correct-horse-battery"}).status_code == 200
+    response = client.post("/api/jobs", json=_config(), headers={"X-OMNI-CSRF": client.cookies.get("omnicheck_csrf")})
+    assert response.status_code == 201, response.text
+    assert response.json()["customer_id"]
+    assert response.json()["system_id"]
+
+
 def test_auth_password_length_can_only_be_lowered_by_explicit_environment(monkeypatch) -> None:
     from omni_healthcheck.auth import hash_password, verify_password
 

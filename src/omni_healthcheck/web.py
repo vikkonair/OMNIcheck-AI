@@ -384,7 +384,13 @@ def create_app(
                 )
                 auth_store.require_customer(principal, customer_id, "engineer")
             except PermissionError as exc:
-                raise HTTPException(status_code=403, detail="customer or system is not authorized") from exc
+                if not principal.is_admin or application_store is None:
+                    raise HTTPException(status_code=403, detail="customer or system is not authorized") from exc
+                customer, system = application_store.ensure_customer_system(
+                    customer_name=config.customer, system_name=config.system_name or "",
+                    product=config.product,
+                )
+                customer_id, system_id = customer["customer_id"], system["system_id"]
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
         created = store.create(config)
