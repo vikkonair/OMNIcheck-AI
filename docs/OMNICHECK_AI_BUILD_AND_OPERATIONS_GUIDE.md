@@ -1167,6 +1167,8 @@ M11 不更動既有 Pipeline、Canonical JSON 或 V4 Renderer；只在 Web API �
 
 公司部署紀錄（2026-08-14）：release `b1de455` 已安裝於公司 App VM，登入功能維持預設 disabled；Alembic `0011_m13_cve_major (head)`、Web／Worker、`/api/health` 均通過。application rollback=`33f6e41`，無 migration。
 
+公司登入測試紀錄（2026-08-14）：release `3cec743` 已啟用登入；舊 `omnicheck-admin` 已停用但保留，`victor` 為唯一 active platform admin。實測登入 API 回 200、`/api/auth/me` 確認 platform admin、未登入 `/api/jobs` 回 401。此環境暫時為 HTTP 測試模式：`OMNICHECK_AUTH_MIN_PASSWORD_LENGTH=1`、`OMNICHECK_AUTH_COOKIE_SECURE=false`；正式上線前必須移除弱密碼例外、強制更換測試密碼，並在 HTTPS reverse proxy 啟用 secure cookie。application rollback=`b1de455`；無 migration。
+
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
 - EDB EPAS 17 RHEL 9 安裝（依 CPU architecture 選頁面）：<https://www.enterprisedb.com/docs/epas/17/installing/linux_x86_64/>
 - EDB Failover Manager 安裝與操作：<https://www.enterprisedb.com/docs/efm/latest/installing/>、<https://www.enterprisedb.com/docs/efm/latest/05_using_efm/>

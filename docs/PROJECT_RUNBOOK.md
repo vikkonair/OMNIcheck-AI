@@ -652,6 +652,8 @@ M11 不更動 M1～M10 Pipeline、Canonical JSON、V4 Renderer 或 Worker scope�
 
 測試例外（2026-08-14）：`OMNICHECK_AUTH_MIN_PASSWORD_LENGTH` 的預設為 12；僅在明確設定時可降低最低長度。公司測試帳號若暫時設為短密碼，必須於正式啟用前移除此環境設定、設回預設並強制更換為高強度密碼；不可將此例外當作正式安全基準。
 
+公司登入測試啟用（2026-08-14）：release `3cec743` 已部署，application rollback=`b1de455`。舊 `omnicheck-admin` 已停用但未刪除；`victor` 已建立為唯一 active platform admin。環境暫時設定 `OMNICHECK_AUTH_ENABLED=true`、`OMNICHECK_AUTH_MIN_PASSWORD_LENGTH=1`、`OMNICHECK_AUTH_COOKIE_SECURE=false`，僅供公司 HTTP 測試；實測登入回 200、`/api/auth/me` 回傳 victor platform admin、未登入 `/api/jobs` 回 401。正式上線前必須移除短密碼例外、更換測試密碼、設定 HTTPS reverse proxy 與 secure cookie。原環境檔備份於 `/data/omnicheck/archive/omnicheck.env.pre_auth_handover_20260814`；不含於 Git。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |
