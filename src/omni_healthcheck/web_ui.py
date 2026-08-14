@@ -188,6 +188,10 @@ function formatError(body) {
   return JSON.stringify(body);
 }
 async function api(url, options={}) {
+  const csrf = document.cookie.split('; ').find(value => value.startsWith('omnicheck_csrf='))?.split('=')[1];
+  const headers = new Headers(options.headers || {});
+  if (csrf && !headers.has('X-OMNI-CSRF')) headers.set('X-OMNI-CSRF', decodeURIComponent(csrf));
+  options = {...options, headers};
   const response = await fetch(url, options);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(formatError(body));

@@ -1151,6 +1151,18 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 
 ## 附錄 A：官方與專案依據
 
+## M11 Login／RBAC 啟用手順（預設不啟用）
+
+M11 不更動既有 Pipeline、Canonical JSON 或 V4 Renderer；只在 Web API 加上 EDB 身分、角色與 Customer scope enforcement。既有 `0005_m11` migration 建立 `users`、`customer_memberships`、`user_sessions`、`audit_events`，不得為啟用登入執行 downgrade。
+
+1. 確認 Customer／System 已建立且名稱正確；啟用模式下新案件必須選擇被授權的 Customer 和 System。
+2. 在 `/etc/omnicheck-ai/omnicheck.env` 設定一次性高熵 `OMNICHECK_AUTH_BOOTSTRAP_TOKEN`，先維持 `OMNICHECK_AUTH_ENABLED=false`。不可提交 token。
+3. 使用 `POST /api/auth/bootstrap` 建立第一位 platform admin；成功後 endpoint 必須回 409，隨即從環境檔移除 bootstrap token。
+4. 用 admin session 呼叫 `POST /api/admin/users` 建帳號、`POST /api/admin/customer-memberships` 授予 Customer `engineer`、`reviewer` 或 `viewer`。platform admin 可管理全部 Customer；engineer 可建案／上傳／執行／修改；reviewer 可讀取與核准；viewer 僅讀取。
+5. staging 設定 `OMNICHECK_AUTH_ENABLED=true`。HTTP 測試時 `OMNICHECK_AUTH_COOKIE_SECURE=false`；正式 TLS reverse proxy 完成後必須設為 `true`。
+6. 驗證未登入 API 回 401、跨 Customer Job 不可列出或下載、legacy unscoped Job 僅 admin 可讀、缺 CSRF 的 cookie POST 回 403，且登入／拒絕登入／帳號與授權異動都寫入 audit。
+7. 公司驗收後才啟用正式環境。若需 application rollback，先將開關關閉；不可用 Git rollback 取代 EDB schema downgrade。
+
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
 - EDB EPAS 17 RHEL 9 安裝（依 CPU architecture 選頁面）：<https://www.enterprisedb.com/docs/epas/17/installing/linux_x86_64/>
 - EDB Failover Manager 安裝與操作：<https://www.enterprisedb.com/docs/efm/latest/installing/>、<https://www.enterprisedb.com/docs/efm/latest/05_using_efm/>

@@ -99,6 +99,7 @@ INTEGRATED_INDEX_HTML = (
   <div class="header-actions">
     <a class="classic-link active" href="/integrated">健檢作業</a>
     <a class="classic-link" href="/classic">傳統介面</a>
+    <button class="classic-link" id="logoutButton" type="button">登出</button>
   </div>
 </div></header>
 <div class="workspace-strip"><div class="workspace-meta">
@@ -234,5 +235,15 @@ el('approveAllAndRender').addEventListener('click',approveAllAndRender);
     .replace(
         "el('resultSection').scrollIntoView({behavior:'smooth'});",
         "el('reviewJobId').value=job.job_id; el('resultSection').scrollIntoView({behavior:'smooth'});",
+    )
+    .replace(
+        "</script>",
+        """document.getElementById('logoutButton')?.addEventListener('click', async () => {
+  const csrf=document.cookie.split('; ').find(value=>value.startsWith('omnicheck_csrf='))?.split('=')[1];
+  await fetch('/api/auth/logout',{method:'POST',headers:csrf?{'X-OMNI-CSRF':decodeURIComponent(csrf)}:{}});
+  location.href='/login';
+});
+</script>""",
+        1,
     )
 )
