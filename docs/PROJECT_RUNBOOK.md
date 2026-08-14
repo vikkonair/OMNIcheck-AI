@@ -656,6 +656,8 @@ M11 不更動 M1～M10 Pipeline、Canonical JSON、V4 Renderer 或 Worker scope�
 
 登入 scope UX 修正（2026-08-14）：既有案件名稱多為 legacy Job，尚未寫入 M9.4 Customer/System 清冊，導致 admin 第一次建立案件也被拒絕。platform admin 現在可在建立 Job 時，以介面輸入名稱自動且冪等地建立 Customer/System（中文名稱用 SHA-256 衍生 internal key）；一般 engineer/reviewer/viewer 仍不可自動建立，必須具既有 Customer membership。此修正不改動 legacy Job、Pipeline 或資料庫 schema。
 
+公司部署（2026-08-14）：release `a599a85` 已部署，application rollback=`3cec743`；Web／Worker／health 正常，未登入 `/api/jobs` 仍回 401。無 migration；platform admin 可立即重試建立案件以自動建立所需 Customer/System scope。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |
