@@ -1151,7 +1151,7 @@ Reviewer 必須抽查至少一條全新建置路徑、一條升級路徑、一�
 
 ## 附錄 A：官方與專案依據
 
-## M11 Login／RBAC 啟用手順（預設不啟用）
+### M11 Login／RBAC 啟用手順（預設不啟用）
 
 M11 不更動既有 Pipeline、Canonical JSON 或 V4 Renderer；只在 Web API 加上 EDB 身分、角色與 Customer scope enforcement。既有 `0005_m11` migration 建立 `users`、`customer_memberships`、`user_sessions`、`audit_events`，不得為啟用登入執行 downgrade。
 
