@@ -610,7 +610,7 @@ CLI 直接執行 M1～M8.1，不需要 EDB metadata。
 
 使用者開啟 `http://<APP_VM>:8000/`，選取資料夾後由 M10 確定性 Discovery 提出 hostname、Primary／Standby／DR／Witness、服務、信心與理由。使用者必須核對並勾選確認，系統才建立案件、上傳不可覆寫資料、交由 Worker 執行並提供下載。Discovery 不取代 DBA 決策；Primary 候選不唯一、未知或衝突時必須人工修正。
 
-Discovery API 對非圖片檔一律只取前 512 KiB 作樣本；此規則包含沒有副檔名的客戶 Database Output，例如 `db_einvoice_check`。圖片不解析內容。若樣本有資料庫結構標記且已有唯一 Primary，UI 會預填該 Primary 作為來源候選，但仍必須由工程師確認後才寫入 `job.yaml.evidence_mappings`；無 Primary、多 Primary、PEM backend 或內容不足時不得自動採用。確認紀錄保存在 `job.yaml.topology_confirmation`，`topology.json` 會標記 `operator_confirmed_discovery`。此功能不新增 migration、package 或環境變數；回復至 `m9.6` 不需 database downgrade。
+Discovery API 對非圖片檔一律只取前 512 KiB 作樣本；此規則包含沒有副檔名的客戶 Database Output，例如 `db_einvoice_check`。圖片不解析內容。若樣本有資料庫結構標記且已有唯一 Primary，UI 會預填該 Primary 作為來源候選；若同時偵測到 `pg_stat_replication` 類型區段中有 `walreceiver streaming` 資料列，候選為高信心，因為這是 Primary 對複本回報的 replication evidence。上述所有情況仍必須由工程師確認後才寫入 `job.yaml.evidence_mappings`；無 Primary、多 Primary、PEM backend 或內容不足時不得自動採用。確認紀錄保存在 `job.yaml.topology_confirmation`，`topology.json` 會標記 `operator_confirmed_discovery`。此功能不新增 migration、package 或環境變數；回復至 `m9.6` 不需 database downgrade。
 
 M10.1 對沒有 hostname 的 `ENGDB_check.txt` 類型文字檔進行 Database Output 內容分類。若不能唯一對應節點，畫面會在「Database Output 來源確認」列出候選並要求使用者選擇；結果保存於 `job.yaml.evidence_mappings`，Scope ledger 記錄 `operator_confirmed_evidence_mapping`。候選不等於自動採用，未確認時保持 pending；映射到 Standby／DR／Witness 也不會繞過 Database logical Primary-only policy。
 

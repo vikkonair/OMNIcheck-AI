@@ -116,7 +116,7 @@ def test_discovery_proposes_primary_mapping_for_extensionless_database_output() 
             "db_einvoice_check",
             "資料庫清單\n資料庫訊息查看\ndb_ver | PostgreSQL 16.6\n"
             "List of databases\npg_hba 設定\npg_stat_activity\n"
-            "資料庫同步狀況\nwalreceiver | streaming",
+            "資料庫同步狀況\n123 | postgres | walreceiver | streaming",
         ),
     ])
 
@@ -126,7 +126,7 @@ def test_discovery_proposes_primary_mapping_for_extensionless_database_output() 
         "suggested_domain": "database",
         "suggested_node": "dsc-invdb85",
         "confidence": "high",
-        "reason": "偵測到 5 個資料庫輸出結構標記；來源節點需人工確認",
+        "reason": "偵測到 Primary replication 狀態中有 walreceiver streaming；依唯一 Primary 節點提出來源候選，仍需人工確認",
     }]
 
 

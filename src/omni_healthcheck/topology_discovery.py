@@ -178,6 +178,25 @@ def _service_node_from_path(path: str, nodes: list[dict]) -> tuple[str, str] | N
     return matches[0], service
 
 
+def _database_output_confirms_primary_replication(text: str) -> bool:
+    """Recognize a pg_stat_replication-style Primary output, not a local process list.
+
+    A Primary reports connected Standby application names such as ``walreceiver``
+    in its replication-status query.  A standalone ``walreceiver`` mention is
+    insufficient because it can describe the local process on a Standby.
+    """
+    has_replication_section = bool(re.search(
+        r"資料庫同步狀況|pg_stat_replication|replication\s+status",
+        text,
+        re.IGNORECASE,
+    ))
+    has_streaming_receiver_row = bool(re.search(
+        r"(?im)^\s*\d+\s*\|.*\bwalreceiver\b.*\bstreaming\b",
+        text,
+    ))
+    return has_replication_section and has_streaming_receiver_row
+
+
 def discover_topology(items: list[DiscoveryEvidence]) -> dict:
     """Return role suggestions that must be confirmed by an operator."""
     grouped_text: dict[str, list[str]] = defaultdict(list)
@@ -209,18 +228,22 @@ def discover_topology(items: list[DiscoveryEvidence]) -> dict:
         if score < 2:
             continue
         service_match = _service_node_from_path(item.path, nodes)
+        primary_replication = _database_output_confirms_primary_replication(text)
         suggested_node = service_match[0] if service_match else primary
         reason = (
             f"路徑屬於 {service_match[1]}_check；依唯一 {service_match[1]} Server 節點"
             "判定為其後端資料庫，不納入業務 Primary 資料庫檢查"
             if service_match
+            else "偵測到 Primary replication 狀態中有 walreceiver streaming；"
+            "依唯一 Primary 節點提出來源候選，仍需人工確認"
+            if primary_replication and primary
             else f"偵測到 {score} 個資料庫輸出結構標記；來源節點需人工確認"
         )
         evidence_candidates.append({
             "path": item.path,
             "suggested_domain": "database",
             "suggested_node": suggested_node,
-            "confidence": "high" if service_match or score >= 4 else "medium",
+            "confidence": "high" if service_match or primary_replication or score >= 4 else "medium",
             "reason": reason,
         })
     warnings = []
