@@ -49,6 +49,21 @@ omni-healthcheck-cve-import --sync-nvd --cve-id CVE-2024-4545 \
   --snapshot-output /data/omnicheck/archive/cve/nvd-CVE-2024-4545-$(date +%F).json
 ```
 
+### 公司 App VM systemd 排程
+
+受版控的 `deploy/cve-sync.sh` 依序同步 PostgreSQL Release、PostgreSQL Security CVE 與 EDB EPAS Advisory；每個來源使用 UTC timestamp 檔名保存在 `/data/omnicheck/archive/cve`，不覆寫既有 snapshot。安裝 `deploy/systemd/omnicheck-cve-sync.service` 與 `.timer` 後，每日台北時間 02:15 執行，並加入最多 15 分鐘的隨機延遲以避免固定尖峰。`Persistent=true` 使 VM 在停機後於下次開機補跑。
+
+```bash
+sudo install -o root -g root -m 0644 deploy/systemd/omnicheck-cve-sync.service /etc/systemd/system/
+sudo install -o root -g root -m 0644 deploy/systemd/omnicheck-cve-sync.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start omnicheck-cve-sync.service
+sudo systemctl enable --now omnicheck-cve-sync.timer
+systemctl list-timers omnicheck-cve-sync.timer
+```
+
+NVD 仍是補強 CVSS/CWE 的逐筆工具，未納入此每日 timer；它不會決定 CVE 適用性，也不應阻擋 PostgreSQL／EDB 官方快取的更新。
+
 PostgreSQL 同一 CVE 在不同 Major 的 fixed minor 可不同，Cache 以 `affected_major` 分別保存，不可把 16、17、18 的 fixed version 合併成一條範圍。
 
 ## M13.2：Matcher

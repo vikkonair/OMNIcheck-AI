@@ -662,6 +662,8 @@ Database Output 無副檔名來源候選修正（2026-09-03）：Discovery 前�
 
 公司部署與汎宇驗證（2026-09-03）：release `dff0524` 已部署到 App VM；application rollback=`2e148cb`，無 migration。Web／Worker／`/api/health` 均正常。以失敗 Job `1078412ae8b14b32a1e85962a7956551` 的唯讀輸入直接重跑 Discovery，`db_einvoice_check` 正確提出 `dsc-invdb85`，`confidence=high`，理由為 Primary replication status 中有 `walreceiver streaming`；`can_confirm=true`。舊失敗 Job 保留為稽核紀錄，需以 UI 新建案件並確認候選 mapping 後才可重新執行。
 
+CVE Cache 維運排程（2026-09-03）：新增 `omnicheck-cve-sync.service`／`.timer` 與 `deploy/cve-sync.sh`。Timer 每日 02:15 Asia/Taipei、最多隨機延遲 15 分鐘執行；`Persistent=true` 確保 VM 停機後補跑。同步僅更新 PostgreSQL Release、PostgreSQL Security CVE 與 EDB EPAS Advisory 的 EDB Cache 與不可覆寫 JSON snapshot，報告 Worker 不會連外。NVD CVSS/CWE 補強仍為獨立逐筆工作；不改變 CVE applicability 規則。部署前必須先手動執行 service、確認 Cache source snapshot 新鮮、再 enable timer；application rollback 不需要 EDB downgrade。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |

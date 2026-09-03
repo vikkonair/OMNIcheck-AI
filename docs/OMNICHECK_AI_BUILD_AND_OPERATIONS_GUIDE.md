@@ -1175,6 +1175,8 @@ M11 不更動既有 Pipeline、Canonical JSON 或 V4 Renderer；只在 Web API �
 
 無副檔名 Database Output 修正部署（2026-09-03）：release `dff0524`，application rollback=`2e148cb`，無 migration。Discovery 對非圖片檔讀取前 512 KiB，可辨識 `db_einvoice_check` 類型無副檔名 Database Output；`pg_stat_replication` 類型區段的 `walreceiver streaming` 資料列會對唯一 Primary 提出高信心候選，但仍需工程師確認 mapping。汎宇唯讀 Job `1078412ae8b14b32a1e85962a7956551` 驗證得到 `db_einvoice_check → dsc-invdb85`、`confidence=high`、`can_confirm=true`；Web／Worker／health 通過。公司 VM 隔離目標測試 26 項通過；完整測試應先解除公司即時 EDB／Ollama 環境變數，以避免測試繼承外部服務設定。
 
+CVE Cache 排程（2026-09-03）：安裝 `omnicheck-cve-sync.service` 與 `omnicheck-cve-sync.timer`；每日 02:15 Asia/Taipei 執行並隨機延遲最多 15 分鐘，`Persistent=true` 會在停機後補跑。service 以 `omnicheck` 使用者執行 `deploy/cve-sync.sh`，固定同步 PostgreSQL Release、PostgreSQL Security 與 EDB EPAS Advisory，並將每次原始 JSON snapshot 以 UTC timestamp 寫入 `/data/omnicheck/archive/cve`。先 `systemctl start omnicheck-cve-sync.service` 完成初次同步與快取新鮮度驗證，才可 `enable --now` timer。NVD CVSS/CWE 為逐筆補強，不納入此 timer；報告 Worker 不得連外。
+
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
 - EDB EPAS 17 RHEL 9 安裝（依 CPU architecture 選頁面）：<https://www.enterprisedb.com/docs/epas/17/installing/linux_x86_64/>
 - EDB Failover Manager 安裝與操作：<https://www.enterprisedb.com/docs/efm/latest/installing/>、<https://www.enterprisedb.com/docs/efm/latest/05_using_efm/>
