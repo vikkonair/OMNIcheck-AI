@@ -658,6 +658,8 @@ M11 不更動 M1～M10 Pipeline、Canonical JSON、V4 Renderer 或 Worker scope�
 
 公司部署（2026-08-14）：release `a599a85` 已部署，application rollback=`3cec743`；Web／Worker／health 正常，未登入 `/api/jobs` 仍回 401。無 migration；platform admin 可立即重試建立案件以自動建立所需 Customer/System scope。
 
+Database Output 無副檔名來源候選修正（2026-09-03）：Discovery 前端原本只傳送已知文字副檔名的樣本，導致像 `db_einvoice_check` 的無副檔名 PostgreSQL Output 雖在完整 Pipeline 會被分類為 database，卻無法在確認頁產生 `evidence_mappings`，最後被 Primary evidence quality gate 阻擋。現在前端會對所有非圖片檔傳送前 512 KiB，Discovery 亦可解析無副檔名文字樣本；僅在已有唯一 Primary 且包含 Database Output 結構標記時預填該 Primary 候選，操作人員仍必須確認後才能執行。此修正不改變 Primary-only scope、不新增 migration 或環境變數；application rollback 為本次前一 release。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |

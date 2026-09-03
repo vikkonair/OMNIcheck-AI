@@ -10,7 +10,6 @@ from pathlib import PurePosixPath
 from omni_healthcheck.topology import database_content_score
 
 
-TEXT_EXTENSIONS = {".txt", ".log", ".out", ".sql", ".csv", ".tsv", ".conf"}
 ROLE_ORDER = {"Primary": 0, "Standby": 1, "DR": 2, "Witness": 3, "Unknown": 4}
 
 
@@ -21,9 +20,14 @@ class DiscoveryEvidence:
 
 
 def _safe_text(item: DiscoveryEvidence) -> str:
-    if PurePosixPath(item.path).suffix.casefold() not in TEXT_EXTENSIONS:
-        return ""
-    return item.content.decode("utf-8", errors="ignore")
+    """Decode the bounded browser/API sample regardless of its filename suffix.
+
+    Customer exports commonly omit ``.txt`` (for example ``db_einvoice_check``).
+    Discovery must still be able to classify that bounded sample, but binary files
+    are ignored when their content contains a NUL byte.
+    """
+    text = item.content.decode("utf-8", errors="ignore")
+    return "" if "\x00" in text else text
 
 
 def _hostname_from_path(path: str) -> str | None:

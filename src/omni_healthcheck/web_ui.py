@@ -302,10 +302,13 @@ async function discoverTopology() {
   el('topologyReview').textContent='正在分析檔名、OS、EFM、PEM 與備份服務訊號…';
   el('topologyConfirmed').checked=false; el('topologyConfirmed').disabled=true;
   try {
-    const form=new FormData(); const textExtensions=new Set(['txt','log','out','sql','csv','tsv','conf']);
+    const form=new FormData(); const imageExtensions=new Set(['png','jpg','jpeg','webp','tif','tiff']);
     state.files.forEach(file => {
       const extension=file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
-      const sample=textExtensions.has(extension) ? file.slice(0,512*1024) : new Blob([]);
+      // Some customer Database Output files have no extension. Send a bounded
+      // sample for every non-image file so discovery can propose its source;
+      // the operator still confirms the mapping before upload/execution.
+      const sample=imageExtensions.has(extension) ? new Blob([]) : file.slice(0,512*1024);
       form.append('files',sample,selectedPath(file));
     });
     const result=await api('/api/topology/discover',{method:'POST',body:form}); state.discovery=result;

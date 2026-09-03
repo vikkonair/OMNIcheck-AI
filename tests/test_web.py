@@ -153,6 +153,7 @@ def test_web_ui_exposes_guided_workflow_and_registry_options(tmp_path: Path) -> 
     assert "evidence_mappings" in page.text
     assert "if (discoveredNodes.length) state.nodes=discoveredNodes" in page.text
     assert "請選擇來源節點" in page.text
+    assert "Some customer Database Output files have no extension" in page.text
     assert "updateConfirmationAvailability" in page.text
     assert "exactlyOnePrimary" in page.text
     assert "Section 審核工作台" in page.text
@@ -207,6 +208,15 @@ def test_web_discovers_topology_without_persisting_samples(tmp_path: Path) -> No
                     "text/plain",
                 ),
             ),
+            (
+                "files",
+                (
+                    "db_einvoice_check",
+                    b"\xe8\xb3\x87\xe6\x96\x99\xe5\xba\xab\xe8\xa8\x8a\xe6\x81\xaf\xe6\x9f\xa5\xe7\x9c\x8b\n"
+                    b"db_ver | PostgreSQL 16.6\nList of databases\npg_stat_activity\npg_hba \xe8\xa8\xad\xe5\xae\x9a",
+                    "application/octet-stream",
+                ),
+            ),
         ],
     )
 
@@ -218,6 +228,13 @@ def test_web_discovers_topology_without_persisting_samples(tmp_path: Path) -> No
         "Primary",
         "Standby",
     ]
+    assert body["evidence_candidates"] == [{
+        "path": "db_einvoice_check",
+        "suggested_domain": "database",
+        "suggested_node": "db01",
+        "confidence": "high",
+        "reason": "偵測到 5 個資料庫輸出結構標記；來源節點需人工確認",
+    }]
     assert list(jobs.iterdir()) == []
 
 
