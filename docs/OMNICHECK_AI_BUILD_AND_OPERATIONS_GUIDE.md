@@ -1177,6 +1177,8 @@ M11 不更動既有 Pipeline、Canonical JSON 或 V4 Renderer；只在 Web API �
 
 CVE Cache 排程（2026-09-03）：安裝 `omnicheck-cve-sync.service` 與 `omnicheck-cve-sync.timer`；每日 02:15 Asia/Taipei 執行並隨機延遲最多 15 分鐘，`Persistent=true` 會在停機後補跑。service 以 `omnicheck` 使用者執行 `deploy/cve-sync.sh`，固定同步 PostgreSQL Release、PostgreSQL Security 與 EDB EPAS Advisory，並將每次原始 JSON snapshot 以 UTC timestamp 寫入 `/data/omnicheck/archive/cve`。先 `systemctl start omnicheck-cve-sync.service` 完成初次同步與快取新鮮度驗證，才可 `enable --now` timer。NVD CVSS/CWE 為逐筆補強，不納入此 timer；報告 Worker 不得連外。
 
+實機狀態（2026-09-03 17:50 Asia/Taipei）：首次手動同步已成功完成（PostgreSQL Release 5、PostgreSQL Security CVE 190、EDB EPAS Advisory 11），timer 已 `enabled` 且 `active`。oneshot service 成功後顯示 `inactive (dead)` 屬預期行為；請以 `systemctl list-timers omnicheck-cve-sync.timer --all` 查閱下一次執行時間。
+
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
 - EDB EPAS 17 RHEL 9 安裝（依 CPU architecture 選頁面）：<https://www.enterprisedb.com/docs/epas/17/installing/linux_x86_64/>
 - EDB Failover Manager 安裝與操作：<https://www.enterprisedb.com/docs/efm/latest/installing/>、<https://www.enterprisedb.com/docs/efm/latest/05_using_efm/>

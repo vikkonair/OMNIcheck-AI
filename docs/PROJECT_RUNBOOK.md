@@ -664,6 +664,8 @@ Database Output 無副檔名來源候選修正（2026-09-03）：Discovery 前�
 
 CVE Cache 維運排程（2026-09-03）：新增 `omnicheck-cve-sync.service`／`.timer` 與 `deploy/cve-sync.sh`。Timer 每日 02:15 Asia/Taipei、最多隨機延遲 15 分鐘執行；`Persistent=true` 確保 VM 停機後補跑。同步僅更新 PostgreSQL Release、PostgreSQL Security CVE 與 EDB EPAS Advisory 的 EDB Cache 與不可覆寫 JSON snapshot，報告 Worker 不會連外。NVD CVSS/CWE 補強仍為獨立逐筆工作；不改變 CVE applicability 規則。部署前必須先手動執行 service、確認 Cache source snapshot 新鮮、再 enable timer；application rollback 不需要 EDB downgrade。
 
+CVE Cache 排程實機驗收（2026-09-03 17:50 Asia/Taipei）：App VM 已啟用 `omnicheck-cve-sync.timer`，首次同步成功（PostgreSQL Release 5、PostgreSQL Security CVE 190、EDB EPAS Advisory 11），來源 snapshot 已寫入 `/data/omnicheck/archive/cve`；服務以正常的 oneshot `inactive (dead)` 結束。下一次執行為 2026-09-04 02:15 後加上最多 15 分鐘隨機延遲。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |
