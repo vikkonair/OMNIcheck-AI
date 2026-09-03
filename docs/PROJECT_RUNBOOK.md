@@ -660,6 +660,8 @@ M11 不更動 M1～M10 Pipeline、Canonical JSON、V4 Renderer 或 Worker scope�
 
 Database Output 無副檔名來源候選修正（2026-09-03）：Discovery 前端原本只傳送已知文字副檔名的樣本，導致像 `db_einvoice_check` 的無副檔名 PostgreSQL Output 雖在完整 Pipeline 會被分類為 database，卻無法在確認頁產生 `evidence_mappings`，最後被 Primary evidence quality gate 阻擋。現在前端會對所有非圖片檔傳送前 512 KiB，Discovery 亦可解析無副檔名文字樣本；僅在已有唯一 Primary 且包含 Database Output 結構標記時預填該 Primary 候選。若 `pg_stat_replication` 類型區段含 `walreceiver streaming` 資料列，候選標示為高信心；操作人員仍必須確認後才能執行。此修正不改變 Primary-only scope、不新增 migration 或環境變數；application rollback 為本次前一 release。
 
+公司部署與汎宇驗證（2026-09-03）：release `dff0524` 已部署到 App VM；application rollback=`2e148cb`，無 migration。Web／Worker／`/api/health` 均正常。以失敗 Job `1078412ae8b14b32a1e85962a7956551` 的唯讀輸入直接重跑 Discovery，`db_einvoice_check` 正確提出 `dsc-invdb85`，`confidence=high`，理由為 Primary replication status 中有 `walreceiver streaming`；`can_confirm=true`。舊失敗 Job 保留為稽核紀錄，需以 UI 新建案件並確認候選 mapping 後才可重新執行。
+
 後續架構由 `docs/MILESTONE_ROADMAP.md` 與 `docs/EDB_CENTRIC_AND_CVE_ARCHITECTURE.md` 核准；M10.1 已完成，下列項目為後續方向：
 
 | 階段 | 預計內容 | 達成方式與主要驗收 |

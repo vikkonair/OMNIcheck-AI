@@ -1173,6 +1173,8 @@ M11 不更動既有 Pipeline、Canonical JSON 或 V4 Renderer；只在 Web API �
 
 公司 scope UX 修正部署（2026-08-14）：release `a599a85`，application rollback=`3cec743`；platform admin 首次建立新 Customer/System 的 Job 可自動建立其 EDB scope。Web／Worker／health 與未登入 API 401 均通過；無 migration。
 
+無副檔名 Database Output 修正部署（2026-09-03）：release `dff0524`，application rollback=`2e148cb`，無 migration。Discovery 對非圖片檔讀取前 512 KiB，可辨識 `db_einvoice_check` 類型無副檔名 Database Output；`pg_stat_replication` 類型區段的 `walreceiver streaming` 資料列會對唯一 Primary 提出高信心候選，但仍需工程師確認 mapping。汎宇唯讀 Job `1078412ae8b14b32a1e85962a7956551` 驗證得到 `db_einvoice_check → dsc-invdb85`、`confidence=high`、`can_confirm=true`；Web／Worker／health 通過。公司 VM 隔離目標測試 26 項通過；完整測試應先解除公司即時 EDB／Ollama 環境變數，以避免測試繼承外部服務設定。
+
 - EDB EPAS 17 Linux 安裝：<https://www.enterprisedb.com/docs/epas/17/installing/>
 - EDB EPAS 17 RHEL 9 安裝（依 CPU architecture 選頁面）：<https://www.enterprisedb.com/docs/epas/17/installing/linux_x86_64/>
 - EDB Failover Manager 安裝與操作：<https://www.enterprisedb.com/docs/efm/latest/installing/>、<https://www.enterprisedb.com/docs/efm/latest/05_using_efm/>
