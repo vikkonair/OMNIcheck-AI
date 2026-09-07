@@ -345,6 +345,21 @@ def _candidate_assessment(
         "rarely_used_indexes": ("罕用索引", "確認實際工作負載後再決定是否移除。"),
     }
     label, recommendation = labels[check.check_id]
+    if (
+        check.check_id == "rarely_used_indexes"
+        and check.evidence.rows
+        and check.evidence.rows[0]
+        and check.evidence.rows[0][0].startswith("0 rows（未發現罕用索引）")
+    ):
+        return _assessment(
+            check,
+            status="normal",
+            rule_id="database.rarely_used_indexes.zero_rows.v1",
+            ruleset_version=version,
+            explanation="Primary 罕用索引查詢結果為 0 rows。",
+            conclusion="未發現 idx_scan 為 0 的罕用索引候選。",
+            recommendation="持續於定期健檢中追蹤索引使用情形。",
+        )
     if check.check_id in {"table_bloat", "index_bloat"}:
         headers = [header.casefold().strip() for header in check.evidence.headers]
         bloat_index = next(

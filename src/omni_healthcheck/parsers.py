@@ -531,6 +531,18 @@ class PsqlReportParser:
         return (["Output"], output_rows) if output_rows else None
 
     @staticmethod
+    def _pipe_headers(lines: list[str]) -> list[str] | None:
+        """Return a psql table header even when its query returned zero rows."""
+        for line in lines:
+            if "|" not in line or re.fullmatch(r"[\s+|-]+", line):
+                continue
+            cells = [_redact_secret_text(cell.strip()) for cell in line.split("|")]
+            if cells and cells[0] == "" and cells[-1] == "":
+                cells = cells[1:-1]
+            return cells or None
+        return None
+
+    @staticmethod
     def _apply_policy(
         check_id: str, headers: list[str], rows: list[list[str]]
     ) -> tuple[list[str], list[list[str]]]:
@@ -608,7 +620,18 @@ class PsqlReportParser:
             if parsed is None and any(
                 re.fullmatch(r"\(0 rows?\)", line.strip()) for line in block
             ):
-                parsed = (["結果"], [["0 rows（未發現項目）"]])
+                # The V4 renderer must still see the scan-count header in a
+                # zero-row rarely-used-index query.  Preserve that schema
+                # instead of downgrading it to the generic one-column result.
+                check_id, _ = self.mappings[title]
+                headers = self._pipe_headers(block)
+                if check_id == "rarely_used_indexes" and headers:
+                    parsed = (
+                        headers,
+                        [["0 rows（未發現罕用索引）", *("" for _ in headers[1:])]],
+                    )
+                else:
+                    parsed = (["結果"], [["0 rows（未發現項目）"]])
             if parsed is None:
                 continue
             headers, rows = parsed

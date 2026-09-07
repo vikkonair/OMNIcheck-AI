@@ -177,6 +177,31 @@ def test_filesystem_observes_growth_from_50_and_attention_from_70() -> None:
     assert attention.status == "attention"
 
 
+def test_zero_row_rarely_used_indexes_is_normal() -> None:
+    normalized = NormalizedDocument(
+        pipeline_version="test",
+        checks=[
+            check(
+                "rarely_used_indexes",
+                ["?column?", "indexrelname", "idx_scan"],
+                [["0 rows（未發現罕用索引）", "", ""]],
+                product="EPAS",
+            )
+        ],
+        unparsed_allowed_evidence=[],
+    )
+
+    result = evaluate_rules(
+        normalized,
+        {"parameter_comparisons": [], "pg_hba": {"rules_by_node": {}}},
+        load_rules(ROOT / "config/rules.default.yaml"),
+    ).assessments[0]
+
+    assert result.status == "normal"
+    assert result.trace.rule_id == "database.rarely_used_indexes.zero_rows.v1"
+    assert "未發現 idx_scan 為 0" in result.observation
+
+
 def test_bloat_assessment_lists_every_top_ten_object_above_two() -> None:
     normalized = NormalizedDocument(
         pipeline_version="test",

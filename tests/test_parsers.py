@@ -187,6 +187,26 @@ def test_psql_report_preserves_zero_row_check_as_completed(tmp_path: Path) -> No
     assert by_id["database_locks"].evidence.rows == [["0 rows（未發現項目）"]]
 
 
+def test_psql_report_preserves_scan_header_for_zero_row_rare_indexes(tmp_path: Path) -> None:
+    path = tmp_path / "ENGDB_check.txt"
+    path.write_text(
+        """罕用索引可能清單
+ ?column? | indexrelname | idx_scan | write_activity
+----------+--------------+----------+----------------
+(0 rows)
+""",
+        encoding="utf-8",
+    )
+
+    by_id = {check.check_id: check for check in PsqlReportParser().parse(parser_context(path))}
+    check = by_id["rarely_used_indexes"]
+
+    assert check.evidence.headers == [
+        "?column?", "indexrelname", "idx_scan", "write_activity"
+    ]
+    assert check.evidence.rows == [["0 rows（未發現罕用索引）", "", "", ""]]
+
+
 def test_os_sections_parse_node_local_db_config_from_standby(
     tmp_path: Path,
 ) -> None:

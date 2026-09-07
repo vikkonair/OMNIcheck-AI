@@ -191,6 +191,16 @@ def test_adapter_applies_requested_report_limits_and_database_columns() -> None:
     assert len(indexes["rows"]) == 10
     assert indexes["rows"][0] == ["zero", "0"]
 
+    zero_indexes = _prepare_unit(
+        {
+            "title": "罕用索引",
+            "headers": ["?column?", "indexrelname", "idx_scan"],
+            "rows": [["0 rows（未發現罕用索引）", "", ""]],
+        }
+    )
+    assert zero_indexes["headers"] == ["?column?", "indexrelname", "idx_scan"]
+    assert zero_indexes["rows"] == [["0 rows（未發現罕用索引）", "", ""]]
+
     replication = _prepare_unit(
         {
             "title": "同步狀態",
