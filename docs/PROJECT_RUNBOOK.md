@@ -666,6 +666,8 @@ Database Output 無副檔名來源候選修正（2026-09-03）：Discovery 前�
 
 罕用索引零筆輸出修正（2026-09-07）：Job `4f39af302d6f401887e28ed94e38b57e` 的原始 `idx_scan` 欄位存在，但 `(0 rows)` 被 parser 降成單欄「結果」，使 V4 Renderer 無法驗證 scan column 而中止。現在僅針對零筆 `rarely_used_indexes` 保留原 psql headers、輸出「未發現罕用索引」列，並給予正常 assessment；不影響有資料列時的 `idx_scan=0` 優先排序與前十限制。無 migration。
 
+罕用索引零筆輸出公司部署（2026-09-07）：release `a40bfd2` 已以獨立 virtualenv 通過完整 VM 測試後，透過 deploy lock 原子切換至 `current`；Web／Worker／health 正常。以 Job `4f39af302d6f401887e28ed94e38b57e` 的 immutable input 於獨立暫存目錄重跑，產生 14 個 pipeline outputs、0 pending、V4 delivery allowed，DOCX/PDF 均存在。舊 failed Job 不回寫；application rollback=`99fb49b`。
+
 公司部署與汎宇驗證（2026-09-03）：release `dff0524` 已部署到 App VM；application rollback=`2e148cb`，無 migration。Web／Worker／`/api/health` 均正常。以失敗 Job `1078412ae8b14b32a1e85962a7956551` 的唯讀輸入直接重跑 Discovery，`db_einvoice_check` 正確提出 `dsc-invdb85`，`confidence=high`，理由為 Primary replication status 中有 `walreceiver streaming`；`can_confirm=true`。舊失敗 Job 保留為稽核紀錄，需以 UI 新建案件並確認候選 mapping 後才可重新執行。
 
 CVE Cache 維運排程（2026-09-03）：新增 `omnicheck-cve-sync.service`／`.timer` 與 `deploy/cve-sync.sh`。Timer 每日 02:15 Asia/Taipei、最多隨機延遲 15 分鐘執行；`Persistent=true` 確保 VM 停機後補跑。同步僅更新 PostgreSQL Release、PostgreSQL Security CVE 與 EDB EPAS Advisory 的 EDB Cache 與不可覆寫 JSON snapshot，報告 Worker 不會連外。NVD CVSS/CWE 補強仍為獨立逐筆工作；不改變 CVE applicability 規則。部署前必須先手動執行 service、確認 Cache source snapshot 新鮮、再 enable timer；application rollback 不需要 EDB downgrade。
