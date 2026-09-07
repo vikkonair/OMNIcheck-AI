@@ -662,6 +662,8 @@ Database Output 無副檔名來源候選修正（2026-09-03）：Discovery 前�
 
 單一 Database Output／監控圖片 Primary 映射（2026-09-07）：若整個案件只有一份資料庫邏輯輸出且其節點無法從檔名或內容唯一辨識，Scope Controller 將其映射至已確認的 Primary；同時將 `.png`／`.jpg`／`.jpeg` 等圖檔一律視為 monitoring evidence，因此 `Database Size.jpeg` 會依既有 PEM 圖片規則映射至 Primary。此規則不得覆寫人工 mapping、已辨識的 Standby／DR／Witness 證據，且只要案件含多份 Database Output 就維持 pending、要求人工確認。無 migration 或環境變數變更；application rollback 為本次前一 release。
 
+單一輸出規則公司部署（2026-09-07）：release `99fb49b` 已以獨立 virtualenv 通過公司 VM 完整測試後，持有 `/data/omnicheck/app/deploy.lock` 原子切換至 `current`；Web／Worker／health 均 active，無 migration。以失敗 Job `8701b23b4ba44b26b9b55723ac0743fa` 的 immutable input 唯讀重算，`Database Size.jpeg` 已分類為 monitoring、映射 `vmsdb1 / Primary`、scope decision=`allowed`。舊 failed Job 不回寫；新 Job 或明確重跑才會使用此規則。application rollback=`dff0524`。
+
 公司部署與汎宇驗證（2026-09-03）：release `dff0524` 已部署到 App VM；application rollback=`2e148cb`，無 migration。Web／Worker／`/api/health` 均正常。以失敗 Job `1078412ae8b14b32a1e85962a7956551` 的唯讀輸入直接重跑 Discovery，`db_einvoice_check` 正確提出 `dsc-invdb85`，`confidence=high`，理由為 Primary replication status 中有 `walreceiver streaming`；`can_confirm=true`。舊失敗 Job 保留為稽核紀錄，需以 UI 新建案件並確認候選 mapping 後才可重新執行。
 
 CVE Cache 維運排程（2026-09-03）：新增 `omnicheck-cve-sync.service`／`.timer` 與 `deploy/cve-sync.sh`。Timer 每日 02:15 Asia/Taipei、最多隨機延遲 15 分鐘執行；`Persistent=true` 確保 VM 停機後補跑。同步僅更新 PostgreSQL Release、PostgreSQL Security CVE 與 EDB EPAS Advisory 的 EDB Cache 與不可覆寫 JSON snapshot，報告 Worker 不會連外。NVD CVSS/CWE 補強仍為獨立逐筆工作；不改變 CVE applicability 規則。部署前必須先手動執行 service、確認 Cache source snapshot 新鮮、再 enable timer；application rollback 不需要 EDB downgrade。

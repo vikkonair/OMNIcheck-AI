@@ -616,6 +616,8 @@ M10.1 對沒有 hostname 的 `ENGDB_check.txt` 類型文字檔進行 Database Ou
 
 單一輸出例外：整個案件只有一份 Database logical output，且其節點無法由路徑或內容解析時，Scope Controller 可將其確定性映射到已確認 Primary，並記錄 `policy.single_database_output_defaults_to_primary`。若存在兩份以上 Database output，或來源已明確屬於 Standby／DR／Witness，則不得套用例外、仍須人工確認。所有受支援的圖片副檔名（`.png`、`.jpg`、`.jpeg`、`.webp`、`.tif`、`.tiff`）均為 monitoring evidence；即使檔名是 `Database Size.jpeg` 也採用 `policy.monitoring_images_default_to_primary`，不作為資料庫邏輯輸出。這不會繞過 Primary-only 邏輯資料 Scope。
 
+公司部署驗收（2026-09-07）：release `99fb49b` 已建立獨立 `.venv`、完成 VM 完整測試後以 deploy lock 原子切至 `current`，不執行 migration；Web／Worker 與 `/api/health` 均正常。舊 failed Job 不會被回寫或自動重跑。需要回復時，在 deploy lock 下將 `/data/omnicheck/app/current` symlink 原子切回 `/data/omnicheck/app/releases/dff0524`，再重啟 Web／Worker 並驗證 health。
+
 `<日期>_PEM_check/` 內的 Database Output 是 PEM Server 的後端 PostgreSQL，不是客戶業務 Primary。當案件只有一個承載 PEM 的 Witness 時，Discovery 必須將來源建議為該節點；Scope controller 也會以 `service_path` 與 `policy.pem_backend_database_scope` 再次保護，即使舊案件曾誤存 Primary mapping，仍須排除於業務資料庫評估。若產生重複的 `section_id:node:check_id`，Section Workflow 必須在 EDB persistence 前停止並列出重複 key，不可合併不同來源的資料庫結果。
 
 報告 2.1 的 Database 欄是節點軟體清冊，不是邏輯資料 Scope：Primary／Standby／DR 都顯示案件的 PostgreSQL／EPAS 產品；承載 PEM Server 的 Witness 顯示 `PostgreSQL` backend；只有 EFM 且沒有資料庫服務證據的 Witness 留白。Database／Schema／Table 等後續判斷仍只採 Primary。
