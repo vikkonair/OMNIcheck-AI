@@ -185,6 +185,11 @@ def classify_evidence_domain(relative_path: str, extension: str, content: str = 
     }
     if "healthcheckos" in compact_basename or "healthchekos" in compact_basename:
         return "os"
+    # A raster image is monitoring evidence, even when its caption contains
+    # words such as "Database Size".  It is not database *logical output* and
+    # therefore follows the PEM/monitoring Primary-image policy below.
+    if extension in MONITORING_IMAGE_EXTENSIONS:
+        return "monitoring"
     if "db" in basename_tokens and "check" in basename_tokens:
         return "database"
     if database_content_score(content) >= 2:
@@ -213,8 +218,6 @@ def classify_evidence_domain(relative_path: str, extension: str, content: str = 
         return "os"
     if tokens & DOCUMENT_HINTS or extension in {".docx", ".pdf"}:
         return "document"
-    if extension in MONITORING_IMAGE_EXTENSIONS:
-        return "monitoring"
     return "unknown"
 
 
@@ -275,6 +278,7 @@ def build_topology(job: JobConfig) -> dict:
 def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict:
     evidence = []
     primary = next(node for node in job.nodes if node.role == "Primary")
+    classified = []
     for item in inventory["files"]:
         relative_path = item["path"]
         full_path = input_dir / relative_path
@@ -331,6 +335,40 @@ def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict
                 matched_nodes=[primary.hostname],
                 sources=["policy.monitoring_images_default_to_primary"],
             )
+        classified.append((item, relative_path, domain, resolution))
+
+    # Legacy collections sometimes contain exactly one DB logical-output file
+    # without a hostname in its filename or body.  With one confirmed Primary
+    # and no competing DB-output candidate, it is safe to bind that sole
+    # unresolved output to Primary.  Never override an explicit mapping,
+    # resolved Standby/DR output, or multiple unresolved candidates.
+    database_indexes = [
+        index
+        for index, (_, _, domain, _) in enumerate(classified)
+        if domain == "database"
+    ]
+    unresolved_database_indexes = [
+        index
+        for index, (_, _, domain, resolution) in enumerate(classified)
+        if domain == "database" and resolution.status == "unresolved"
+    ]
+    if len(database_indexes) == 1 and len(unresolved_database_indexes) == 1:
+        index = unresolved_database_indexes[0]
+        item, relative_path, domain, _ = classified[index]
+        classified[index] = (
+            item,
+            relative_path,
+            domain,
+            NodeResolution(
+                hostname=primary.hostname,
+                role=primary.role,
+                status="resolved",
+                matched_nodes=[primary.hostname],
+                sources=["policy.single_database_output_defaults_to_primary"],
+            ),
+        )
+
+    for item, relative_path, domain, resolution in classified:
         decision, reason = scope_decision(domain, resolution)
         evidence.append(
             {
@@ -353,6 +391,7 @@ def build_scope_ledger(input_dir: Path, inventory: dict, job: JobConfig) -> dict
             "include_os_from_all_nodes": job.scope.include_os_from_all_nodes,
             "database_primary_only": job.scope.database_primary_only,
             "monitoring_images_default_to_primary": True,
+            "single_database_output_defaults_to_primary": True,
         },
         "summary": {
             state: sum(item["decision"] == state for item in evidence)

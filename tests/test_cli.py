@@ -58,7 +58,7 @@ def test_generate_writes_inventory_and_warns_for_unknown(
     scope = json.loads(
         (output_dir / "scope-ledger.json").read_text(encoding="utf-8")
     )
-    assert scope["summary"]["pending"] == 2
+    assert scope["summary"]["pending"] == 1
     monitoring = next(
         item for item in scope["evidence"]
         if item["path"] == "monitoring/cpu.png"

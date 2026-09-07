@@ -73,6 +73,61 @@ def test_unresolved_monitoring_image_defaults_to_primary(tmp_path: Path) -> None
     assert item["decision"] == "allowed"
 
 
+def test_database_named_image_is_monitoring_and_defaults_to_primary(tmp_path: Path) -> None:
+    job = load_job(FIXTURE / "job.yaml")
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "Database Size.jpeg").write_bytes(b"monitoring-image")
+
+    inventory = build_inventory(input_dir, job)
+    item = build_scope_ledger(input_dir, inventory, job)["evidence"][0]
+
+    assert item["evidence_domain"] == "monitoring"
+    assert item["node"] == "db-primary"
+    assert item["decision"] == "allowed"
+    assert item["resolution_sources"] == [
+        "policy.monitoring_images_default_to_primary"
+    ]
+
+
+def test_single_unresolved_database_output_defaults_to_primary(tmp_path: Path) -> None:
+    job = load_job(FIXTURE / "job.yaml")
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "legacy-db-check.txt").write_text(
+        "資料庫訊息查看\nList of databases\npg_stat_activity\n",
+        encoding="utf-8",
+    )
+
+    inventory = build_inventory(input_dir, job)
+    item = build_scope_ledger(input_dir, inventory, job)["evidence"][0]
+
+    assert item["evidence_domain"] == "database"
+    assert item["node"] == "db-primary"
+    assert item["node_role"] == "Primary"
+    assert item["decision"] == "allowed"
+    assert item["resolution_sources"] == [
+        "policy.single_database_output_defaults_to_primary"
+    ]
+
+
+def test_multiple_unresolved_database_outputs_stay_pending(tmp_path: Path) -> None:
+    job = load_job(FIXTURE / "job.yaml")
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    for filename in ("legacy-db-a.txt", "legacy-db-b.txt"):
+        (input_dir / filename).write_text(
+            "資料庫訊息查看\nList of databases\npg_stat_activity\n",
+            encoding="utf-8",
+        )
+
+    inventory = build_inventory(input_dir, job)
+    ledger = build_scope_ledger(input_dir, inventory, job)
+
+    assert ledger["summary"]["pending"] == 2
+    assert all(item["decision"] == "pending" for item in ledger["evidence"])
+
+
 def test_topology_records_operator_confirmed_discovery() -> None:
     job = load_job(FIXTURE / "job.yaml")
     raw = job.model_dump(mode="json")

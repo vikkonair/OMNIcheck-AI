@@ -660,6 +660,8 @@ M11 不更動 M1～M10 Pipeline、Canonical JSON、V4 Renderer 或 Worker scope�
 
 Database Output 無副檔名來源候選修正（2026-09-03）：Discovery 前端原本只傳送已知文字副檔名的樣本，導致像 `db_einvoice_check` 的無副檔名 PostgreSQL Output 雖在完整 Pipeline 會被分類為 database，卻無法在確認頁產生 `evidence_mappings`，最後被 Primary evidence quality gate 阻擋。現在前端會對所有非圖片檔傳送前 512 KiB，Discovery 亦可解析無副檔名文字樣本；僅在已有唯一 Primary 且包含 Database Output 結構標記時預填該 Primary 候選。若 `pg_stat_replication` 類型區段含 `walreceiver streaming` 資料列，候選標示為高信心；操作人員仍必須確認後才能執行。此修正不改變 Primary-only scope、不新增 migration 或環境變數；application rollback 為本次前一 release。
 
+單一 Database Output／監控圖片 Primary 映射（2026-09-07）：若整個案件只有一份資料庫邏輯輸出且其節點無法從檔名或內容唯一辨識，Scope Controller 將其映射至已確認的 Primary；同時將 `.png`／`.jpg`／`.jpeg` 等圖檔一律視為 monitoring evidence，因此 `Database Size.jpeg` 會依既有 PEM 圖片規則映射至 Primary。此規則不得覆寫人工 mapping、已辨識的 Standby／DR／Witness 證據，且只要案件含多份 Database Output 就維持 pending、要求人工確認。無 migration 或環境變數變更；application rollback 為本次前一 release。
+
 公司部署與汎宇驗證（2026-09-03）：release `dff0524` 已部署到 App VM；application rollback=`2e148cb`，無 migration。Web／Worker／`/api/health` 均正常。以失敗 Job `1078412ae8b14b32a1e85962a7956551` 的唯讀輸入直接重跑 Discovery，`db_einvoice_check` 正確提出 `dsc-invdb85`，`confidence=high`，理由為 Primary replication status 中有 `walreceiver streaming`；`can_confirm=true`。舊失敗 Job 保留為稽核紀錄，需以 UI 新建案件並確認候選 mapping 後才可重新執行。
 
 CVE Cache 維運排程（2026-09-03）：新增 `omnicheck-cve-sync.service`／`.timer` 與 `deploy/cve-sync.sh`。Timer 每日 02:15 Asia/Taipei、最多隨機延遲 15 分鐘執行；`Persistent=true` 確保 VM 停機後補跑。同步僅更新 PostgreSQL Release、PostgreSQL Security CVE 與 EDB EPAS Advisory 的 EDB Cache 與不可覆寫 JSON snapshot，報告 Worker 不會連外。NVD CVSS/CWE 補強仍為獨立逐筆工作；不改變 CVE applicability 規則。部署前必須先手動執行 service、確認 Cache source snapshot 新鮮、再 enable timer；application rollback 不需要 EDB downgrade。
